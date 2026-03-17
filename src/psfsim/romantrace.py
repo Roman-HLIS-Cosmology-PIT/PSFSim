@@ -1115,7 +1115,9 @@ def _RomanRayBundle(
     return RB
 
 
-def RomanRayBundle(xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, jacobian=None, ovsamp=6):
+def RomanRayBundle(
+    xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, jacobian=None, ovsamp=6, a_lanczos=3
+):
     """
     Carries out trace through RST optics.
 
@@ -1138,6 +1140,8 @@ def RomanRayBundle(xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, ja
         on a square grid. Default is a square grid on the entrance pupil.
     ovsamp : int, optional
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
+    a_lanczos : int, optional
+        The "a" parameter for Lanczos interpolation; this controls the size of the kernel. Default is 3.
 
     Returns
     -------
@@ -1173,7 +1177,6 @@ def RomanRayBundle(xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, ja
     """
 
     RB = _RomanRayBundle(xan, yan, N, usefilter, wl=wl, hasE=hasE, width=width, jacobian=jacobian, hires=None)
-
     # Now figure out which pixels we need to increase the resolution.
     r = 40.0 / width * N  # radius of search in pixels
     rceil = int(np.ceil(r))
@@ -1200,9 +1203,9 @@ def RomanRayBundle(xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, ja
         ovsamp=ovsamp,
     )
     print(n, np.shape(RB_hires.open))
+    print("Lanczos interpolation order:", a_lanczos)
     sub_offsets = np.linspace(-0.5 + 0.5 / ovsamp, 0.5 - 0.5 / ovsamp, ovsamp)
     sx, sy = np.meshgrid(sub_offsets, sub_offsets)
-    a_lanczos = 3
     m_lanczos = 2 * a_lanczos + 1
     # Trying updated Lanczos scheme to weight more pixels without simulating more at hires
     dx_arr = np.arange(-a_lanczos, a_lanczos + 1)
@@ -1211,7 +1214,7 @@ def RomanRayBundle(xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, ja
 
     for i, dx in enumerate(dx_arr):
         for j, dy in enumerate(dy_arr):
-            w = _lanczos_weight((dx + sx).ravel(), (dy + sy).ravel())
+            w = _lanczos_weight((dx + sx).ravel(), (dy + sy).ravel(), a=a_lanczos)
             W_sub[i, j] = w.reshape(ovsamp, ovsamp)
 
     # Normalize weights so that full filter sums to 1
@@ -1220,7 +1223,7 @@ def RomanRayBundle(xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, ja
     # Calculate low res weights for non sub-sampled pixels
     W_low = np.sum(W_sub, axis=(2, 3))
 
-    pad_w = 3
+    pad_w = a_lanczos
     RB_open_padded = np.pad(RB.open, pad_w, mode="edge")
 
     # Map from x,y in spatial coordinates to index in bdycells

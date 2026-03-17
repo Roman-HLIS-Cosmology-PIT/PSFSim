@@ -214,6 +214,7 @@ class GeometricOptics:
         ulen=2048,
         ray_trace=True,
         pixelsampling=1.00,
+        a_lanczos=3,
     ):
         # sca position in mm
         # wavelength in micrometers
@@ -234,6 +235,8 @@ class GeometricOptics:
 
         # Set up u,v array for computations of Zernicke Polynomials
         self.ulen = ulen
+
+        self.a_lanczos = a_lanczos
 
         # Go with some version of centered sampling if not using ray trace
         if not ray_trace:
@@ -345,7 +348,13 @@ class GeometricOptics:
             mat *= np.pi / 180
         elif method == "raytrace":
             raytrace = RomanRayBundle(
-                self.xan, self.yan, 7, self.use_filter, wl=self.wavelength * 0.001, hasE=True
+                self.xan,
+                self.yan,
+                7,
+                self.use_filter,
+                wl=self.wavelength * 0.001,
+                hasE=True,
+                a_lanczos=self.a_lanczos,
             )
             mat = compute_jacobian(
                 raytrace.u,
@@ -403,6 +412,7 @@ class GeometricOptics:
             wl=self.wavelength * 0.001,
             hasE=True,
             jacobian=jacobian,
+            a_lanczos=self.a_lanczos,
         )
         if use_ray_trace:
             mask = rb.open
