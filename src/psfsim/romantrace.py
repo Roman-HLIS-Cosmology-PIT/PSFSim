@@ -1205,7 +1205,7 @@ def RomanRayBundle(
     print(n, np.shape(RB_hires.open))
     print("Lanczos interpolation order:", a_lanczos)
     sub_offsets = np.linspace(-0.5 + 0.5 / ovsamp, 0.5 - 0.5 / ovsamp, ovsamp)
-    sx, sy = np.meshgrid(sub_offsets, sub_offsets)
+    sx, sy = np.meshgrid(sub_offsets, sub_offsets, indexing = 'ij')
     m_lanczos = 2 * a_lanczos + 1
     # Trying updated Lanczos scheme to weight more pixels without simulating more at hires
     dx_arr = np.arange(-a_lanczos, a_lanczos + 1)
@@ -1227,7 +1227,7 @@ def RomanRayBundle(
     RB_open_padded = np.pad(RB.open, pad_w, mode="edge")
 
     # Map from x,y in spatial coordinates to index in bdycells
-    hires_index_map = np.full(RB.open.shape, -1, dtype=int)
+    hires_index_map = np.full(RB.open.shape, -1, dtype=np.int32)
     hires_index_map[bdycells[0], bdycells[1]] = np.arange(len(bdycells[0]))
     hires_map_padded = np.pad(hires_index_map, pad_w, constant_values=-1)
 
