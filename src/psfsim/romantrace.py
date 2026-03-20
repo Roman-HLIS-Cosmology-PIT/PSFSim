@@ -1205,7 +1205,7 @@ def RomanRayBundle(
     print(n, np.shape(RB_hires.open))
     print("Lanczos interpolation order:", a_lanczos)
     sub_offsets = np.linspace(-0.5 + 0.5 / ovsamp, 0.5 - 0.5 / ovsamp, ovsamp)
-    sx, sy = np.meshgrid(sub_offsets, sub_offsets, indexing ="ij")
+    sx, sy = np.meshgrid(sub_offsets, sub_offsets, indexing="ij")
     m_lanczos = 2 * a_lanczos + 1
     # Trying updated Lanczos scheme to weight more pixels without simulating more at hires
     dx_arr = np.arange(-a_lanczos, a_lanczos + 1)
