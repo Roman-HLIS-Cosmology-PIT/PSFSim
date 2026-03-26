@@ -78,9 +78,14 @@ class PolychromaticPSF:
                 )
                 this_psf.get_optical_psf()
                 this_psf.get_image_from_Intensity(centerpix=True, reflect=True, tophat=True)
-                weight = (
-                    self.bandpass(filter_key) * self.sed(wav) if self.sed is not None else 1.0
-                )  # if no SED is provided, assume flat
+                if self.sed is not None:
+                    # Convert wavelength from microns to nm for GalSim Bandpass evaluation
+                    wav_nm = wav * 1e3
+                    bp = self.bandpass[filter_key]
+                    weight = bp(wav_nm) * self.sed(wav)
+                else:
+                    # If no SED is provided, assume flat response
+                    weight = 1.0
 
                 chromatic_psf += (
                     weight * this_psf.detector_image
