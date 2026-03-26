@@ -90,6 +90,12 @@ class PolychromaticPSF:
                 chromatic_psf += (
                     weight * this_psf.detector_image
                 )  # set to the value that should come from Charuhas' branch
-        chromatic_psf /= np.sum(chromatic_psf)
+        total_flux = np.sum(chromatic_psf)
+        if total_flux == 0.0:
+            raise ValueError(
+                f"No flux accumulated in polychromatic PSF; "
+                f"check that the provided wavelengths fall within the '{use_filter}' bandpass."
+            )
+        chromatic_psf /= total_flux
         self.chromatic_psf = chromatic_psf
         return chromatic_psf
