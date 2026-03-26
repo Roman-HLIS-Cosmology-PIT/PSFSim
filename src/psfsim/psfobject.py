@@ -367,7 +367,7 @@ class PSFObject:
 
         return Intensity_integrated  
 
-    def get_image_from_Intensity(self):
+    def get_image_from_Intensity(self, centerpix=True, reflect=True, tophat=True):
 
         """
         Gets the image on the detector from the intensity in the detector by convolving with the MTF of charge diffusion in the HgCdTe layer. This is used to get the final PSF image on the detector after including the effects of charge diffusion.
@@ -383,10 +383,14 @@ class PSFObject:
             self.get_Intensity_in_detector()
 
         self.x_A, self.y_A = wfi.fromSCAtoAnalysis(self.optics.scaNum, self.optics.scaX, self.optics.scaY)  # Center of the PSF in Analysis coordinates
-
-        x_out = (self.x_A//pix)*pix
-        y_out = (self.y_A//pix)*pix
-        self.detector_image = intensity_to_image(self.Intensity_in_detector, x_in = self.x_A, y_in = self.y_A, x_out = x_out, y_out = y_out, n_out = self.postage_stamp_size, dx = self.dx, reflect=True, tophat=True)
+        if centerpix:
+            x_out = (self.x_A//pix)*pix + (0.5*pix)
+            y_out = (self.y_A//pix)*pix + (0.5*pix)
+        else:
+            x_out = self.x_A
+            y_out = self.y_A
+            
+        self.detector_image = intensity_to_image(self.Intensity_in_detector, x_in = self.x_A, y_in = self.y_A, x_out = x_out, y_out = y_out, n_out = self.postage_stamp_size, dx = self.dx, reflect=reflect, tophat=tophat)
 
         return
     
