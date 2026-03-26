@@ -22,15 +22,30 @@ def inBandpass(wav, filter_string):
     """
     wav *= 1e3  # convert to nm for galsim
     bp = galsim.roman.getBandpasses()
-    for key in bp:
-        if filter_string in key:
-            if wav >= bp[key].blue_limit and wav <= bp[key].red_limit:
-                return True, key
-            else:
-                return False, None
-    raise ValueError(f"Filter {filter_string} not found in bandpasses. Available filters are: {bp.keys()}")
 
+    # First, check for an exact match of the filter string to a bandpass key.
+    if filter_string in bp:
+        band = bp[filter_string]
+        if band.blue_limit <= wav <= band.red_limit:
+            return True, filter_string
+        else:
+            return False, None
 
+    # Otherwise, look for all keys that contain the filter_string as a substring.
+    matching_keys = [key for key in bp if filter_string in key]
+    if not matching_keys:
+        raise ValueError(
+            f"Filter {filter_string} not found in bandpasses. Available filters are: {bp.keys()}"
+        )
+
+    # Check each matching key and return True on the first one whose bandpass contains the wavelength.
+    for key in matching_keys:
+        band = bp[key]
+        if band.blue_limit <= wav <= band.red_limit:
+            return True, key
+
+    # If none of the candidate bandpasses contain the wavelength, report that it is out of band.
+    return False, None
 class PolychromaticPSF:
     """
     Class to compute and draw polychromatic PSFs
