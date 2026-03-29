@@ -373,6 +373,18 @@ def unpolarised_mode_decomposition(ux, uy, E0=1.0e10):
     return {"TE": A_TE, "TM": A_TM}
 
 
+def amplitude_ratio(M_matrix, s, alpha, k_0, mu_star, sigma):
+    """ Skeleton for function that computes the ratio of Amplitude_+ to Amplitude_-"""
+    
+    assert M_matrix.shape == (2, 2), f"Expected shape (2, 2), but got {M_matrix.shape}"
+
+    m_11, m_12, m_21, m_22 = M_matrix[0][0], M_matrix[0][1],M_matrix[1][0],M_matrix[1][1]
+
+    numerator = s * np.sqrt(1 - alpha**2) * (m_11 * k_0 * mu_star + m_12 * s * sigma) - (m_21 * k_0 * mu_star + m_22 * s * sigma)
+    denominator =  s * np.sqrt(1 - alpha**2) * (m_11 * k_0 * mu_star + m_12 * s * sigma) + (m_21 * k_0 * mu_star + m_22 * s * sigma)
+    return numerator/denominator
+
+
 class FilterDetector:
     """
     Interference layer class.
