@@ -550,7 +550,8 @@ class RayBundle:
             # S-type direction as a 3D vector
             Sdir = np.cross(norm[:, :, 1:], self.p[:, :, 1:])
             snorm = np.sum(np.abs(Sdir**2), axis=-1) ** 0.5
-            Sdir = Sdir / snorm[:, :, None]
+            phinorm = np.arctan2(norm[:, :, 2], norm[:, :, 1])
+            Sdir = np.where(snorm < 1e-8, np.array([-np.sin(phinorm), np.cos(phinorm), np.zeros_like(phinorm)]), Sdir/snorm[:, :, None])
             del snorm
 
             # P-type directions
