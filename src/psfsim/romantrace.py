@@ -551,7 +551,16 @@ class RayBundle:
             Sdir = np.cross(norm[:, :, 1:], self.p[:, :, 1:])
             snorm = np.sum(np.abs(Sdir**2), axis=-1) ** 0.5
             phinorm = np.arctan2(norm[:, :, 2], norm[:, :, 1])
-            Sdir = np.where(snorm < 1e-8, np.array([-np.sin(phinorm), np.cos(phinorm), np.zeros_like(phinorm)]), Sdir/snorm[:, :, None])
+            # Normalize Sdir safely; avoid division by very small snorm and ensure correct shape
+            fallback = np.stack(
+                [-np.sin(phinorm), np.cos(phinorm), np.zeros_like(phinorm)],
+                axis=-1,
+            )
+            Sdir_unit = np.empty_like(Sdir, dtype=Sdir.dtype)
+            Sdir_unit[...] = fallback
+            mask = snorm >= 1e-8
+            np.divide(Sdir, snorm[:, :, None], out=Sdir_unit, where=mask[:, :, None])
+            Sdir = Sdir_unit
             del snorm
 
             # P-type directions
