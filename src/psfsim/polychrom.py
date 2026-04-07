@@ -46,6 +46,8 @@ def inBandpass(wav, filter_string):
 
     # If none of the candidate bandpasses contain the wavelength, report that it is out of band.
     return False, None
+
+
 class PolychromaticPSF:
     """
     Class to compute and draw polychromatic PSFs
