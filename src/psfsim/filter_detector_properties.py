@@ -373,8 +373,8 @@ def unpolarised_mode_decomposition(ux, uy, E0=1.0e10):
     return {"TE": A_TE, "TM": A_TM}
 
 
-def amplitude_ratio(M_matrix, s, alpha, k_0, mu_star, sigma):
-    """ Skeleton for function that computes the ratio of Amplitude_+ to Amplitude_-"""
+def te_reflection(M_matrix, s, alpha, k_0, mu_star, sigma):
+    """ Skeleton for function that computes the TE mode reflection coefficient"""
     
     assert M_matrix.shape == (2, 2), f"Expected shape (2, 2), but got {M_matrix.shape}"
 
