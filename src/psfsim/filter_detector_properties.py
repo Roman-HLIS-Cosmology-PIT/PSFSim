@@ -374,7 +374,7 @@ def unpolarised_mode_decomposition(ux, uy, E0=1.0e10):
 
 
 def te_reflection_characteristic_matrix(z, k_0, n, theta, mu, epsilon):
-    p = np.sqrt(epsilon/mu)
+    p = np.sqrt(epsilon/mu) * np.cos(theta)
     argunent = k_0 * n * np.cos(theta) * z
     matrix = np.array( [ [np.cos(argument), np.sin(argument) * (1/p) * (-1j)], [np.sin(argument) * (p) * (-1j), np.cos(argument)] ] )
     alpha = n * np.cos(theta)
@@ -382,7 +382,7 @@ def te_reflection_characteristic_matrix(z, k_0, n, theta, mu, epsilon):
 
 
 def tm_reflection_characteristic_matrix(z, k_0, n, theta, mu, epsilon):
-    q = np.sqrt(mu/epsilon)
+    q = np.sqrt(mu/epsilon) * np.cos(theta)
     argunent = k_0 * n * np.cos(theta) * z
     matrix = np.array( [ [np.cos(argument), np.sin(argument) * (1/q) * (-1j)], [np.sin(argument) * (q) * (-1j), np.cos(argument)] ] )
     alpha = n * np.cos(theta)
