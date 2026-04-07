@@ -2,6 +2,7 @@
 
 import numpy as np
 from psfsim import filter_detector_properties as fdp
+from psfsim import polarisation_decomposition as poldec
 
 
 def test_indices():
@@ -27,7 +28,7 @@ def test_rotation():
     # Rotation of longitude between FPA (x,y,z) and plane of incidence coordinates.
     s_ = -0.2 * np.arange(-2, 3)
     ux, uy = np.meshgrid(s_, s_)
-    RT = fdp.local_to_fpa_rotation(ux, uy, 1)
+    RT = poldec.local_to_fpa_rotation(ux, uy, 1)
     assert np.shape(RT) == (5, 5, 3, 3)
     assert np.all(
         np.abs(
@@ -36,7 +37,7 @@ def test_rotation():
         )
         < 1e-5
     )
-    RT = fdp.local_to_fpa_rotation(ux, uy, -1)
+    RT = poldec.local_to_fpa_rotation(ux, uy, -1)
     assert np.all(
         np.abs(
             RT[0, 1, :, :]
@@ -63,7 +64,7 @@ def test_rotation():
     assert np.all(np.abs(ux * Ex + uy * Ey + w * Ez) < 1e-10)
 
     # Now convert to TE, TM
-    d = fdp.polarisation_mode_decomposition(ux, uy, Ex, Ey, Ez, 1)
+    d = poldec.polarisation_mode_decomposition(ux, uy, Ex, Ey, Ez, 1)
 
     print(d["TE"][0, 1], d["TM"][0, 1])
 
