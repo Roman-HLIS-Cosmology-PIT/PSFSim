@@ -1,11 +1,10 @@
 """Functions to handle the multi-layer AR coating and propagation in detector material."""
 
-import time
 
 import numpy as np
 from numpy import newaxis as na
-from .polarisation_decomposition import local_to_fpa_rotation  
 
+from .polarisation_decomposition import local_to_fpa_rotation
 
 ### begin materials
 

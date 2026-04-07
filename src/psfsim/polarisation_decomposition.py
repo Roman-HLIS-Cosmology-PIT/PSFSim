@@ -1,9 +1,10 @@
-""" Functions to handle decomposition of (un)polarised E fields into TE and TM modes and rotation of E field components from local coordinates to focal plane coordinates. """
-
+""" Functions to handle decomposition of (un)polarised E fields into TE and TM modes and
+rotation of E field components from local coordinates to focal plane coordinates. """
 
 import time
+
 import numpy as np
-from numpy import newaxis as na
+
 
 def local_to_fpa_rotation(ux, uy, sgn):
     """
@@ -199,4 +200,3 @@ def unpolarised_mode_decomposition(ux, uy, E0=1.0e10):
     end_time = time.time()
     print(f"Finished computing polarisation mode decomposition in {end_time-start_time:.3f}")
     return {"TE": A_TE, "TM": A_TM}
-

@@ -1,29 +1,28 @@
 # from numba import njit, prange
-import time
-from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 from numpy import newaxis as na
 from scipy.fft import ifft2
-from scipy.signal import fftconvolve
 
 from . import wfi_coordinate_transformations as wfi
 from .filter_detector_properties import FilterDetector
 from .mtf_diffusion import intensity_to_image
 from .opticspsf import GeometricOptics
-from .zernike import noll_to_zernike, zernike
 from .polarisation_decomposition import polarisation_mode_decomposition
 from .wfi_data import pix
+from .zernike import noll_to_zernike, zernike
 
 c = 3.0e8  # speed of light in m/s
 epsilon_0 = 8.8541878188e-12  # permittivity of free space in F/m
 
 
+'''
 def parallel_MTF_image(args):
     """Wrapper for MTF_image"""
 
     xd, yd, imageX, imageY, Intensity_integrated, npix_boundary = args
     return MTF_image(xd, yd, imageX, imageY, Intensity_integrated, npix_boundary)
+'''
 
 
 default_interference_filter = FilterDetector([1.5, 1.43, 2.0], [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0], 1)
@@ -56,11 +55,16 @@ class PSFObject:
     add_focus : variable
         Parameter for adding focus.
     detector_thickness : float, optional
-        Thickness of the detector in microns. This is used to compute the electric field and intensity within the detector.
+        Thickness of the detector in microns. This is used to compute the electric field
+        and intensity within the detector.
     zlen : int, optional
-        Number of points along the z-axis (depth) within the detector to compute the electric field and intensity. This is used to compute the electric field and intensity within the detector.
+        Number of points along the z-axis (depth) within the detector to compute the
+        electric field and intensity. This is used to compute the electric field
+        and intensity within the detector.
     interference_filter : psfsim.filter_detector_properties.FilterDetector, optional
-        The interference filter object to use for computing the transmitted electric field and intensity within the detector. Defaults to the interference filter specified above as `default_interference_filter` if unspecified.
+        The interference filter object to use for computing the transmitted electric field
+        and intensity within the detector. Defaults to the interference filter specified
+        above as `default_interference_filter` if unspecified.
 
 
     Attributes
@@ -287,24 +291,23 @@ class PSFObject:
 
         return
 
-
-
-      
-    
     def get_Intensity_in_detector(self, nworkers=8):
         """
-        Gets the total intensity of the h-polarised and v-polarised E-fields in the detector, integrated over the depth of the detector, after the optical PSF has been computed
+        Gets the total intensity of the h-polarised and v-polarised E-fields in the
+        detector, integrated over the depth of the detector, after the optical PSF has been computed
 
-        Parameters 
+        Parameters
         ----------
         nworkers : int, optional
-            The number of workers to use for parallel processing when computing the intensity in the detector. This is used in the `get_Intensity_from_E` function which is called within this function.
+            The number of workers to use for parallel processing when computing the intensity
+            in the detector. This is used in the `get_Intensity_from_E` function which is called
+            within this function.
 
         """
 
         # Check if Optical_PSF has been computed, if not, compute Optical_PSF
-        if not hasattr(self, 'Optical_PSF'):
-            self.get_optical_psf()  
+        if not hasattr(self, "Optical_PSF"):
+            self.get_optical_psf()
 
         # Get the TE and TM mode amplitudes for the h-polarized and v-polarized E-fields
         TE_TM_h_polarized = polarisation_mode_decomposition(self.ux, self.uy, self.E_FPA_h_polarized, sgn=1)
@@ -312,10 +315,12 @@ class PSFObject:
 
         A_TE_h = TE_TM_h_polarized["TE"]
         A_TM_h = TE_TM_h_polarized["TM"]
-        A_TE_v = TE_TM_v_polarized["TE"]    
+        A_TE_v = TE_TM_v_polarized["TE"]
         A_TM_v = TE_TM_v_polarized["TM"]
 
-        # Obtain the integrated intensity in the detector for the h-polarized and v-polarized E-fields by calling get_Intensity_from_E with the corresponding TE and TM mode amplitudes for the h-polarized and v-polarized E-fields.
+        # Obtain the integrated intensity in the detector for the h-polarized and v-polarized E-fields
+        # by calling get_Intensity_from_E with the corresponding TE and TM mode amplitudes for
+        # the h-polarized and v-polarized E-fields.
         Intensity_integrated_h = self.get_Intensity_from_E(A_TE=A_TE_h, A_TM=A_TM_h, nworkers=nworkers)
         Intensity_integrated_v = self.get_Intensity_from_E(A_TE=A_TE_v, A_TM=A_TM_v, nworkers=nworkers)
 
@@ -325,9 +330,11 @@ class PSFObject:
 
         return
 
-    def get_Intensity_from_E(self, A_TE=1.e10, A_TM=1.e10, nworkers=8):
+    def get_Intensity_from_E(self, A_TE=1.0e10, A_TM=1.0e10, nworkers=8):
         """
-        Gets the intensity from the electric field amplitudes in TE and TM modes. This is used to get the intensity in the detector after passing through the interference filter.
+        Gets the intensity from the electric field amplitudes in TE and TM modes.
+        This is used to get the intensity in the detector after passing through the
+        interference filter.
 
         Parameters
         ----------
@@ -336,12 +343,15 @@ class PSFObject:
         A_TM : np.ndarray of complex of shape same as `ux` and `uy`
             The TM mode amplitude.
         nworkers : int, optional
-            The number of workers to use for parallel processing when computing the inverse fourier transforms of the E-field from wave-number space to FPA postage stamp coordinates. 
+            The number of workers to use for parallel processing when computing the
+            inverse fourier transforms of the E-field from wave-number space to FPA
+            postage stamp coordinates.
 
         Returns
         -------
         Intensity_integrated : np.ndarray of float of shape same as `ux` and `uy`
-            The intensity in the detector, integrated over the depth of the detector, after passing through the interference filter.
+            The intensity in the detector, integrated over the depth of the detector,
+            after passing through the interference filter.
         """
 
         filter = self.interference_filter
@@ -350,12 +360,9 @@ class PSFObject:
         Ey = E[1]
         Ez = E[2]
 
-        
-
         Ex *= self.prefactor[:, :, na]
         Ey *= self.prefactor[:, :, na]
         Ez *= self.prefactor[:, :, na]
-
 
         Ex_postage_stamp = ifft2(Ex, axes=(0, 1), workers=nworkers)
         Ey_postage_stamp = ifft2(Ey, axes=(0, 1), workers=nworkers)
@@ -365,12 +372,13 @@ class PSFObject:
 
         Intensity_integrated = np.trapz(Intensity, x=self.z_array, axis=2)
 
-        return Intensity_integrated  
+        return Intensity_integrated
 
     def get_image_from_Intensity(self, centerpix=True, reflect=True, tophat=True):
-
         """
-        Gets the image on the detector from the intensity in the detector by convolving with the MTF of charge diffusion in the HgCdTe layer. This is used to get the final PSF image on the detector after including the effects of charge diffusion.
+        Gets the image on the detector from the intensity in the detector by convolving with
+        the MTF of charge diffusion in the HgCdTe layer. This is used to get the final PSF
+        image on the detector after including the effects of charge diffusion.
 
         Returns
         -------
@@ -379,24 +387,34 @@ class PSFObject:
         """
 
         # Check if Intensity_in_detector has been computed, if not, compute Intensity_in_detector
-        if not hasattr(self, 'Intensity_in_detector'):
+        if not hasattr(self, "Intensity_in_detector"):
             self.get_Intensity_in_detector()
 
-        self.x_A, self.y_A = wfi.fromSCAtoAnalysis(self.optics.scaNum, self.optics.scaX, self.optics.scaY)  # Center of the PSF in Analysis coordinates
+        self.x_A, self.y_A = wfi.fromSCAtoAnalysis(
+            self.optics.scaNum, self.optics.scaX, self.optics.scaY
+        )  # Center of the PSF in Analysis coordinates
         if centerpix:
-            x_out = (self.x_A//pix)*pix + (0.5*pix)
-            y_out = (self.y_A//pix)*pix + (0.5*pix)
+            x_out = (self.x_A // pix) * pix + (0.5 * pix)
+            y_out = (self.y_A // pix) * pix + (0.5 * pix)
         else:
             x_out = self.x_A
             y_out = self.y_A
-            
-        self.detector_image = intensity_to_image(self.Intensity_in_detector, x_in = self.x_A, y_in = self.y_A, x_out = x_out, y_out = y_out, n_out = self.postage_stamp_size, dx = self.dx, reflect=reflect, tophat=tophat)
+
+        self.detector_image = intensity_to_image(
+            self.Intensity_in_detector,
+            x_in=self.x_A,
+            y_in=self.y_A,
+            x_out=x_out,
+            y_out=y_out,
+            n_out=self.postage_stamp_size,
+            dx=self.dx,
+            reflect=reflect,
+            tophat=tophat,
+        )
 
         return
-    
 
-
-    #def get_detector_image3(self):
+    # def get_detector_image3(self):
     #    """
     #    Returns the postage_stamp_size x postage_stamp_size detector image as a 2D array of intensity values.
     #    """
@@ -416,7 +434,7 @@ class PSFObject:
 
     #    # MTF_array = np.zeros_like(self.sX, dtype=np.float64)
 
-    #def get_detector_image2(self):
+    # def get_detector_image2(self):
     #    """
     #    Returns the postage_stamp_size x postage_stamp_size detector image as a 2D array of intensity values.
     #    """
@@ -455,7 +473,7 @@ class PSFObject:
     #    result = MTF_SCA_postage_stamp(imageX, imageY, xD, yD, self.Intensity_integrated, self.npix_boundary)
     #    self.detector_image2 = result
 
-    #def get_detector_image(self, nworkers=8, chunk_size=1):
+    # def get_detector_image(self, nworkers=8, chunk_size=1):
     #    """
     #    Returns the postage_stamp_size x postage_stamp_size detector image as a 2D array of intensity values.
     #    """
@@ -520,15 +538,15 @@ class PSFObject:
     #    detector_image *= mask
     #    self.detector_image = detector_image
 
-    #def get_E_in_detector(self, filter=interference_filter, detector_thickness=2, zlen=20, nworkers=8):
-    #    
+    # def get_E_in_detector(self, filter=interference_filter, detector_thickness=2, zlen=20, nworkers=8):
+    #
 
     #    # Check is self.A_TE_h and self.A_TM_h exist, if not call get_TE_TM_modes
     #    if not hasattr(self, 'A_TE_h') or not hasattr(self, 'A_TM_h'):
-    #        self.get_TE_TM_modes(filter=filter, detector_thickness=detector_thickness, zlen=zlen, nworkers=nworkers)
+    #        self.get_TE_TM_modes(filter=filter,
+    # detector_thickness=detector_thickness, zlen=zlen, nworkers=nworkers)
 
-
-    #    
+    #
     #    # dZ = z_array[1] - z_array[0]
     #    # ulen = self.optics.ulen
 
@@ -537,10 +555,8 @@ class PSFObject:
     #    # uX, uY = np.meshgrid(uX, uY, indexing='ij')
     #    # uX, uY = np.meshgrid(self.uX, self.uY, indexing='ij')
 
-
-
-
-    #    E_h_polarized = filter.Transmitted_E(self.wavelength, self.ux, self.uy, self.z_array, A_TE=self.A_TE_h, A_TM=self.A_TM_h)
+    #    E_h_polarized = filter.Transmitted_E(self.wavelength, self.ux,
+    # self.uy, self.z_array, A_TE=self.A_TE_h, A_TM=self.A_TM_h)
     #    Ex_h = E_h_polarized[0]
     #    Ey_h = E_h_polarized[1]
     #    Ez_h = E_h_polarized[2]
@@ -561,14 +577,13 @@ class PSFObject:
     #    Ey_h_postage_stamp = ifft2(Ey_h, axes=(0, 1), workers=nworkers)
     #    Ez_h_postage_stamp = ifft2(Ez_h, axes=(0, 1), workers=nworkers)
 
-    #    Intensity_h = (abs(Ex_h_postage_stamp) ** 2) + (abs(Ey_h_postage_stamp) ** 2) + (abs(Ez_h_postage_stamp) ** 2)
-
+    #    Intensity_h = (abs(Ex_h_postage_stamp) ** 2) + (
+    # abs(Ey_h_postage_stamp) ** 2) + (abs(Ez_h_postage_stamp) ** 2)
 
     #    self.Filtered_PSF_h = Intensity_h[:, :, 0]  # /np.sum(Intensity_h[:,:,0]*self.dsX*self.dsY)
     #    # Filtered PSF normalise to total flux of 1 (introduced only for testing purposes)
     #    # self.Filtered_PSF *= np.sum(self.dsX*self.dsY)
     #    self.Intensity_h = Intensity_h
     #    self.Intensity_integrated_h = np.trapz(Intensity_h, x=self.z_array, axis=2)
-
 
     #    return
