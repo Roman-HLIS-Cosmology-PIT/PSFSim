@@ -394,27 +394,68 @@ class GeometricOptics:
         """
 
         jacobian = np.linalg.inv(-self.pupilLength * self.distortionMatrix)
-        self.rb = rb = RomanRayBundle(
-            self.xan,
-            self.yan,
-            self.pupilSampling,
-            self.use_filter,
-            width=self.samplingwidth,
-            wl=self.wavelength * 0.001,
-            hasE=True,
-            jacobian=jacobian,
-        )
+
         if use_ray_trace:
-            mask = rb.open
-            self.pupil_mask_u = rb.u
-            self.pupil_mask_s = rb.s
-            self.pupil_mask_xin = rb.xyi
-            self.pupil_mask_xout = rb.x_out
+            # First pass traces with a bounding pupil size to
+            # determine actual pupil extent. Low res ray trace.
+            rb_initial = RomanRayBundle(
+                self.xan,
+                self.yan,
+                128,  # lower res to speed up initial pass
+                self.use_filter,
+                width=3000.0,
+                wl=self.wavelength * 0.001,
+                hasE=True,
+                jacobian=jacobian,
+            )
+
+            # Find bounding box of open pupil
+            open_indices = np.where(rb_initial.open)
+            if len(open_indices[0]) > 0:
+                y_min, y_max = open_indices[0].min(), open_indices[0].max()
+                x_min, x_max = open_indices[1].min(), open_indices[1].max()
+                # Add a small margin
+                margin = 10
+                y_min = max(0, y_min - margin)
+                y_max = min(127, y_max + margin)
+                x_min = max(0, x_min - margin)
+                x_max = min(127, x_max + margin)
+
+                # Calculate bounding width in mm
+                pupil_width_pixels = max(x_max - x_min, y_max - y_min)
+                bounded_width = 3000.0 * pupil_width_pixels / 128.0
+                print(f"Bounding pupil width determined from initial ray trace: {bounded_width:.2f} mm")
+            else:
+                bounded_width = self.samplingwidth
+
+            # Scale pupilSampling proportionally to maintain same physical resolution
+            width_ratio = bounded_width / self.samplingwidth
+            scaled_pupilSampling = max(1, int(np.round(self.pupilSampling * width_ratio)))
+
+            # Second pass: trace at full resolution with bounded width
+            self.rb = RomanRayBundle(
+                self.xan,
+                self.yan,
+                scaled_pupilSampling,
+                self.use_filter,
+                width=bounded_width,
+                wl=self.wavelength * 0.001,
+                hasE=True,
+                jacobian=jacobian,
+            )
+
+            self.rb = self.rb.pad(self.ulen)
+            mask = self.rb.open
+            self.pupil_mask_u = self.rb.u
+            self.pupil_mask_s = self.rb.s
+            self.pupil_mask_xin = self.rb.xyi
+
         else:
             dirName = "./stpsf-data/WFI/pupils/"
             pupilMaskString = f"SCA{self.scanum}_full_mask.fits.gz"
             file = fits.open(dirName + pupilMaskString)
             mask = file[0].data
+
         return mask
 
     def path_diff(self):

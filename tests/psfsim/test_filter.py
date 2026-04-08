@@ -63,7 +63,7 @@ def test_rotation():
     print(Ex[0, 1], Ey[0, 1], Ez[0, 1])
     assert np.all(np.abs(ux * Ex + uy * Ey + w * Ez) < 1e-10)
 
-    # Construct the incident electric field 
+    # Construct the incident electric field
     E_field = np.stack((Ex, Ey, Ez), axis=-1)
 
     # Now convert to TE, TM

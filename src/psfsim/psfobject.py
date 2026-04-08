@@ -355,7 +355,7 @@ class PSFObject:
         """
 
         filter = self.interference_filter
-        E = filter.Transmitted_E(self.wavelength, self.ux, self.uy, self.z_array, A_TE=A_TE, A_TM=A_TM)
+        E = filter.transmitted_E(self.wavelength, self.ux, self.uy, self.z_array, A_TE=A_TE, A_TM=A_TM)
         Ex = E[0]
         Ey = E[1]
         Ez = E[2]
@@ -390,8 +390,8 @@ class PSFObject:
         if not hasattr(self, "Intensity_in_detector"):
             self.get_Intensity_in_detector()
 
-        self.x_A, self.y_A = wfi.fromSCAtoAnalysis(
-            self.optics.scaNum, self.optics.scaX, self.optics.scaY
+        self.x_A, self.y_A = wfi.from_sca_to_analysis(
+            self.optics.scanum, self.optics.scax, self.optics.scay
         )  # Center of the PSF in Analysis coordinates
         if centerpix:
             x_out = (self.x_A // pix) * pix + (0.5 * pix)
