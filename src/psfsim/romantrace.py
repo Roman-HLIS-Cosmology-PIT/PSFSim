@@ -1246,7 +1246,7 @@ def RomanRayBundle(xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, ja
 
     # force to zeros where closed
     for i in range(2):
-        for j in range(2):
+        for j in range(4):
             RB.E[:, :, i, j] = np.where(RB.open > 1e-16, RB.E[:, :, i, j], 0.0)
 
     return RB

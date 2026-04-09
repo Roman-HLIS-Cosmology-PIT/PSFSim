@@ -254,11 +254,11 @@ class PSFObject:
 
         E_FPA_h_polarized = self.prefactor[:, :, np.newaxis] * self.E_FPA_h_polarized
         E_FPA_v_polarized = self.prefactor[:, :, np.newaxis] * self.E_FPA_v_polarized
-
-        r = np.array(
-            [self.ux, self.uy, np.sqrt(np.clip(1 - self.u**2, 0.0, None))]
-        )  # define a vector along propagation direction
-        r = r.reshape(self.ux.shape[0], self.ux.shape[1], 3)  # reshape to be compatible with E
+        r = np.zeros((self.ux.shape[0], self.ux.shape[1], 3))
+        r[:, :, 0] = self.ux
+        r[:, :, 1] = self.uy
+        r[:, :, 2] = np.sqrt(np.clip(1 - self.u**2, 0.0, None))
+        # r = r.reshape(self.ux.shape[0], self.ux.shape[1], 3)  # reshape to be compatible with E
         cB_FPA_h_polarized = np.cross(r, E_FPA_h_polarized)
         cB_FPA_v_polarized = np.cross(r, E_FPA_v_polarized)
 
