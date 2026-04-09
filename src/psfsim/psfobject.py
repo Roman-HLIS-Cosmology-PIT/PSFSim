@@ -115,6 +115,7 @@ class PSFObject:
         self.ulen = 2048  # default value
         if use_postage_stamp_size:
             self.ulen = use_postage_stamp_size
+        self.oversamp = ovsamp
 
         self.optics = GeometricOptics(
             scanum,
@@ -124,7 +125,7 @@ class PSFObject:
             use_filter=use_filter,
             ulen=self.ulen,
             ray_trace=ray_trace,
-            pixelsampling=10.0 / ovsamp,
+            pixelsampling=10.0 / self.oversamp,
         )
         self.ux, self.uy = (
             self.optics.u_array(),
@@ -380,6 +381,18 @@ class PSFObject:
         the MTF of charge diffusion in the HgCdTe layer. This is used to get the final PSF
         image on the detector after including the effects of charge diffusion.
 
+        Parameters
+        ----------
+        centerpix : bool, optional
+            Whether to center the PSF on a pixel.
+        reflect : bool, optional
+            Whether to reflect the PSF.
+        tophat : bool, optional
+            Whether to use a tophat function.
+        oversampling : int, optional
+            The oversampling factor.
+
+
         Returns
         -------
         detector_image : np.ndarray of float of shape (postage_stamp_size, postage_stamp_size)
@@ -406,7 +419,7 @@ class PSFObject:
             y_in=self.y_A,
             x_out=x_out,
             y_out=y_out,
-            n_out=self.postage_stamp_size,
+            n_out=self.postage_stamp_size*self.oversamp,
             dx=self.dx,
             reflect=reflect,
             tophat=tophat,

@@ -32,6 +32,6 @@ def test_psfobject():
     assert np.all(obj.Optical_PSF >= -1e-3)
 
     obj.get_image_from_Intensity()
-    assert obj.detector_image.shape == (obj.postage_stamp_size, obj.postage_stamp_size)
+    assert obj.detector_image.shape == (obj.postage_stamp_size*n, obj.postage_stamp_size*n)
     assert np.all(obj.detector_image >= 0)
     # assert obj.npix_boundary == -1 # <-- used to force failure so we can look at the logs
