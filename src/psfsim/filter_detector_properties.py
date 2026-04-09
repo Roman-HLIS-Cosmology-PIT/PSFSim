@@ -407,7 +407,7 @@ def tm_reflection_characteristic_matrix(d, k_0, n, theta, mu, epsilon):
             matrix = characteristic matrix (TM)
             alpha = index of refraction * sin(theta)
     """
-    q = np.sqrt(mu/epsilon) * np.cos(theta)
+    q = np.emath.sqrt(mu/epsilon) * np.cos(theta)
     argument = k_0 * n * np.cos(theta) * d
     matrix = np.array( [ [np.cos(argument), np.sin(argument) * (1/q) * (-1j)], [np.sin(argument) * (q) * (-1j), np.cos(argument)] ] )
     alpha = n * np.sin(theta)
