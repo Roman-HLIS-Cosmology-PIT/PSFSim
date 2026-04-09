@@ -390,7 +390,8 @@ def te_reflection_characteristic_matrix(d, k_0, n, theta, mu, epsilon):
     argument = k_0 * n * np.cos(theta) * d
     matrix = np.array( [ [np.cos(argument), np.sin(argument) * (1/p) * (-1j)], [np.sin(argument) * (p) * (-1j), np.cos(argument)] ] )
     alpha = n * np.sin(theta)
-    return matrix, alpha
+    sigma = k_0 * np.emath.sqrt(n**2 - alpha**2)
+    return matrix, alpha, sigma
 
 
 def tm_reflection_characteristic_matrix(d, k_0, n, theta, mu, epsilon):
@@ -410,18 +411,30 @@ def tm_reflection_characteristic_matrix(d, k_0, n, theta, mu, epsilon):
     argument = k_0 * n * np.cos(theta) * d
     matrix = np.array( [ [np.cos(argument), np.sin(argument) * (1/q) * (-1j)], [np.sin(argument) * (q) * (-1j), np.cos(argument)] ] )
     alpha = n * np.sin(theta)
-    return matrix, alpha
+    sigma = k_0 * np.emath.sqrt(n**2 - alpha**2)
+    return matrix, alpha, sigma
 
 
-def te_reflection(M_matrix, s, alpha, k_0, mu_star, sigma):
+def te_reflection_coefficient(M_matrix, s, alpha, k_0, mu_star, sigma):
     """ Skeleton for function that computes the TE mode reflection coefficient"""
     
     assert M_matrix.shape == (2, 2), f"Expected shape (2, 2), but got {M_matrix.shape}"
 
     m_11, m_12, m_21, m_22 = M_matrix[0][0], M_matrix[0][1],M_matrix[1][0],M_matrix[1][1]
 
-    numerator = s * np.sqrt(1 - alpha**2) * (m_11 * k_0 * mu_star + m_12 * s * sigma) - (m_21 * k_0 * mu_star + m_22 * s * sigma)
-    denominator =  s * np.sqrt(1 - alpha**2) * (m_11 * k_0 * mu_star + m_12 * s * sigma) + (m_21 * k_0 * mu_star + m_22 * s * sigma)
+    numerator = s * np.emath.sqrt(1 - alpha**2) * (m_11 * k_0 * mu_star + m_12 * s * sigma) - (m_21 * k_0 * mu_star + m_22 * s * sigma)
+    denominator =  s * np.emath.sqrt(1 - alpha**2) * (m_11 * k_0 * mu_star + m_12 * s * sigma) + (m_21 * k_0 * mu_star + m_22 * s * sigma)
+    return numerator/denominator
+
+def tm_reflection_coefficient(M_matrix, s, alpha, k_0, epsilon_star, sigma):
+    """ Skeleton for function that computes the TM mode reflection coefficient, mu_star -> - epsilon_star"""
+    
+    assert M_matrix.shape == (2, 2), f"Expected shape (2, 2), but got {M_matrix.shape}"
+
+    m_11, m_12, m_21, m_22 = M_matrix[0][0], M_matrix[0][1],M_matrix[1][0],M_matrix[1][1]
+
+    numerator = s * np.emath.sqrt(1 - alpha**2) * (m_11 * k_0 * (-1)*epsilon_star + m_12 * s * sigma) - (m_21 * k_0 * (-1)*epsilon_star + m_22 * s * sigma)
+    denominator =  s * np.emath.sqrt(1 - alpha**2) * (m_11 * k_0 * (-1)*epsilon_star + m_12 * s * sigma) + (m_21 * k_0 * (-1)*epsilon_star + m_22 * s * sigma)
     return numerator/denominator
 
 
