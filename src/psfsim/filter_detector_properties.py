@@ -376,18 +376,18 @@ def unpolarised_mode_decomposition(ux, uy, E0=1.0e10):
 def te_reflection_characteristic_matrix(d, k_0, n, theta, mu, epsilon):
     """ TE mode characteristic matrix
         Params:
-            d = Thickness d of the thin film (float)
-            k_0 = vacuum wave vector (float)
+            d = Thickness d of the thin film (float) in nm
+            k_0 = vacuum wave vector (float) in inverse cm
             n = index of refraction (float)
-            theta = angle of incidence rel. to normal (float)
-            mu = magnetic permeability
-            epsilon = electric susceptibility
+            theta = angle of incidence rel. to normal (float) in radians
+            mu = magnetic permeability, dimensionless
+            epsilon = electric permittivity, dimensionless
         Output:
             matrix = characteristic matrix (TE)
             alpha = index of refraction * sin(theta)
     """
-    p = np.sqrt(epsilon/mu) * np.cos(theta)
-    argunent = k_0 * n * np.cos(theta) * d
+    p = np.emath.sqrt(epsilon/mu) * np.cos(theta)
+    argument = k_0 * n * np.cos(theta) * d
     matrix = np.array( [ [np.cos(argument), np.sin(argument) * (1/p) * (-1j)], [np.sin(argument) * (p) * (-1j), np.cos(argument)] ] )
     alpha = n * np.sin(theta)
     return matrix, alpha
@@ -396,18 +396,18 @@ def te_reflection_characteristic_matrix(d, k_0, n, theta, mu, epsilon):
 def tm_reflection_characteristic_matrix(d, k_0, n, theta, mu, epsilon):
     """ TM mode characteristic matrix
         Params:
-            d = Thickness d of the thin film (float)
-            k_0 = vacuum wave vector (float)
+            d = Thickness d of the thin film (float) in nm
+            k_0 = vacuum wave vector (float) in inverse cm
             n = index of refraction (float)
-            theta = angle of incidence rel. to normal (float)
-            mu = magnetic permeability
-            epsilon = electric susceptibility
+            theta = angle of incidence rel. to normal (float) in radians
+            mu = magnetic permeability, dimensionless
+            epsilon = electric permittivity, dimensionless
         Output:
             matrix = characteristic matrix (TM)
             alpha = index of refraction * sin(theta)
     """
     q = np.sqrt(mu/epsilon) * np.cos(theta)
-    argunent = k_0 * n * np.cos(theta) * d
+    argument = k_0 * n * np.cos(theta) * d
     matrix = np.array( [ [np.cos(argument), np.sin(argument) * (1/q) * (-1j)], [np.sin(argument) * (q) * (-1j), np.cos(argument)] ] )
     alpha = n * np.sin(theta)
     return matrix, alpha
