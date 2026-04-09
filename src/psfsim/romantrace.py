@@ -1355,7 +1355,12 @@ def demo(writefiles=False):
             [0.0 + 0.0j, -0.08449756 + 0.0j, 0.10352705 + 0.0j, 0.99104315 + 0.0j],
         ]
     )
-    assert np.all(np.abs(RB.E[128, 128, :, :] - tmp_arr) < 1e-5)
+    rotFPA = build_transform_matrix(
+        ade=-62.41145131632292,
+        bde=-27.09897706981732,
+        cde=13.3889006733882,
+    )  # this is to rotate to the correct answer to the FPA coordinates.
+    assert np.all(np.abs(RB.E[128, 128, :, :] - tmp_arr @ rotFPA) < 1e-5)
     out_pos = np.array([766.73306894, -1593.99400015, -473.55384725])
     assert np.all(np.abs(RB.x[::64, ::64, 1:] - out_pos[None, None, :]) < 0.1)
     _n = np.shape(RB.u)[0]
