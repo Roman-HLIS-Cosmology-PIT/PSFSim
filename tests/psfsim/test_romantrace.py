@@ -19,8 +19,8 @@ def test_lanczos_weight():
 
     # Test intermediate value using numpy available via romantrace
     w_mid = romantrace._lanczos_weight(0.5, 0.0, a=3)
-    expected = romantrace.np.sinc(0.5) * romantrace.np.sinc(0.5 / 3.0)
-    assert romantrace.np.isclose(w_mid, expected)
+    expected = np.sinc(0.5) * np.sinc(0.5 / 3.0)
+    assert np.isclose(w_mid, expected)
 
 
 def test_RomanRayBundle_lanczos():
@@ -35,8 +35,8 @@ def test_RomanRayBundle_lanczos():
     assert rb.x_out.shape == (2,)
 
     # Verify fractional open logic outputs valid weights within [0.0, 1.0] tolerance
-    assert romantrace.np.all(rb.open >= -1e-10)
-    assert romantrace.np.all(rb.open <= 1.0 + 1e-10)
+    assert np.all(rb.open >= -1e-10)
+    assert np.all(rb.open <= 1.0 + 1e-10)
 
 
 def test_apply_lanczos_reweighting():
