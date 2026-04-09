@@ -419,7 +419,7 @@ class PSFObject:
             y_in=self.y_A,
             x_out=x_out,
             y_out=y_out,
-            n_out=self.postage_stamp_size*self.oversamp,
+            n_out=self.postage_stamp_size * self.oversamp,
             dx=self.dx,
             reflect=reflect,
             tophat=tophat,
