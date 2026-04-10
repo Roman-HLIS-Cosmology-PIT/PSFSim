@@ -428,9 +428,12 @@ class GeometricOptics:
             else:
                 bounded_width = self.samplingwidth
 
-            # Scale pupilSampling proportionally to maintain same physical resolution
+            # Scale pupilSampling proportionally to maintain same physical resolution.
+            # After integer rounding, adjust width so width/pixels exactly matches the
+            # original samplingwidth/pupilSampling ratio.
             width_ratio = bounded_width / self.samplingwidth
             scaled_pupilSampling = max(1, int(np.round(self.pupilSampling * width_ratio)))
+            bounded_width = self.samplingwidth * scaled_pupilSampling / self.pupilSampling
 
             # Second pass: trace at full resolution with bounded width
             self.rb = RomanRayBundle(

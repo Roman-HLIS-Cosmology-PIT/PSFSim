@@ -21,7 +21,7 @@ def test_psfobject():
         add_focus=None,
     )
 
-    assert np.abs(obj.dx - 10.0 / n) < 2.0e-3
+    assert np.abs(obj.dx - 10.0 / n) < 1.0e-3
 
     print(obj.ulen)
 
