@@ -192,7 +192,8 @@ class PSFObject:
         optical PSF on the SCA surface in the postage stamp surrounding the point (SCAx, SCAy) in the
         SCA. This function is added for testing purposes and to assess the impact of the interference
         filter on the PSF and charge diffusion through the HgCdTe layer. Note that the optical PSF
-        includes the effects of diffraction and pupil mask and is normalised to total flux of 1. The
+        includes the effects of diffraction and pupil mask and is normalized to total discrete flux of 1 when
+        ``normalise`` is True. The
         optical psf is saved to ``self.Optical_PSF``.
 
         Parameters
@@ -290,6 +291,11 @@ class PSFObject:
         )
         self.Optical_PSF = 0.5 * (self.h_polarized_psf + self.v_polarized_psf)
 
+        if normalise:
+            total_flux = np.sum(self.Optical_PSF)
+            if total_flux != 0:
+                self.Optical_PSF /= total_flux
+
         return
 
     def get_Intensity_in_detector(self, nworkers=8):
@@ -371,7 +377,7 @@ class PSFObject:
 
         Intensity = (abs(Ex_postage_stamp) ** 2) + (abs(Ey_postage_stamp) ** 2) + (abs(Ez_postage_stamp) ** 2)
 
-        Intensity_integrated = np.trapz(Intensity, x=self.z_array, axis=2)
+        Intensity_integrated = np.trapezoid(Intensity, x=self.z_array, axis=2)
 
         return Intensity_integrated
 
