@@ -473,7 +473,9 @@ class RayBundle:
 
         # now want to solve the quadratic equation, but in the 'stable' sense when a could be zero.
         S = np.where(a * c >= 0, -np.sign(b), np.sign(c))
-        L = 2 * c / (-b + S * np.sqrt(b**2 - 4 * a * c))
+        discriminant = b**2 - 4 * a * c
+        discriminant = np.clip(discriminant, 0, None)  # avoid numerical issues with negative discriminant
+        L = 2 * c / (-b + S * np.sqrt(discriminant))
 
         xs_ = x_ + L[:, :, None] * p_
         if update:
@@ -809,6 +811,71 @@ class RayBundle:
 
         # update outgoing direction
         self.p = p_out
+
+    def pad(self, target_size):
+        """
+        Pads the ray bundle to a target size, centering the current data.
+
+        Parameters
+        ----------
+        target_size : int
+            The desired size of the output arrays (target_size x target_size).
+
+        Returns
+        -------
+        RayBundle
+            A new RayBundle object with padded arrays.
+
+        """
+        current_size = self.N1
+
+        # Center the current data in the output arrays
+        offset_y = (target_size - current_size) // 2
+        offset_x = (target_size - current_size) // 2
+
+        # Create a new RayBundle with target size
+        padded_rb = RayBundle.__new__(RayBundle)
+
+        # Copy scalar attributes
+        padded_rb.N = target_size
+        padded_rb.N1 = target_size
+        padded_rb.N2 = target_size
+        padded_rb.xan = self.xan
+        padded_rb.yan = self.yan
+        padded_rb.n_loc = self.n_loc
+        padded_rb.costhetaent = self.costhetaent
+        padded_rb.wl = self.wl
+        padded_rb.wlref = self.wlref
+
+        # Create padded arrays
+        padded_rb.x = np.zeros((target_size, target_size, 4))
+        padded_rb.p = np.zeros((target_size, target_size, 4))
+        padded_rb.open = np.zeros((target_size, target_size), dtype=self.open.dtype)
+        padded_rb.s = np.zeros((target_size, target_size), dtype=np.float64)
+        padded_rb.xyi = np.zeros((target_size, target_size, 2), dtype=np.float64)
+        # NEED TO CHECK THIS!!!
+        padded_rb.u = np.full((target_size, target_size, 2), np.nan, dtype=np.float64)
+
+        # Place the data
+        padded_rb.open[offset_y : offset_y + current_size, offset_x : offset_x + current_size] = self.open
+        padded_rb.x[offset_y : offset_y + current_size, offset_x : offset_x + current_size, :] = self.x
+        padded_rb.p[offset_y : offset_y + current_size, offset_x : offset_x + current_size, :] = self.p
+        padded_rb.s[offset_y : offset_y + current_size, offset_x : offset_x + current_size] = self.s
+        padded_rb.xyi[offset_y : offset_y + current_size, offset_x : offset_x + current_size, :] = self.xyi
+        padded_rb.u[offset_y : offset_y + current_size, offset_x : offset_x + current_size, :] = self.u
+
+        # Handle electric field if present
+        if self.E is not None:
+            padded_rb.E = np.zeros((target_size, target_size, 2, 4), dtype=np.complex128)
+            padded_rb.E[offset_y : offset_y + current_size, offset_x : offset_x + current_size, :, :] = self.E
+        else:
+            padded_rb.E = None
+
+        # Copy x_out if it exists
+        if hasattr(self, "x_out"):
+            padded_rb.x_out = self.x_out
+
+        return padded_rb
 
 
 def _RomanRayBundle(
@@ -1208,6 +1275,8 @@ def _RomanRayBundle(
     )
     xyFPA, _, _ = RB.intersect_surface(TrFPA, Rinv=0.0, K=0.0, update=True)
     RB.u = np.einsum("ij,abj->abi", np.linalg.inv(TrFPA), RB.p)[:, :, 1:3]
+    if hasE:
+        RB.E = np.einsum("ij,abkj->abki", np.linalg.inv(TrFPA), RB.E)
 
     # get position of central ray and update wavefront map accordingly
     if hires is None:
@@ -1321,7 +1390,7 @@ def RomanRayBundle(
     # force to zeros where closed only if RB.E is not None
     if RB.E is not None:
         for i in range(2):
-            for j in range(2):
+            for j in range(4):
                 RB.E[:, :, i, j] = np.where(RB.open > 1e-16, RB.E[:, :, i, j], 0.0)
 
     return RB
@@ -1430,7 +1499,12 @@ def demo(writefiles=False):
             [0.0 + 0.0j, -0.08449756 + 0.0j, 0.10352705 + 0.0j, 0.99104315 + 0.0j],
         ]
     )
-    assert np.all(np.abs(RB.E[128, 128, :, :] - tmp_arr) < 1e-5)
+    rotFPA = build_transform_matrix(
+        ade=-62.41145131632292,
+        bde=-27.09897706981732,
+        cde=13.3889006733882,
+    )  # this is to rotate to the correct answer to the FPA coordinates.
+    assert np.all(np.abs(RB.E[128, 128, :, :] - tmp_arr @ rotFPA) < 1e-5)
     out_pos = np.array([766.73306894, -1593.99400015, -473.55384725])
     assert np.all(np.abs(RB.x[::64, ::64, 1:] - out_pos[None, None, :]) < 0.1)
     _n = np.shape(RB.u)[0]
