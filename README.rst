@@ -1,5 +1,4 @@
-.. image:: https://codecov.io/gh/nihardalal/PSFSim/graph/badge.svg?token=O76KO3TQA2 
- :target: https://codecov.io/gh/nihardalal/PSFSim
+.. image:: https://codecov.io/gh/Roman-HLIS-Cosmology-PIT/PSFSim/graph/badge.svg?token=kI7xCYckoa :target: https://codecov.io/gh/Roman-HLIS-Cosmology-PIT/PSFSim
 
 PSFSim
 ######
