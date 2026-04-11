@@ -97,6 +97,7 @@ class PSFObject:
         ovsamp=10,
         use_filter="H",
         npix_boundary=1,
+        a_lanczos=3,
         use_postage_stamp_size=None,
         ray_trace=True,
         add_focus=None,
@@ -125,7 +126,8 @@ class PSFObject:
             use_filter=use_filter,
             ulen=self.ulen,
             ray_trace=ray_trace,
-            pixelsampling=10.0 / self.oversamp,
+            pixelsampling=10.0 / ovsamp,
+            a_lanczos=a_lanczos,
         )
         self.ux, self.uy = (
             self.optics.u_array(),

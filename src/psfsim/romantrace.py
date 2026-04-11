@@ -2,7 +2,118 @@ import numpy as np
 import scipy
 from astropy.io import fits
 
+
+def _lanczos_weight(dx, dy, a=3):
+    """
+    Lanczos function.
+
+    Parameters
+    ----------
+    dx : float or np.ndarray
+        The input x value(s).
+    dy: float or np.ndarray,
+        The input y value(s). Must be the same shape as `dx`.
+    a : int, optional
+        The Lanczos parameter (default is 3).
+
+    Returns
+    -------
+    float or np.ndarray
+        The Lanczos function evaluated on the `dx` by `dy` grid.
+
+    """
+
+    r_x = np.where(np.abs(dx) < a, np.sinc(dx) * np.sinc(dx / a), 0.0)
+    r_y = np.where(np.abs(dy) < a, np.sinc(dy) * np.sinc(dy / a), 0.0)
+    return r_x * r_y
+
+
+def _apply_lanczos_reweighting(
+    RB_open_lowres,
+    RB_open_hires,
+    bdycells,
+    ovsamp,
+    a_lanczos,
+):
+    """
+    Apply Lanczos reweighting to boundary cells using high-resolution data.
+
+    Parameters
+    ----------
+    RB_open_lowres : ndarray
+        Low-resolution aperture array
+    RB_open_hires : ndarray
+        High-resolution aperture array (flattened to num_bdy, ovsamp, ovsamp)
+    bdycells : tuple
+        (x_indices, y_indices) of boundary cells
+    ovsamp : int
+        Oversampling factor
+    a_lanczos : int
+        Lanczos kernel size parameter
+
+    Returns
+    -------
+    new_values : ndarray
+        Reweighted aperture values at boundary cells
+    """
+
+    sub_offsets = np.linspace(-0.5 + 0.5 / ovsamp, 0.5 - 0.5 / ovsamp, ovsamp)
+    sx, sy = np.meshgrid(sub_offsets, sub_offsets, indexing="ij")
+    m_lanczos = 2 * a_lanczos + 1
+    # Trying updated Lanczos scheme to weight more pixels without simulating more at hires
+    dx_arr = np.arange(-a_lanczos, a_lanczos + 1)
+    dy_arr = np.arange(-a_lanczos, a_lanczos + 1)
+    W_sub = np.zeros((m_lanczos, m_lanczos, ovsamp, ovsamp))
+
+    for i, dx in enumerate(dx_arr):
+        for j, dy in enumerate(dy_arr):
+            w = _lanczos_weight((dx + sx).ravel(), (dy + sy).ravel(), a=a_lanczos)
+            W_sub[i, j] = w.reshape(ovsamp, ovsamp)
+
+    # Normalize weights so that full filter sums to 1
+    W_sub /= np.sum(W_sub)
+
+    # Calculate low res weights for non sub-sampled pixels
+    W_low = np.sum(W_sub, axis=(2, 3))
+
+    pad_w = a_lanczos
+    RB_open_padded = np.pad(RB_open_lowres, pad_w, mode="edge")
+
+    # Map from x,y in spatial coordinates to index in bdycells
+    hires_index_map = np.full(RB_open_lowres.shape, -1, dtype=np.int32)
+    hires_index_map[bdycells[0], bdycells[1]] = np.arange(len(bdycells[0]))
+    hires_map_padded = np.pad(hires_index_map, pad_w, constant_values=-1)
+
+    num_bdy = len(bdycells[0])
+    hires_open_reshaped = RB_open_hires.astype(np.float64).reshape(num_bdy, ovsamp, ovsamp)
+
+    new_values = np.zeros(num_bdy, dtype=np.float64)
+    bx = bdycells[0] + pad_w
+    by = bdycells[1] + pad_w
+
+    for i, dx in enumerate(dx_arr):
+        for j, dy in enumerate(dy_arr):
+            nx = bx + dx
+            ny = by + dy
+
+            k_prime = hires_map_padded[nx, ny]
+            is_hires = k_prime >= 0
+
+            contrib = np.zeros(num_bdy, dtype=np.float64)
+            contrib[~is_hires] = RB_open_padded[nx[~is_hires], ny[~is_hires]] * W_low[i, j]
+
+            if np.any(is_hires):
+                H = hires_open_reshaped[k_prime[is_hires]]
+                contrib[is_hires] = np.sum(H * W_sub[i, j], axis=(1, 2))
+
+            new_values += contrib
+
+    return new_values
+
+
 ### begin material data ###
+
+NORM_TOL = 1e-8
 
 
 def n_Infrasil301(wl, T=180.0):
@@ -551,7 +662,17 @@ class RayBundle:
             # S-type direction as a 3D vector
             Sdir = np.cross(norm[:, :, 1:], self.p[:, :, 1:])
             snorm = np.sum(np.abs(Sdir**2), axis=-1) ** 0.5
-            Sdir = Sdir / snorm[:, :, None]
+            phinorm = np.arctan2(norm[:, :, 2], norm[:, :, 1])
+            fallback = np.stack(
+                [-np.sin(phinorm), np.cos(phinorm), np.zeros_like(phinorm)],
+                axis=-1,
+            )
+            Sdir_unit = np.empty_like(Sdir, dtype=Sdir.dtype)
+            Sdir_unit[...] = fallback
+            mask = snorm >= NORM_TOL
+            # Normalize Sdir safely; avoid division by very small snorm and ensure correct shape
+            np.divide(Sdir, snorm[:, :, None], out=Sdir_unit, where=mask[:, :, None])
+            Sdir = Sdir_unit
             del snorm
 
             # P-type directions
@@ -663,7 +784,17 @@ class RayBundle:
             # S-type direction as a 3D vector
             Sdir = np.cross(norm[:, :, 1:], self.p[:, :, 1:])
             snorm = np.sum(np.abs(Sdir**2), axis=-1) ** 0.5
-            Sdir = Sdir / snorm[:, :, None]
+            phinorm = np.arctan2(norm[:, :, 2], norm[:, :, 1])
+            fallback = np.stack(
+                [-np.sin(phinorm), np.cos(phinorm), np.zeros_like(phinorm)],
+                axis=-1,
+            )
+            Sdir_unit = np.empty_like(Sdir, dtype=Sdir.dtype)
+            Sdir_unit[...] = fallback
+            mask = snorm >= NORM_TOL
+            # Normalize Sdir safely; avoid division by very small snorm and ensure correct shape
+            np.divide(Sdir, snorm[:, :, None], out=Sdir_unit, where=mask[:, :, None])
+            Sdir = Sdir_unit
             del snorm
 
             # P-type directions
@@ -1157,7 +1288,9 @@ def _RomanRayBundle(
     return RB
 
 
-def RomanRayBundle(xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, jacobian=None, ovsamp=6):
+def RomanRayBundle(
+    xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, jacobian=None, ovsamp=6, a_lanczos=3
+):
     """
     Carries out trace through RST optics.
 
@@ -1180,6 +1313,8 @@ def RomanRayBundle(xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, ja
         on a square grid. Default is a square grid on the entrance pupil.
     ovsamp : int, optional
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
+    a_lanczos : int, optional
+        The "a" parameter for Lanczos interpolation; this controls the size of the kernel. Default is 3.
 
     Returns
     -------
@@ -1215,7 +1350,6 @@ def RomanRayBundle(xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, ja
     """
 
     RB = _RomanRayBundle(xan, yan, N, usefilter, wl=wl, hasE=hasE, width=width, jacobian=jacobian, hires=None)
-
     # Now figure out which pixels we need to increase the resolution.
     r = 40.0 / width * N  # radius of search in pixels
     rceil = int(np.ceil(r))
@@ -1242,12 +1376,22 @@ def RomanRayBundle(xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, ja
         ovsamp=ovsamp,
     )
     print(n, np.shape(RB_hires.open))
-    RB.open[bdycells[0], bdycells[1]] = np.mean(RB_hires.open.astype(np.float64), axis=1)
+    print("Lanczos interpolation order:", a_lanczos)
 
-    # force to zeros where closed
-    for i in range(2):
-        for j in range(4):
-            RB.E[:, :, i, j] = np.where(RB.open > 1e-16, RB.E[:, :, i, j], 0.0)
+    new_values = _apply_lanczos_reweighting(
+        RB.open,
+        RB_hires.open,
+        bdycells,
+        ovsamp,
+        a_lanczos,
+    )
+
+    RB.open[bdycells[0], bdycells[1]] = new_values
+    # force to zeros where closed only if RB.E is not None
+    if RB.E is not None:
+        for i in range(2):
+            for j in range(4):
+                RB.E[:, :, i, j] = np.where(RB.open > 1e-16, RB.E[:, :, i, j], 0.0)
 
     return RB
 
