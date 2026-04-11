@@ -184,6 +184,8 @@ class GeometricOptics:
         The wavefront map in microns. Shape (`ulen`, `ulen`).
     rb : psfsim.romantrace.RayBundle
         The ray trace object.
+    a_lanczos : int, optional
+        The order of Lanczos kernel apodization to use for the high-resolution pupil.
 
     Methods
     -------
