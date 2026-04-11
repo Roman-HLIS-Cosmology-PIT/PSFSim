@@ -113,6 +113,8 @@ def _apply_lanczos_reweighting(
 
 ### begin material data ###
 
+NORM_TOL = 1e-8
+
 
 def n_Infrasil301(wl, T=180.0):
     """
@@ -213,7 +215,6 @@ def build_transform_matrix(xde=0.0, yde=0.0, zde=0.0, ade=0.0, bde=0.0, cde=0.0,
 
 
 class RayBundle:
-
     """
     Class defining a ray bundle, constructed from a field position.
 
@@ -659,7 +660,17 @@ class RayBundle:
             # S-type direction as a 3D vector
             Sdir = np.cross(norm[:, :, 1:], self.p[:, :, 1:])
             snorm = np.sum(np.abs(Sdir**2), axis=-1) ** 0.5
-            Sdir = Sdir / snorm[:, :, None]
+            phinorm = np.arctan2(norm[:, :, 2], norm[:, :, 1])
+            fallback = np.stack(
+                [-np.sin(phinorm), np.cos(phinorm), np.zeros_like(phinorm)],
+                axis=-1,
+            )
+            Sdir_unit = np.empty_like(Sdir, dtype=Sdir.dtype)
+            Sdir_unit[...] = fallback
+            mask = snorm >= NORM_TOL
+            # Normalize Sdir safely; avoid division by very small snorm and ensure correct shape
+            np.divide(Sdir, snorm[:, :, None], out=Sdir_unit, where=mask[:, :, None])
+            Sdir = Sdir_unit
             del snorm
 
             # P-type directions
@@ -771,7 +782,17 @@ class RayBundle:
             # S-type direction as a 3D vector
             Sdir = np.cross(norm[:, :, 1:], self.p[:, :, 1:])
             snorm = np.sum(np.abs(Sdir**2), axis=-1) ** 0.5
-            Sdir = Sdir / snorm[:, :, None]
+            phinorm = np.arctan2(norm[:, :, 2], norm[:, :, 1])
+            fallback = np.stack(
+                [-np.sin(phinorm), np.cos(phinorm), np.zeros_like(phinorm)],
+                axis=-1,
+            )
+            Sdir_unit = np.empty_like(Sdir, dtype=Sdir.dtype)
+            Sdir_unit[...] = fallback
+            mask = snorm >= NORM_TOL
+            # Normalize Sdir safely; avoid division by very small snorm and ensure correct shape
+            np.divide(Sdir, snorm[:, :, None], out=Sdir_unit, where=mask[:, :, None])
+            Sdir = Sdir_unit
             del snorm
 
             # P-type directions
