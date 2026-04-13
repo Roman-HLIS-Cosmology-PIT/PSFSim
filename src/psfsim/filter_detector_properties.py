@@ -373,6 +373,128 @@ def unpolarised_mode_decomposition(ux, uy, E0=1.0e10):
     return {"TE": A_TE, "TM": A_TM}
 
 
+
+def n_medium(epsilon, mu):
+    """ Compute n of this medium
+        Params:
+            epsilon, mu: complex
+        Output:
+            n_medium: complex
+    """
+    return np.emath.sqrt(epsilon*mu)
+
+def cosine_theta_medium(theta_inc, n_inc, n_medium):
+    """ Compute cos(theta_medium) from conserved transverse wavevector,
+            according to n_inc * sin(theta_inc) = n_med * sin(theta_med)
+        Params:
+            theta_inc: float
+            n_inc, n_medium : complex
+        Output:
+            cosine(theta_medium): complex
+    """
+    return np.emath.sqrt( 1 - ( (n_inc/n_medium) * np.sin(theta_inc) )**2 )
+
+
+def tilted_optical_admittance(cos_theta_medium, epsilon, mu, polarisation_mode):
+    """ Tilted optical admittance, Q(z) = [U(z),V(z)]
+            For TE: Q = (1/z) * cos(theta_medium)
+            For TM: Q = z * cos(theta_medium)
+        Params:
+            cos_theta_medium: float
+                Cosine of the angle theta in that layer
+            epsilon, mu: complex
+                Elec. permittivity and mag. permeability of the layer
+            polarisation_mode: str
+                Can pass either {TM or P} or {TE or S} as choices
+        Output:
+            Q(z): complex
+                Form depends on polarisation_mode
+    """
+    z = np.emath.sqrt(mu/epsilon)
+
+    polarisation_mode = polarisation_mode.lower()
+    if polarisation_mode in ("te","s"):
+        return cos_theta_medium / z
+    elif polarisation_mode in ("tm", "s"):
+        return cos_theta_medium * z
+
+def thin_film_characteristic_matrix(d, k_0, n_inc, theta_inc, epsilon, mu, polarisation_mode):
+    """ Characteristic matrix for a single thin film layer
+        Params:
+            d: float
+                Thickness d of the thin film in nm
+            k_0: float
+                Vacuum wavevector in inverse cm
+            n_inc: complex
+                Refrc. index of the incident medium, used to
+                define the conserved transverse wavevector
+            theta_inc: float
+                Angle of incidence rel. to normal in radians
+            epsilon, mu: complex
+                Relative elec. permittivity and mag. permeability
+                of this layer
+            polarisation_mode: str
+                Which polarisation mode is being solved for, TE or TM
+
+        Output:
+            matrix: np.array
+                Characteristic matrix for this layer, (2x2)
+    """
+    #change incoming d in nm to cm
+    d = d*(1e-7)
+
+    #compute n of this medium
+    index_of_medium = n_medium(epsilon=epsilon, mu=mu)
+
+    #compute cos(theta_medium) from conserved transverse wavevector
+    cos_theta_med = cosine_theta_medium(theta_inc=theta_inc,
+                                        n_inc = n_inc,
+                                        n_medium = index_of_medium
+                                        )
+
+    #calculate the corresponding Q in this layer, picking the right branch
+    Q_layer = tilted_optical_admittance(
+        cos_theta_medium=cos_theta_med,
+        epsilon=epsilon,
+        mu=mu,
+        polarisation_mode=polarisation_mode)
+
+    #precalculate the argument of the sines and cosines
+    argument = k_0 * d * index_of_medium * cos_theta_med
+
+    #compute the matrix
+    matrix = np.array( [ [np.cos(argument), np.sin(argument) * (1/Q_layer) * (-1j)], [np.sin(argument) * (Q_layer) * (-1j), np.cos(argument)] ] )
+
+    return matrix
+
+def effective_admittance(matrix, Q_0):
+    """Effective admittance seen at the entrance of the layer stack, given substrate
+    admittance Q_0 and the characteristic matrix for the thin film above it.
+        Params:
+            matrix: np.array
+                Characteristic matrix of thin film above substrate
+            Q_0: complex
+                The optical admittance of the substrate
+        Output:
+            Q: complex
+                Effective admittance for the layer stack
+    """
+    A, B, C, D = matrix[0,0], matrix[0,1], matrix[1,0], matrix[1,1]
+
+    return (C + D*Q_0) / (A + B*Q_0)
+
+def reflection_coefficient(Q_air, Q_medium):
+    """ Reflection coefficient for an incident beam going from air into a medium
+        Params:
+            Q_air: complex
+                Admittance in air
+            Q_medium: complex
+                Optical admittance of the medium
+    """
+    return (Q_air - Q_medium) / (Q_air + Q_medium)
+
+
+
 def te_reflection_characteristic_matrix(d, k_0, n, theta, mu, epsilon):
     """ TE mode characteristic matrix
         Params:
