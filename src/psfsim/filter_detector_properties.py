@@ -415,7 +415,7 @@ def tilted_optical_admittance(cos_theta_medium, epsilon, mu, polarisation_mode):
     polarisation_mode = polarisation_mode.lower()
     if polarisation_mode in ("te","s"):
         return cos_theta_medium / z
-    elif polarisation_mode in ("tm", "s"):
+    elif polarisation_mode in ("tm", "p"):
         return cos_theta_medium * z
 
 def thin_film_characteristic_matrix(d, k_0, n_inc, theta_inc, epsilon, mu, polarisation_mode):
