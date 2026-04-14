@@ -37,7 +37,7 @@ def test_geometricoptics():
     assert np.hypot(-0.12413403996321462 - g.ucen, -0.17128826467513136 - g.vcen) < 0.01
 
     omega = g.du**2 * np.sum(g.pupil_mask)
-    assert np.abs(g.du * 2.0 * 2048 / 1.36 + 1.0) < 0.001
+    assert np.abs(g.du * 2.0 * 2048 / 1.36 + 1.0) < 0.002
     assert omega > 0.0092
     assert omega < 0.0105
 

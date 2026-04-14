@@ -12,7 +12,7 @@ from .wfi_data import cdpar, nside, pix
 
 def diffusion_green(xd, yd, x2=0.0, y2=0.0):
     """
-    Charge diffusion Green's function as a function of Analysis coordinates in mm.
+    Charge diffusion Green's function as a function of Analysis coordinates in microns.
 
     The MTF is calculated using a three-gaussian approximation of the charge diffusion in the SCA,
     where the parameters are derived from the charge diffusion model
@@ -47,7 +47,7 @@ def diffusion_green(xd, yd, x2=0.0, y2=0.0):
 
 def diffusion_prob(xd, yd, width=10.0, x2=0.0, y2=0.0):
     """
-    Charge diffusion probability as a function of Analysis coordinates in mm.
+    Charge diffusion probability as a function of Analysis coordinates in microns.
 
     This is the integral of the Green's function over a square of width `width` centered on (0, 0).
 
