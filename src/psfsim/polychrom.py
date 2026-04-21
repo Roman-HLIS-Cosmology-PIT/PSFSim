@@ -58,8 +58,7 @@ class PolychromaticPSF:
         self.scax = scax
         self.scay = scay
         self.wavelengths = wavelengths  # replace with something better later
-        if sed is not None:
-            self.sed = sed
+        self.sed = sed
         self.bandpass = galsim.roman.getBandpasses()
 
     def compute_poly_psf(
@@ -71,12 +70,16 @@ class PolychromaticPSF:
         use_postage_stamp_size=None,
         ray_trace=True,
         add_focus=None,
+        optical_psf_only=False,
     ):
         """
         Compute the polychromatic PSF by summing over monochromatic PSFs at different wavelengths.
         """
         # I'm going to accumulate iteratively for now to save on memory, but open to changing later
-        chromatic_psf = np.zeros((postage_stamp_size * ovsamp, postage_stamp_size * ovsamp))
+        if optical_psf_only:
+            chromatic_psf = np.zeros((2048, 2048))
+        else:
+            chromatic_psf = np.zeros((postage_stamp_size * ovsamp, postage_stamp_size * ovsamp))
         for wav in self.wavelengths:
             is_in_bandpass, filter_key = inBandpass(wav, use_filter)
             if is_in_bandpass:
@@ -94,6 +97,19 @@ class PolychromaticPSF:
                     add_focus=add_focus,
                 )
                 this_psf.get_optical_psf()
+                if optical_psf_only:
+                    if self.sed is not None:
+                        # Convert wavelength from microns to nm for GalSim Bandpass evaluation
+                        wav_nm = wav * 1e3
+                        bp = self.bandpass[filter_key]
+                        weight = bp(wav_nm) * self.sed(wav)
+                    else:
+                        # If no SED is provided, assume flat response
+                        weight = 1.0
+
+                    chromatic_psf += weight * this_psf.Optical_PSF
+                    continue  # set to the value that should come from Charuhas' branch
+
                 this_psf.get_image_from_Intensity(centerpix=True, reflect=True, tophat=True)
                 if self.sed is not None:
                     # Convert wavelength from microns to nm for GalSim Bandpass evaluation
@@ -104,9 +120,7 @@ class PolychromaticPSF:
                     # If no SED is provided, assume flat response
                     weight = 1.0
 
-                chromatic_psf += (
-                    weight * this_psf.detector_image
-                )  # set to the value that should come from Charuhas' branch
+                chromatic_psf += weight * this_psf.detector_image
         total_flux = np.sum(chromatic_psf)
         if total_flux == 0.0:
             raise ValueError(
