@@ -4,7 +4,7 @@ import numpy as np
 from .psfobject import PSFObject
 
 
-def inBandpass(wav, filter_string):
+def inBandpass(wav, filter_string, bandpasses):
     """
     Compute whether a wavelength is in a filter.
 
@@ -14,6 +14,8 @@ def inBandpass(wav, filter_string):
         Wavelength in microns
     filter_string: str
         String to identify the filter. Can either be just a letter or letter + wl (e.g. 'H' or 'H158').
+    bandpasses : dict
+        Dictionary of GalSim Roman bandpasses, typically from ``galsim.roman.getBandpasses()``.
 
     Returns
     -------
@@ -21,7 +23,7 @@ def inBandpass(wav, filter_string):
         Whether the wavelength is in the filter, and the galsim key of the filter if it is in the bandpass.
     """
     wav *= 1e3  # convert to nm for galsim
-    bp = galsim.roman.getBandpasses()
+    bp = bandpasses
 
     # First, check for an exact match of the filter string to a bandpass key.
     if filter_string in bp:
@@ -81,7 +83,7 @@ class PolychromaticPSF:
         else:
             chromatic_psf = np.zeros((postage_stamp_size * ovsamp, postage_stamp_size * ovsamp))
         for wav in self.wavelengths:
-            is_in_bandpass, filter_key = inBandpass(wav, use_filter)
+            is_in_bandpass, filter_key = inBandpass(wav, use_filter, self.bandpass)
             if is_in_bandpass:
                 this_psf = PSFObject(
                     self.scanum,
