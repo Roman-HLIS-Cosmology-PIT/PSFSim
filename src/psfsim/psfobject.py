@@ -381,10 +381,10 @@ class PSFObject:
 
         # Intensity_integrated = np.trapezoid(Intensity, x=self.z_array, axis=2)
         # this is a version of the trapezoid rule that works independently of numpy version
-        Intensity_integrated = 0.5 * (self.z_array[1] - self.z_array[0]) * Intensity[0, :, :]
+        Intensity_integrated = 0.5 * (self.z_array[1] - self.z_array[0]) * Intensity[:, :, 0]
         for iz in range(1, len(self.z_array)-1):
-            Intensity_integrated += 0.5 * (self.z_array[iz+1] - self.z_array[iz-1]) * Intensity[iz, :, :]
-        Intensity_integrated += 0.5 * (self.z_array[-1] - self.z_array[-2]) * Intensity[-1, :, :]
+            Intensity_integrated += 0.5 * (self.z_array[iz + 1] - self.z_array[iz - 1]) * Intensity[:, :, iz]
+        Intensity_integrated += 0.5 * (self.z_array[-1] - self.z_array[-2]) * Intensity[:, :, -1]
 
         return Intensity_integrated
 
