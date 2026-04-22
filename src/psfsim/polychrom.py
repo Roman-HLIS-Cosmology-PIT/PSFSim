@@ -1,3 +1,5 @@
+"""Functions for polychromatic PSFs."""
+
 import galsim.roman
 import numpy as np
 
@@ -21,7 +23,9 @@ def inBandpass(wav, filter_string, bandpasses):
     -------
     bool, str
         Whether the wavelength is in the filter, and the galsim key of the filter if it is in the bandpass.
+
     """
+
     wav *= 1e3  # convert to nm for galsim
     bp = bandpasses
 
@@ -59,14 +63,16 @@ class PolychromaticPSF:
     scanum : int
         Roman SCA index passed through to ``PSFObject``.
     scax : float
-        Source x-position on the SCA.
+        Source x-position on the SCA, in mm.
     scay : float
-        Source y-position on the SCA.
+        Source y-position on the SCA, in mm.
     wavelengths : array-like
         Wavelength samples in microns. Values are evaluated in the provided order.
     sed : callable, optional
         Spectral energy distribution weight function evaluated as ``sed(wav_microns)``.
-        If ``None``, a flat spectral weight is assumed.
+        This should be in units proportional to photons/m^2/s/micron.
+        If ``None``, a flat spectral weight (in lambda F_lambda) is assumed.
+
     """
 
     def __init__(self, scanum, scax, scay, wavelengths, sed=None):
@@ -87,6 +93,7 @@ class PolychromaticPSF:
         ray_trace=True,
         add_focus=None,
         optical_psf_only=False,
+        req_in_bandpass=True,
     ):
         """
         Compute the polychromatic PSF by integrating monochromatic PSFs across wavelength.
@@ -94,7 +101,36 @@ class PolychromaticPSF:
         Integration uses a trapezoidal rule over the caller-provided wavelength
         nodes (internally sorted). Out-of-band nodes contribute zero. If exactly
         one node is in-band, this returns the corresponding monochromatic PSF.
+
+        Parameters
+        ----------
+        postage_stamp_size : int, optional
+            Size of the postage stamp to draw, in native pixels.
+        ovsamp : int, optional
+            The number of samples per native pixel on each axis.
+        use_filter : str, optional
+            The filter as a string (e.g., "H").
+        use_postage_stamp_size : int, optional
+            Force pupil postage stamp size instead of internal calculation.
+        npix_boundary : int, optional
+            ?
+        ray_trace : bool, optional
+            Whether to use ray tracing. (Only turn off for testing.)
+        add_focus : variable
+            Parameter for adding focus.
+        optical_psf_only : bool, optional
+            Whether to draw the optical PSF only.
+        req_in_bandpass : bool, optional
+            Whether to only accept in-band light (turning this on will make things faster
+            for some settings, but will miss detail in the PSF from out-of-band leakage).
+            Recommend True for fast computation, False for best accuracy.
+        Returns
+        -------
+        np.ndarray
+            The polychromatic PSF as a 2D numpy array.
+
         """
+
         wavelengths = np.asarray(self.wavelengths, dtype=float)
         if wavelengths.ndim != 1 or wavelengths.size == 0:
             raise ValueError("wavelengths must be a non-empty 1D sequence in microns.")
@@ -155,7 +191,7 @@ class PolychromaticPSF:
             wav = wavelengths[i]
             quad_weight = trap_weights[i]
             is_in_bandpass, filter_key = in_band_info[i]
-            if not is_in_bandpass:
+            if req_in_bandpass and not is_in_bandpass:
                 continue
 
             if self.sed is not None:
