@@ -104,7 +104,7 @@ class PolychromaticPSF:
         if np.any(np.diff(wavelengths) <= 0.0):
             raise ValueError("wavelengths must be unique values for trapezoidal integration.")
 
-        in_band_info = [inBandpass(wav, use_filter) for wav in wavelengths]
+        in_band_info = [inBandpass(wav, use_filter, self.bandpass) for wav in wavelengths]
         in_band_mask = np.array([is_in for is_in, _ in in_band_info], dtype=bool)
         n_in_band = int(np.count_nonzero(in_band_mask))
 
