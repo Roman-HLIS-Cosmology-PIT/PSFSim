@@ -89,70 +89,102 @@ class PolychromaticPSF:
         optical_psf_only=False,
     ):
         """
-        Compute a normalized polychromatic PSF from monochromatic PSF samples.
+        Compute the polychromatic PSF by integrating monochromatic PSFs across wavelength.
 
-        The accumulator sums per-wavelength contributions of
-        ``bandpass(wavelength_nm) * sed(wavelength_microns) * PSF(wavelength)``,
-        with unit weight for ``sed`` when ``sed=None``. The returned image is then
-        normalized to unit sum.
-
-        Notes
-        -----
-        This method currently applies one contribution per entry in ``self.wavelengths``
-        (no explicit bin-width quadrature factor), so the approximation depends on
-        the supplied wavelength sampling.
+        Integration uses a trapezoidal rule over the caller-provided wavelength
+        nodes (internally sorted). Out-of-band nodes contribute zero. If exactly
+        one node is in-band, this returns the corresponding monochromatic PSF.
         """
-        # I'm going to accumulate iteratively for now to save on memory, but open to changing later
-        if optical_psf_only:
-            chromatic_psf = np.zeros((2048, 2048))
-        else:
-            chromatic_psf = np.zeros((postage_stamp_size * ovsamp, postage_stamp_size * ovsamp))
-        for wav in self.wavelengths:
-            is_in_bandpass, filter_key = inBandpass(wav, use_filter, self.bandpass)
-            if is_in_bandpass:
-                this_psf = PSFObject(
-                    self.scanum,
-                    self.scax,
-                    self.scay,
-                    wav,
-                    postage_stamp_size=postage_stamp_size,
-                    ovsamp=ovsamp,
-                    use_filter=use_filter,
-                    npix_boundary=npix_boundary,
-                    use_postage_stamp_size=use_postage_stamp_size,
-                    ray_trace=ray_trace,
-                    add_focus=add_focus,
-                )
-                this_psf.get_optical_psf()
-                if optical_psf_only:
-                    if self.sed is not None:
-                        # Convert wavelength from microns to nm for GalSim Bandpass evaluation
-                        wav_nm = wav * 1e3
-                        bp = self.bandpass[filter_key]
-                        weight = bp(wav_nm) * self.sed(wav)
-                    else:
-                        # If no SED is provided, assume flat response
-                        weight = 1.0
+        wavelengths = np.asarray(self.wavelengths, dtype=float)
+        if wavelengths.ndim != 1 or wavelengths.size == 0:
+            raise ValueError("wavelengths must be a non-empty 1D sequence in microns.")
 
-                    chromatic_psf += weight * this_psf.Optical_PSF
-                    continue  # set to the value that should come from Charuhas' branch
+        sort_idx = np.argsort(wavelengths)
+        wavelengths = wavelengths[sort_idx]
+        if np.any(np.diff(wavelengths) <= 0.0):
+            raise ValueError("wavelengths must be unique values for trapezoidal integration.")
 
-                this_psf.get_image_from_Intensity(centerpix=True, reflect=True, tophat=True)
-                if self.sed is not None:
-                    # Convert wavelength from microns to nm for GalSim Bandpass evaluation
-                    wav_nm = wav * 1e3
-                    bp = self.bandpass[filter_key]
-                    weight = bp(wav_nm) * self.sed(wav)
-                else:
-                    # If no SED is provided, assume flat response
-                    weight = 1.0
+        in_band_info = [inBandpass(wav, use_filter) for wav in wavelengths]
+        in_band_mask = np.array([is_in for is_in, _ in in_band_info], dtype=bool)
+        n_in_band = int(np.count_nonzero(in_band_mask))
 
-                chromatic_psf += weight * this_psf.detector_image
+        if n_in_band == 0:
+            raise ValueError(
+                f"No in-band wavelength nodes found for filter '{use_filter}'. "
+                f"Provided range: [{wavelengths.min():.6g}, {wavelengths.max():.6g}] microns."
+            )
+
+        def _compute_mono_image(wav):
+            this_psf = PSFObject(
+                self.scanum,
+                self.scax,
+                self.scay,
+                wav,
+                postage_stamp_size=postage_stamp_size,
+                ovsamp=ovsamp,
+                use_filter=use_filter,
+                npix_boundary=npix_boundary,
+                use_postage_stamp_size=use_postage_stamp_size,
+                ray_trace=ray_trace,
+                add_focus=add_focus,
+            )
+            this_psf.get_optical_psf()
+            if optical_psf_only:
+                return this_psf.Optical_PSF
+
+            this_psf.get_image_from_Intensity(centerpix=True, reflect=True, tophat=True)
+            return this_psf.detector_image
+
+        if n_in_band == 1:
+            wav = wavelengths[in_band_mask][0]
+            chromatic_psf = _compute_mono_image(wav).astype(float, copy=True)
+            total_flux = np.sum(chromatic_psf)
+            if total_flux == 0.0:
+                raise ValueError("Monochromatic PSF has zero flux for the only in-band wavelength node.")
+            chromatic_psf /= total_flux
+            self.chromatic_psf = chromatic_psf
+            return chromatic_psf
+
+        trap_weights = np.empty_like(wavelengths)
+        trap_weights[0] = 0.5 * (wavelengths[1] - wavelengths[0])
+        trap_weights[-1] = 0.5 * (wavelengths[-1] - wavelengths[-2])
+        trap_weights[1:-1] = 0.5 * (wavelengths[2:] - wavelengths[:-2])
+
+        chromatic_psf = None
+        for i in range(wavelengths.size):
+            wav = wavelengths[i]
+            quad_weight = trap_weights[i]
+            is_in_bandpass, filter_key = in_band_info[i]
+            if not is_in_bandpass:
+                continue
+
+            if self.sed is not None:
+                wav_nm = wav * 1e3
+                bp = self.bandpass[filter_key]
+                integrand_weight = bp(wav_nm) * self.sed(wav)
+            else:
+                integrand_weight = 1.0
+
+            weight = quad_weight * integrand_weight
+            if weight == 0.0:
+                continue
+
+            mono_image = _compute_mono_image(wav)
+            if chromatic_psf is None:
+                chromatic_psf = np.zeros_like(mono_image, dtype=float)
+            chromatic_psf += weight * mono_image
+
+        if chromatic_psf is None:
+            raise ValueError(
+                "No flux accumulated in polychromatic PSF after applying bandpass/SED weights; "
+                "check wavelength nodes, filter, and SED values."
+            )
+
         total_flux = np.sum(chromatic_psf)
         if total_flux == 0.0:
             raise ValueError(
-                f"No flux accumulated in polychromatic PSF; "
-                f"check that the provided wavelengths fall within the '{use_filter}' bandpass."
+                "No flux accumulated in polychromatic PSF after integration; "
+                "check wavelength nodes, filter, and SED values."
             )
         chromatic_psf /= total_flux
         self.chromatic_psf = chromatic_psf
