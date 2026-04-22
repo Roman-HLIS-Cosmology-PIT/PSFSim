@@ -52,7 +52,21 @@ def inBandpass(wav, filter_string, bandpasses):
 
 class PolychromaticPSF:
     """
-    Class to compute and draw polychromatic PSFs
+    Compute and draw weighted polychromatic PSFs.
+
+    Parameters
+    ----------
+    scanum : int
+        Roman SCA index passed through to ``PSFObject``.
+    scax : float
+        Source x-position on the SCA.
+    scay : float
+        Source y-position on the SCA.
+    wavelengths : array-like
+        Wavelength samples in microns. Values are evaluated in the provided order.
+    sed : callable, optional
+        Spectral energy distribution weight function evaluated as ``sed(wav_microns)``.
+        If ``None``, a flat spectral weight is assumed.
     """
 
     def __init__(self, scanum, scax, scay, wavelengths, sed=None):
@@ -75,7 +89,18 @@ class PolychromaticPSF:
         optical_psf_only=False,
     ):
         """
-        Compute the polychromatic PSF by summing over monochromatic PSFs at different wavelengths.
+        Compute a normalized polychromatic PSF from monochromatic PSF samples.
+
+        The accumulator sums per-wavelength contributions of
+        ``bandpass(wavelength_nm) * sed(wavelength_microns) * PSF(wavelength)``,
+        with unit weight for ``sed`` when ``sed=None``. The returned image is then
+        normalized to unit sum.
+
+        Notes
+        -----
+        This method currently applies one contribution per entry in ``self.wavelengths``
+        (no explicit bin-width quadrature factor), so the approximation depends on
+        the supplied wavelength sampling.
         """
         # I'm going to accumulate iteratively for now to save on memory, but open to changing later
         if optical_psf_only:
