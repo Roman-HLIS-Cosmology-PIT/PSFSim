@@ -40,7 +40,7 @@ class _FakePSFObject:
 
 @pytest.fixture
 def patch_poly_deps(monkeypatch):
-    """Load polychrom with stubbed PSFObject and provide a bandpass patch helper."""
+    """Load polychrom with stubs and provide helpers for bandpass-aware tests."""
 
     fake_psfobject_module = types.ModuleType("psfsim.psfobject")
     fake_psfobject_module.PSFObject = _FakePSFObject
@@ -48,12 +48,57 @@ def patch_poly_deps(monkeypatch):
 
     sys.modules.pop("psfsim.polychrom", None)
     polychrom = importlib.import_module("psfsim.polychrom")
+    original_in_bandpass = polychrom.inBandpass
 
-    def _set_bandpass(blue_nm=1000.0, red_nm=2000.0, response=1.0):
+    def _set_bandpass(blue_nm=1000.0, red_nm=2000.0, response=1.0, adapt_compute=True):
         fake_bp = {"H": _FakeBandpass(blue_nm, red_nm, response=response)}
         monkeypatch.setattr(polychrom.galsim.roman, "getBandpasses", lambda: fake_bp)
+        if adapt_compute:
+            # Compatibility adapter while compute_poly_psf still calls inBandpass(wav, filter).
+            monkeypatch.setattr(
+                polychrom,
+                "inBandpass",
+                lambda wav, filter_string: original_in_bandpass(wav, filter_string, fake_bp),
+            )
+        else:
+            monkeypatch.setattr(polychrom, "inBandpass", original_in_bandpass)
+        return fake_bp
 
     return polychrom, _set_bandpass
+
+
+def test_inbandpass_accepts_bandpasses_argument_exact_key(patch_poly_deps):
+    """inBandpass should accept explicit bandpasses and honor exact key matches."""
+    polychrom, set_bandpass = patch_poly_deps
+    fake_bp = set_bandpass(blue_nm=1000.0, red_nm=1500.0, response=1.0, adapt_compute=False)
+
+    is_in, key = polychrom.inBandpass(1.2, "H", fake_bp)
+    assert is_in is True
+    assert key == "H"
+
+
+def test_inbandpass_accepts_bandpasses_argument_substring_key(patch_poly_deps):
+    """inBandpass should find a matching substring key from provided bandpasses."""
+    polychrom, set_bandpass = patch_poly_deps
+    set_bandpass(blue_nm=1000.0, red_nm=1500.0, response=1.0, adapt_compute=False)
+
+    fake_bp = {
+        "H158": _FakeBandpass(1400.0, 1700.0, response=1.0),
+        "J129": _FakeBandpass(1100.0, 1400.0, response=1.0),
+    }
+    is_in, key = polychrom.inBandpass(1.58, "H", fake_bp)
+    assert is_in is True
+    assert key == "H158"
+
+
+def test_inbandpass_raises_for_missing_filter_in_provided_bandpasses(patch_poly_deps):
+    """inBandpass should raise if requested filter is missing from explicit bandpasses."""
+    polychrom, set_bandpass = patch_poly_deps
+    set_bandpass(blue_nm=1000.0, red_nm=1500.0, response=1.0, adapt_compute=False)
+
+    fake_bp = {"J129": _FakeBandpass(1100.0, 1400.0, response=1.0)}
+    with pytest.raises(ValueError, match="not found in bandpasses"):
+        polychrom.inBandpass(1.25, "H", fake_bp)
 
 
 def test_single_in_band_node_returns_monochromatic(patch_poly_deps):
