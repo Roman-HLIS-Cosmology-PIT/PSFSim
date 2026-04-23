@@ -218,3 +218,11 @@ def test_poly_h():
     assert np.abs(scft[11]) < 0.075
     assert 0.1 < np.abs(scft[12]) < 0.2
     assert np.abs(scft[13]) < 0.075
+
+    # Tests for simple exceptions
+    with pytest.raises(ValueError, match="wavelengths must be a non-empty 1D sequence in microns."):
+        psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6).reshape((2, 3)))
+    with pytest.raises(ValueError, match="wavelengths must be unique values for trapezoidal integration."):
+        psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.full((5,), 1.3))
+    with pytest.raises(ValueError, match=r"^Filter"):
+        p.compute_poly_psf(use_filter="doesntexist", ovsamp=8)
