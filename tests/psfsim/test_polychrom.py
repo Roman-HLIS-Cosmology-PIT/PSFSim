@@ -5,6 +5,7 @@ import sys
 import types
 
 import numpy as np
+import psfsim.polychrom
 import pytest
 
 # --- These are tests for general functionality ---
@@ -55,12 +56,15 @@ def patch_poly_deps(monkeypatch):
         fake_bp = {"H": _FakeBandpass(blue_nm, red_nm, response=response)}
         monkeypatch.setattr(polychrom.galsim.roman, "getBandpasses", lambda: fake_bp)
 
-    return polychrom, _set_bandpass
+    def _undo():
+        monkeypatch.undo()
+
+    return polychrom, _set_bandpass, _undo
 
 
 def test_single_in_band_node_returns_monochromatic(patch_poly_deps):
     """A single in-band node should return the corresponding monochromatic PSF."""
-    polychrom, set_bandpass = patch_poly_deps
+    polychrom, set_bandpass, undo = patch_poly_deps
     set_bandpass(blue_nm=1000.0, red_nm=1400.0, response=1.0)
 
     p = polychrom.PolychromaticPSF(
@@ -76,22 +80,24 @@ def test_single_in_band_node_returns_monochromatic(patch_poly_deps):
     expected = np.array([[1.0, 0.0], [0.0, 1.2**2]], dtype=float)
     expected /= expected.sum()
     assert np.allclose(out, expected)
+    undo()
 
 
 def test_zero_in_band_nodes_raises(patch_poly_deps):
     """If no nodes are in-band, integration should raise a clear error."""
-    polychrom, set_bandpass = patch_poly_deps
+    polychrom, set_bandpass, undo = patch_poly_deps
     set_bandpass(blue_nm=1000.0, red_nm=1200.0, response=1.0)
 
     p = polychrom.PolychromaticPSF(scanum=1, scax=0.0, scay=0.0, wavelengths=[0.5, 2.0])
 
     with pytest.raises(ValueError, match="No in-band wavelength nodes"):
         p.compute_poly_psf(postage_stamp_size=1, ovsamp=2, use_filter="H")
+    undo()
 
 
 def test_nonuniform_nodes_change_trapezoid_result(patch_poly_deps):
     """Different node spacing should change the trapezoid-weighted integrated PSF."""
-    polychrom, set_bandpass = patch_poly_deps
+    polychrom, set_bandpass, undo = patch_poly_deps
     set_bandpass(blue_nm=1000.0, red_nm=2000.0, response=1.0)
 
     p_uniform = polychrom.PolychromaticPSF(scanum=1, scax=0.0, scay=0.0, wavelengths=[1.0, 1.5, 2.0])
@@ -103,11 +109,12 @@ def test_nonuniform_nodes_change_trapezoid_result(patch_poly_deps):
     assert not np.allclose(out_uniform, out_nonuniform)
     assert np.isclose(out_uniform.sum(), 1.0)
     assert np.isclose(out_nonuniform.sum(), 1.0)
+    undo()
 
 
 def test_sed_callable_changes_integrated_result(patch_poly_deps):
     """A non-flat SED callable should alter the integrated PSF relative to flat SED."""
-    polychrom, set_bandpass = patch_poly_deps
+    polychrom, set_bandpass, undo = patch_poly_deps
     set_bandpass(blue_nm=1000.0, red_nm=2000.0, response=1.0)
 
     wavelengths = [1.0, 1.5, 2.0]
@@ -126,11 +133,12 @@ def test_sed_callable_changes_integrated_result(patch_poly_deps):
     assert not np.allclose(out_flat, out_tilted)
     assert np.isclose(out_flat.sum(), 1.0)
     assert np.isclose(out_tilted.sum(), 1.0)
+    undo()
 
 
 def test_wavelengths_are_sorted_internally(patch_poly_deps):
     """Integration should be invariant to input wavelength ordering."""
-    polychrom, set_bandpass = patch_poly_deps
+    polychrom, set_bandpass, undo = patch_poly_deps
     set_bandpass(blue_nm=1000.0, red_nm=2000.0, response=1.0)
 
     unsorted_nodes = [2.0, 1.0, 1.5]
@@ -143,6 +151,7 @@ def test_wavelengths_are_sorted_internally(patch_poly_deps):
     out_sorted = p_sorted.compute_poly_psf(postage_stamp_size=1, ovsamp=2, use_filter="H")
 
     assert np.allclose(out_unsorted, out_sorted)
+    undo()
 
 
 # -- This is a test for whether the output is reasonable --
@@ -152,11 +161,9 @@ def test_wavelengths_are_sorted_internally(patch_poly_deps):
 def test_poly_h():
     """Simple H-band test."""
 
-    polychrom = importlib.import_module("psfsim.polychrom")
-
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
-    p = polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6))
+    p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6))
     arr = p.compute_poly_psf(use_filter="H", ovsamp=8)
 
     # These are to alert us to things that change.
