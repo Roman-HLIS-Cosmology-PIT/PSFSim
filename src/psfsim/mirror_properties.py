@@ -139,9 +139,9 @@ def reflection_coefficient(Q_vacuum, Q_medium):
 #end of optical functions
 
 # wavelength specific epsilon functions
-def malitson_sellmeier_sio2_eps(wavelength:float):
+def sio2_epsilon(wavelength:float):
     """
-    RefractiveIndex.INFO 'formula 1' Sellmeier form.
+    Computes the Sellmeier formula from Malitson, 1965
 
     Parameters
     ----------
@@ -161,9 +161,10 @@ def malitson_sellmeier_sio2_eps(wavelength:float):
 
     return n_squared
 
-def yang_ag_eps(wavelength:float, interpolate:bool = True):
+def ag_epsilon(wavelength:float, interpolate:bool = True):
     """ Computes the Yang et al 2015 dielectric function,
-    in natural units???
+    in natural units??? OR, if interpolate left as default
+    (true), will interpolate using stored data
         Params:
             wavelength: float
                 wavelength in microns
@@ -226,10 +227,10 @@ def reflect_RB_off_mirror(thetas:np.array,wavelength:float, thickness:float = 0.
     n_vacuum = 1 + 0j
 
     # Refractive index of substrate (silver)
-    eps_ag = yang_ag_eps(wavelength=wavelength*1e4) #wavelength is in cm, sent as microns
+    eps_ag = ag_epsilon(wavelength=wavelength*1e4) #wavelength is in cm, sent as microns
 
     # Refractive index of thin film coating (single layer, SiO2)
-    eps_sio2 = malitson_sellmeier_sio2_eps(wavelength=wavelength*1e4) #wavelength is in cm, sent as microns
+    eps_sio2 = sio2_epsilon(wavelength=wavelength*1e4) #wavelength is in cm, sent as microns
 
     te_coefs = []
     tm_coefs = []
