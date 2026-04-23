@@ -5,7 +5,6 @@ import sys
 import types
 
 import numpy as np
-import psfsim
 import pytest
 
 # --- These are tests for general functionality ---
@@ -153,9 +152,11 @@ def test_wavelengths_are_sorted_internally(patch_poly_deps):
 def test_poly_h():
     """Simple H-band test."""
 
+    polychrom = importlib.import_module("psfsim.polychrom")
+
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
-    p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6))
+    p = polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6))
     arr = p.compute_poly_psf(use_filter="H", ovsamp=8)
 
     # These are to alert us to things that change.
