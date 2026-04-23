@@ -5,7 +5,6 @@
 #   and Charuhas Shiveshwarkar
 #version:0.1a
 
-
 # imports
 import argparse
 import numpy as np
@@ -130,13 +129,9 @@ def reflection_coefficient(Q_vacuum, Q_medium):
     """
     return (Q_vacuum - Q_medium) / (Q_vacuum + Q_medium)
 
-#end of optical functions--------------------------------
+#end of optical functions
 
-
-
-#------------------------------------------------------
 # wavelength specific epsilon functions
-
 def malitson_sellmeier_sio2_eps(wavelength:float):
     """
     RefractiveIndex.INFO 'formula 1' Sellmeier form.
@@ -176,9 +171,10 @@ def yang_ag_eps(wavelength:float,):
     denom = wvlngh_energy**2 + 1j * (wvlngh_energy * (h_bar/(tau*1e-15)))
 
     return epsilon_infinity - (h_bar_omega_plasma**2)/denom
-#end of epsilon functions------------------------------------------
 
+#end of epsilon functions
 
+#main script
 def reflect_RB_off_mirror(thetas:np.array,wavelength:float, thickness:float = 0.0):
     """
     Mirror class that calculates the S and P reflectances for a set
@@ -189,7 +185,7 @@ def reflect_RB_off_mirror(thetas:np.array,wavelength:float, thickness:float = 0.
             wavelength: float
                 wavelength in cm
         Output:
-            te_reflectance, tm_reflectance
+            te_ceofs, tm_coefs
     
     """
     #eventually set these as params, todo
@@ -216,8 +212,8 @@ def reflect_RB_off_mirror(thetas:np.array,wavelength:float, thickness:float = 0.
         # Vacuum wave number in inverse cm
         current_k_0 = 2 * np.pi / wavelength
 
-        # --- vacuum admittances ---
-        # Kept here for clarity and symmetry, but could be just set by fiat
+        # vacuum admittances
+        # Kept for now, but could be just set by fiat
         cos_theta_vacuum = cosine_theta_medium(
             theta_inc=theta,
             n_inc=n_vacuum,
@@ -258,7 +254,7 @@ def reflect_RB_off_mirror(thetas:np.array,wavelength:float, thickness:float = 0.
             polarisation_mode="TM"
         )
 
-        # --- Thin-film characteristic matrices (SiO2) ---
+        # Thin-film characteristic matrices (SiO2) 
         matrix_TE = thin_film_characteristic_matrix(
             d=thickness,                  # thickness in nm
             k_0=current_k_0,             # inverse cm
@@ -279,7 +275,7 @@ def reflect_RB_off_mirror(thetas:np.array,wavelength:float, thickness:float = 0.
             polarisation_mode="TM"
         )
 
-        # --- Effective admittances seen from vacuum ---
+        # Effective admittances seen from vacuum 
         Q_final_TE = effective_admittance(
             matrix=matrix_TE,
             Q_0=Q_substrate_TE
@@ -290,7 +286,7 @@ def reflect_RB_off_mirror(thetas:np.array,wavelength:float, thickness:float = 0.
             Q_0=Q_substrate_TM
         )
 
-        # --- Reflection coefficients ---
+        # Reflection coefficients
         r_coef_TE = reflection_coefficient(
             Q_vacuum=Q_vacuum_TE,
             Q_medium=Q_final_TE
