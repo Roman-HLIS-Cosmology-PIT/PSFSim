@@ -283,7 +283,7 @@ def reflect_RB_off_mirror(thetas:np.array,wavelength:float, thickness:float = 0.
 
         # Thin-film characteristic matrices (SiO2) 
         matrix_TE = thin_film_characteristic_matrix(
-            d=thickness,                  # thickness in nm
+            thickness=thickness,                  # thickness in nm
             k_0=current_k_0,             # inverse cm
             n_inc=n_vacuum,
             theta_inc=theta,
@@ -293,7 +293,7 @@ def reflect_RB_off_mirror(thetas:np.array,wavelength:float, thickness:float = 0.
         )
 
         matrix_TM = thin_film_characteristic_matrix(
-            d=thickness,
+            thickness=thickness,
             k_0=current_k_0,
             n_inc=n_vacuum,
             theta_inc=theta,
