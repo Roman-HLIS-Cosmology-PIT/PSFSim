@@ -163,7 +163,9 @@ def test_poly_h():
     """Simple H-band test."""
 
     # force undo monkey patches in this set of tests
-    importlib.reload(psfsim)    
+    importlib.reload(psfsim)
+    importlib.reload(psfsim.polychrom)
+    importlib.reload(psfsim.psfobject)
 
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
