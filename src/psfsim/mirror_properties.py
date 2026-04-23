@@ -1,9 +1,13 @@
-#mirror_properties class
-#Created 16-Apr-2026
-#Developer: Anthony Harbo Torres
-#  with technical guidance by Christopher Hirata
-#   and Charuhas Shiveshwarkar
-#version:0.1a
+# mirror_properties class
+# For use with PSFsim's raybundle objects to calculate
+# reflectance coefficients for s and p polarization modes
+#
+# Created 16-Apr-2026
+# Developer: Anthony Harbo Torres
+# with technical guidance by Christopher Hirata
+# and Charuhas Shiveshwarkar
+# Model follows Sec 1.6 of Principles of Optics by Born & Wolf
+# version:0.2
 
 # imports
 import argparse
