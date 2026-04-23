@@ -5,6 +5,7 @@ import sys
 import types
 
 import numpy as np
+import psfsim
 import psfsim.polychrom
 import pytest
 
@@ -160,6 +161,8 @@ def test_wavelengths_are_sorted_internally(patch_poly_deps):
 
 def test_poly_h():
     """Simple H-band test."""
+
+    importlib.reload("psfsim")  # force undo monkey patches in this set of tests
 
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
