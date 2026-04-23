@@ -82,6 +82,10 @@ def test_single_in_band_node_returns_monochromatic(patch_poly_deps):
     expected /= expected.sum()
     assert np.allclose(out, expected)
     undo()
+    # force undo monkey patches in this set of tests
+    importlib.reload(psfsim)
+    importlib.reload(psfsim.polychrom)
+    importlib.reload(psfsim.psfobject)
 
 
 def test_zero_in_band_nodes_raises(patch_poly_deps):
@@ -94,6 +98,10 @@ def test_zero_in_band_nodes_raises(patch_poly_deps):
     with pytest.raises(ValueError, match="No in-band wavelength nodes"):
         p.compute_poly_psf(postage_stamp_size=1, ovsamp=2, use_filter="H")
     undo()
+    # force undo monkey patches in this set of tests
+    importlib.reload(psfsim)
+    importlib.reload(psfsim.polychrom)
+    importlib.reload(psfsim.psfobject)
 
 
 def test_nonuniform_nodes_change_trapezoid_result(patch_poly_deps):
@@ -111,6 +119,10 @@ def test_nonuniform_nodes_change_trapezoid_result(patch_poly_deps):
     assert np.isclose(out_uniform.sum(), 1.0)
     assert np.isclose(out_nonuniform.sum(), 1.0)
     undo()
+    # force undo monkey patches in this set of tests
+    importlib.reload(psfsim)
+    importlib.reload(psfsim.polychrom)
+    importlib.reload(psfsim.psfobject)
 
 
 def test_sed_callable_changes_integrated_result(patch_poly_deps):
@@ -135,6 +147,10 @@ def test_sed_callable_changes_integrated_result(patch_poly_deps):
     assert np.isclose(out_flat.sum(), 1.0)
     assert np.isclose(out_tilted.sum(), 1.0)
     undo()
+    # force undo monkey patches in this set of tests
+    importlib.reload(psfsim)
+    importlib.reload(psfsim.polychrom)
+    importlib.reload(psfsim.psfobject)
 
 
 def test_wavelengths_are_sorted_internally(patch_poly_deps):
@@ -153,6 +169,10 @@ def test_wavelengths_are_sorted_internally(patch_poly_deps):
 
     assert np.allclose(out_unsorted, out_sorted)
     undo()
+    # force undo monkey patches in this set of tests
+    importlib.reload(psfsim)
+    importlib.reload(psfsim.polychrom)
+    importlib.reload(psfsim.psfobject)
 
 
 # -- This is a test for whether the output is reasonable --
@@ -161,11 +181,6 @@ def test_wavelengths_are_sorted_internally(patch_poly_deps):
 
 def test_poly_h():
     """Simple H-band test."""
-
-    # force undo monkey patches in this set of tests
-    importlib.reload(psfsim)
-    importlib.reload(psfsim.polychrom)
-    importlib.reload(psfsim.psfobject)
 
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
