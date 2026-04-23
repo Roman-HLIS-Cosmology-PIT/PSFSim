@@ -221,8 +221,10 @@ def test_poly_h():
 
     # Tests for simple exceptions
     with pytest.raises(ValueError, match="wavelengths must be a non-empty 1D sequence in microns."):
-        psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6).reshape((2, 3)))
+        p2 = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6).reshape((2, 3)))
+        p2.compute_poly_psf(use_filter="H", ovsamp=8)
     with pytest.raises(ValueError, match="wavelengths must be unique values for trapezoidal integration."):
-        psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.full((5,), 1.3))
+        p2 = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.full((5,), 1.3))
+        p2.compute_poly_psf(use_filter="H", ovsamp=8)
     with pytest.raises(ValueError, match=r"^Filter"):
         p.compute_poly_psf(use_filter="doesntexist", ovsamp=8)
