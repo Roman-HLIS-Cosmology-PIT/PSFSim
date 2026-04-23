@@ -21,7 +21,7 @@ def n_medium(epsilon, mu):
     """ Compute n of this medium
         Params:
             epsilon, mu: complex
-        Output:
+        Return:
             n_medium: complex
     """
     return np.emath.sqrt(epsilon*mu)
@@ -32,7 +32,7 @@ def cosine_theta_medium(theta_inc, n_inc, n_medium):
         Params:
             theta_inc: float
             n_inc, n_medium : complex
-        Output:
+        Return:
             cosine(theta_medium): complex
     """
     return np.emath.sqrt( 1 - ( (n_inc/n_medium) * np.sin(theta_inc) )**2 )
@@ -49,7 +49,7 @@ def tilted_optical_admittance(cos_theta_medium, epsilon, mu, polarisation_mode):
                 Elec. permittivity and mag. permeability of the layer
             polarisation_mode: str
                 Can pass either {TM or P} or {TE or S} as choices
-        Output:
+        Return:
             Q(z): complex
                 Form depends on polarisation_mode
     """
@@ -78,8 +78,7 @@ def thin_film_characteristic_matrix(d, k_0, n_inc, theta_inc, epsilon, mu, polar
                 of this layer
             polarisation_mode: str
                 Which polarisation mode is being solved for, TE or TM
-
-        Output:
+        Return:
             matrix: np.array
                 Characteristic matrix for this layer, (2x2)
     """
@@ -111,20 +110,21 @@ def thin_film_characteristic_matrix(d, k_0, n_inc, theta_inc, epsilon, mu, polar
     return matrix
 
 def effective_admittance(matrix, Q_0):
-    """Effective admittance seen at the entrace of the layer stack, given substrate
+    """ Effective admittance seen at the entrace of the layer stack, given substrate
     admittance Q_0 and the characteristic matrix for the thin film above it.
         Params:
             matrix: np.array
                 Characteristic matrix of thin film above substrate
             Q_0: complex
                 The optical admittance of the substrate
-        Output:
+        Return:
             Q: complex
                 Effective admittance for the layer stack
     """
     A, B, C, D = matrix[0,0], matrix[0,1], matrix[1,0], matrix[1,1]
 
-    return (C + D*Q_0) / (A + B*Q_0)
+    Q = (C + D*Q_0) / (A + B*Q_0)
+    return Q
 
 def reflection_coefficient(Q_vacuum, Q_medium):
     """ Reflection coefficient for an incident beam going from vacuum into a medium
@@ -133,25 +133,24 @@ def reflection_coefficient(Q_vacuum, Q_medium):
                 Admittance in vacuum
             Q_medium: complex
                 Optical admittance of the medium
+        Return:
+            r_coef: complex
+                Complex-valued reflection coefficient
     """
-    return (Q_vacuum - Q_medium) / (Q_vacuum + Q_medium)
+    r_coef = (Q_vacuum - Q_medium) / (Q_vacuum + Q_medium)
+    return r_coef
 
 #end of optical functions
 
 # wavelength specific epsilon functions
 def sio2_epsilon(wavelength:float):
-    """
-    Computes the Sellmeier formula from Malitson, 1965
-
-    Parameters
-    ----------
-    wavelength : float
-        Wavelength in microns.
-
-    Returns
-    -------
-    epsilon : float
-        SiO2 electric permittivity.
+    """ Computes the Sellmeier formula for n^2 from Malitson, 1965
+        Params:
+            wavelength : float
+                Wavelength in microns.
+        Return:
+            epsilon : float
+                SiO2 electric permittivity (real valued).
     """
     n_squared = (
         1 + ( ((0.6961663)*wavelength**2)/ (wavelength**2 - (0.0684043)**2) )
@@ -162,12 +161,14 @@ def sio2_epsilon(wavelength:float):
     return n_squared
 
 def ag_epsilon(wavelength:float, interpolate:bool = True):
-    """ Computes the Yang et al 2015 dielectric function,
-    in natural units??? OR, if interpolate left as default
-    (true), will interpolate using stored data
+    """ Computes the Yang et al 2015 dielectric function (formula suspect)
+    OR, if interpolate = true, will interpolate using stored data
         Params:
             wavelength: float
                 wavelength in microns
+        Return:
+            ag_epsilon: complex
+                Complex-valued dielectric constant of silver
     """
     if interpolate:
         datafile = files("psfsim.data").joinpath("mirror_Ag_C_corrected.csv")  # reads in data from directory
@@ -184,8 +185,8 @@ def ag_epsilon(wavelength:float, interpolate:bool = True):
         total_eps= real_eps + 1j*imag_eps
 
         interpolation= CubicSpline(wavelengths,total_eps)
-
-        return interpolation(wavelength)
+        ag_epsilon = interpolation(wavelength)
+        return ag_epsilon
 
     else:
         h_bar = 6.582119569e-16 # hbar in units of eV*s
@@ -196,24 +197,23 @@ def ag_epsilon(wavelength:float, interpolate:bool = True):
 
         wvlngh_energy = (hc/(wavelength*1e3))
         denom = wvlngh_energy**2 + 1j * (wvlngh_energy * (h_bar/(tau*1e-15)))
-
-        return epsilon_infinity - (h_bar_omega_plasma**2)/denom
+        ag_epsilon = epsilon_infinity - (h_bar_omega_plasma**2)/denom
+        return ag_epsilon
 
 #end of epsilon functions
 
 #main script
 def reflect_RB_off_mirror(thetas:np.array,wavelength:float, thickness:float = 0.0):
-    """
-    Mirror class that calculates the S and P reflectances for a set
+    """ Mirror class that calculates the S and P reflectances for a set
     of angles theta, for a given wavelength
         Params:
             thetas: np.array
                 Angles in radians
             wavelength: float
                 wavelength in cm
-        Output:
-            te_ceofs, tm_coefs
-    
+        Return:
+            te_ceofs, tm_coefs: complex
+                Complex-valued reflection coefficients for the TE & TM modes
     """
     #eventually set these as params, todo
 
