@@ -8,6 +8,9 @@
 # imports
 import argparse
 import numpy as np
+import pandas as pd
+from importlib.resources import files
+from scipy.interpolate import CubicSpline
 
 # optical functions
 def n_medium(epsilon, mu):
@@ -154,23 +157,42 @@ def malitson_sellmeier_sio2_eps(wavelength:float):
 
     return n_squared
 
-def yang_ag_eps(wavelength:float,):
+def yang_ag_eps(wavelength:float, interpolate:bool = True):
     """ Computes the Yang et al 2015 dielectric function,
     in natural units???
         Params:
             wavelength: float
                 wavelength in microns
     """
-    h_bar = 6.582119569e-16 # hbar in units of eV*s
-    hc = 1239.841984 # hc in units of eV*nm
-    tau = 17 # femtoseconds
-    epsilon_infinity = 5  #unitless
-    h_bar_omega_plasma = 8.9 # units of eV
+    if interpolate:
+        datafile = files("psfsim.data").joinpath("mirror_Ag_C_corrected.csv")  # reads in data from directory
+        data=pd.read_csv(datafile,sep=",")
 
-    wvlngh_energy = (hc/(wavelength*1e3))
-    denom = wvlngh_energy**2 + 1j * (wvlngh_energy * (h_bar/(tau*1e-15)))
+        duplicates = data["Wavelength (um)"].duplicated(keep='first') 
+        duplicates_indices = data["Wavelength (um)"].index[duplicates].tolist() 
+        data_reduced=data.drop(index=duplicates_indices)
 
-    return epsilon_infinity - (h_bar_omega_plasma**2)/denom
+        wavelengths=np.array(data_reduced["Wavelength (um)"]).flatten()
+
+        real_eps=np.array(data_reduced["ep1"]).flatten()
+        imag_eps=np.array(data_reduced["ep2"]).flatten()
+        total_eps= real_eps + 1j*imag_eps
+
+        interpolation= CubicSpline(wavelengths,total_eps)
+
+        return interpolation(wavelength)
+
+    else:
+        h_bar = 6.582119569e-16 # hbar in units of eV*s
+        hc = 1239.841984 # hc in units of eV*nm
+        tau = 17 # femtoseconds
+        epsilon_infinity = 5  #unitless
+        h_bar_omega_plasma = 8.9 # units of eV
+
+        wvlngh_energy = (hc/(wavelength*1e3))
+        denom = wvlngh_energy**2 + 1j * (wvlngh_energy * (h_bar/(tau*1e-15)))
+
+        return epsilon_infinity - (h_bar_omega_plasma**2)/denom
 
 #end of epsilon functions
 
