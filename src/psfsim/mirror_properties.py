@@ -61,11 +61,11 @@ def tilted_optical_admittance(cos_theta_medium, epsilon, mu, polarisation_mode):
     elif polarisation_mode in ("tm", "p"):
         return cos_theta_medium * z
 
-def thin_film_characteristic_matrix(d, k_0, n_inc, theta_inc, epsilon, mu, polarisation_mode):
+def thin_film_characteristic_matrix(thickness, k_0, n_inc, theta_inc, epsilon, mu, polarisation_mode):
     """ Characteristic matrix for a single thin film layer
         Params:
-            d: float
-                Thickness d of the thin film in nm
+            thickness: float
+                Thickness of the thin film in nm
             k_0: float
                 Vacuum wavevector in inverse cm
             n_inc: complex
@@ -83,7 +83,7 @@ def thin_film_characteristic_matrix(d, k_0, n_inc, theta_inc, epsilon, mu, polar
                 Characteristic matrix for this layer, (2x2)
     """
     #change incoming d in nm to cm
-    d = d*(1e-7)
+    thickness = thickness*(1e-7)
 
     #compute n of this medium
     index_of_medium = n_medium(epsilon=epsilon, mu=mu)
@@ -102,7 +102,7 @@ def thin_film_characteristic_matrix(d, k_0, n_inc, theta_inc, epsilon, mu, polar
         polarisation_mode=polarisation_mode)
 
     #precalculate the argument of the sines and cosines
-    argument = k_0 * d * index_of_medium * cos_theta_med
+    argument = k_0 * thickness * index_of_medium * cos_theta_med
 
     #compute the matrix
     matrix = np.array( [ [np.cos(argument), np.sin(argument) * (1/Q_layer) * (-1j)], [np.sin(argument) * (Q_layer) * (-1j), np.cos(argument)] ] )
@@ -110,7 +110,7 @@ def thin_film_characteristic_matrix(d, k_0, n_inc, theta_inc, epsilon, mu, polar
     return matrix
 
 def effective_admittance(matrix, Q_0):
-    """ Effective admittance seen at the entrace of the layer stack, given substrate
+    """ Effective admittance seen at the entrance of the layer stack, given substrate
     admittance Q_0 and the characteristic matrix for the thin film above it.
         Params:
             matrix: np.array
