@@ -5,10 +5,11 @@ import sys
 import types
 
 import numpy as np
+import psfsim
 import pytest
 
-
 # --- These are tests for general functionality ---
+
 
 class _FakeBandpass:
     def __init__(self, blue_limit_nm, red_limit_nm, response=1.0):
@@ -148,12 +149,13 @@ def test_wavelengths_are_sorted_internally(patch_poly_deps):
 # -- This is a test for whether the output is reasonable --
 # (not using the above fixtures)
 
+
 def test_poly_h():
     """Simple H-band test."""
 
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
-    p=psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6))
+    p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6))
     arr = p.compute_poly_psf(use_filter="H", ovsamp=8)
 
     # These are to alert us to things that change.
@@ -187,4 +189,3 @@ def test_poly_h():
     assert np.abs(scft[11]) < 0.075
     assert 0.1 < np.abs(scft[12]) < 0.2
     assert np.abs(scft[13]) < 0.075
-
