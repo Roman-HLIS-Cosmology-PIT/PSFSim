@@ -336,7 +336,7 @@ def reflect_RB_off_mirror(thetas:np.array,wavelength:float, thickness:float = 0.
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Reflectance for TE and TM modes")
     parser.add_argument("thetas", help="np.array of angles theta, in radians")
-    parser.add_argument("wavelength", help="wavelength of interst, in cm")
+    parser.add_argument("wavelength", help="wavelength of interest, in cm")
 
     args = parser.parse_args()
 
