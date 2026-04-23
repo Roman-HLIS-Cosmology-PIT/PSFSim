@@ -7,10 +7,8 @@
 
 
 # imports
-import yaml
 import argparse
 import numpy as np
-from scipy.interpolate import CubicSpline
 
 # optical functions
 def n_medium(epsilon, mu):
