@@ -21,9 +21,11 @@ from scipy.interpolate import CubicSpline
 # optical functions
 def n_medium(epsilon, mu):
     """Compute n of this medium
-    Params:
+    Parameters
+    -----------
         epsilon, mu: complex
-    Return:
+    Returns
+    --------
         n_medium: complex
     """
     return np.emath.sqrt(epsilon * mu)
@@ -32,27 +34,34 @@ def n_medium(epsilon, mu):
 def cosine_theta_medium(theta_inc, n_inc, n_medium):
     """Compute cos(theta_medium) from conserved transverse wavevector,
         according to n_inc * sin(theta_inc) = n_med * sin(theta_med)
-    Params:
+    Parameters
+    ----------
         theta_inc: float
+            Incident angle of RomanRayBundle onto the surface of the medium
         n_inc, n_medium : complex
-    Return:
+            Indices of refraction for the incident (usually vacuum) and medium
+    Returns
+    -------
         cosine(theta_medium): complex
+            Cosine of the reduced angle in the medium
     """
     return np.emath.sqrt(1 - ((n_inc / n_medium) * np.sin(theta_inc)) ** 2)
 
 
 def tilted_optical_admittance(cos_theta_medium, epsilon, mu, polarisation_mode):
     """Tilted optical admittance, Q(z) = [U(z),V(z)]
-        For TE: Q = (1/z) * cos(theta_medium)
-        For TM: Q = z * cos(theta_medium)
-    Params:
+    For TE: Q = (1/z) * cos(theta_medium)
+    For TM: Q = z * cos(theta_medium)
+    Parameters
+    ----------
         cos_theta_medium: float
             Cosine of the angle theta in that layer
         epsilon, mu: complex
             Elec. permittivity and mag. permeability of the layer
         polarisation_mode: str
             Can pass either {TM or P} or {TE or S} as choices
-    Return:
+    Returns
+    -------
         Q(z): complex
             Form depends on polarisation_mode
     """
@@ -67,7 +76,8 @@ def tilted_optical_admittance(cos_theta_medium, epsilon, mu, polarisation_mode):
 
 def thin_film_characteristic_matrix(thickness, k_0, n_inc, theta_inc, epsilon, mu, polarisation_mode):
     """Characteristic matrix for a single thin film layer
-    Params:
+    Parameters
+    ----------
         thickness: float
             Thickness of the thin film in nm
         k_0: float
@@ -82,7 +92,8 @@ def thin_film_characteristic_matrix(thickness, k_0, n_inc, theta_inc, epsilon, m
             of this layer
         polarisation_mode: str
             Which polarisation mode is being solved for, TE or TM
-    Return:
+    Returns
+    -------
         matrix: np.array
             Characteristic matrix for this layer, (2x2)
     """
@@ -117,14 +128,16 @@ def thin_film_characteristic_matrix(thickness, k_0, n_inc, theta_inc, epsilon, m
 def effective_admittance(matrix, Q_0):
     """Effective admittance seen at the entrance of the layer stack, given substrate
     admittance Q_0 and the characteristic matrix for the thin film above it.
-        Params:
-            matrix: np.array
-                Characteristic matrix of thin film above substrate
-            Q_0: complex
-                The optical admittance of the substrate
-        Return:
-            Q: complex
-                Effective admittance for the layer stack
+    Parameters
+    ----------
+        matrix: np.array
+            Characteristic matrix of thin film above substrate
+        Q_0: complex
+            The optical admittance of the substrate
+    Returns
+    -------
+        Q: complex
+            Effective admittance for the layer stack
     """
     A, B, C, D = matrix[0, 0], matrix[0, 1], matrix[1, 0], matrix[1, 1]
 
@@ -134,29 +147,31 @@ def effective_admittance(matrix, Q_0):
 
 def reflection_coefficient(Q_vacuum, Q_medium):
     """Reflection coefficient for an incident beam going from vacuum into a medium
-    Params:
+    Parameters
+    ----------
         Q_vacuum: complex
             Admittance in vacuum
         Q_medium: complex
             Optical admittance of the medium
-    Return:
+    Returns
+    -------
         r_coef: complex
             Complex-valued reflection coefficient
     """
     r_coef = (Q_vacuum - Q_medium) / (Q_vacuum + Q_medium)
     return r_coef
-
-
 # end of optical functions
 
 
-# wavelength specific epsilon functions
+# wavelength dependent epsilon functions
 def sio2_epsilon(wavelength: float):
     """Computes the Sellmeier formula for n^2 from Malitson, 1965
-    Params:
+    Parameters
+    ----------
         wavelength : float
             Wavelength in microns.
-    Return:
+    Returns
+    -------
         epsilon : float
             SiO2 electric permittivity (real valued).
     """
@@ -166,19 +181,19 @@ def sio2_epsilon(wavelength: float):
         + (((0.4079426) * wavelength**2) / (wavelength**2 - (0.1162414) ** 2))
         + (((0.8974794) * wavelength**2) / (wavelength**2 - (9.896161) ** 2))
     )
-
     return n_squared
-
 
 def ag_epsilon(wavelength: float, interpolate: bool = True):
     """Computes the Yang et al 2015 dielectric function (formula suspect)
     OR, if interpolate = true, will interpolate using stored data
-        Params:
-            wavelength: float
-                wavelength in microns
-        Return:
-            ag_epsilon: complex
-                Complex-valued dielectric constant of silver
+    Parameters
+    ----------
+        wavelength: float
+            wavelength in microns
+    Returns
+    -------
+        ag_epsilon: complex
+            Complex-valued dielectric constant of silver
     """
     if interpolate:
         datafile = files("psfsim.data").joinpath("mirror_Ag_C_corrected.csv")  # reads in data from directory
@@ -209,10 +224,7 @@ def ag_epsilon(wavelength: float, interpolate: bool = True):
         denom = wvlngh_energy**2 + 1j * (wvlngh_energy * (h_bar / (tau * 1e-15)))
         ag_epsilon = epsilon_infinity - (h_bar_omega_plasma**2) / denom
         return ag_epsilon
-
-
 # end of epsilon functions
-
 
 # main script
 def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float = 104.3):
@@ -323,7 +335,6 @@ def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float 
     tm_coefs = np.array(tm_coefs)
 
     return te_coefs, -1 * tm_coefs
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Reflectance for TE and TM modes")
