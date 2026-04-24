@@ -71,7 +71,7 @@ def thin_film_characteristic_matrix(thickness, k_0, n_inc, theta_inc, epsilon, m
         thickness: float
             Thickness of the thin film in nm
         k_0: float
-            Vacuum wavevector in inverse cm
+            Vacuum wavevector in inverse mm
         n_inc: complex
             Refrc. index of the incident medium, used to
             define the conserved transverse wavevector
@@ -86,8 +86,8 @@ def thin_film_characteristic_matrix(thickness, k_0, n_inc, theta_inc, epsilon, m
         matrix: np.array
             Characteristic matrix for this layer, (2x2)
     """
-    # change incoming d in nm to cm
-    thickness = thickness * (1e-7)
+    # change incoming d in nm to mm
+    thickness = thickness * (1e-6)
 
     # compute n of this medium
     index_of_medium = n_medium(epsilon=epsilon, mu=mu)
@@ -222,7 +222,7 @@ def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float 
             thetas: np.array
                 Angles in radians
             wavelength: float
-                wavelength in cm
+                wavelength in mm
         Return:
             te_ceofs, tm_coefs: complex
                 Complex-valued reflection coefficients for the TE & TM modes
@@ -238,10 +238,10 @@ def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float 
     n_vacuum = 1 + 0j
 
     # Refractive index of substrate (silver)
-    eps_ag = ag_epsilon(wavelength=wavelength * 1e4)  # wavelength is in cm, sent as microns
+    eps_ag = ag_epsilon(wavelength=wavelength * 1e3)  # wavelength is in mm, sent as microns
 
     # Refractive index of thin film coating (single layer, SiO2)
-    eps_sio2 = sio2_epsilon(wavelength=wavelength * 1e4)  # wavelength is in cm, sent as microns
+    eps_sio2 = sio2_epsilon(wavelength=wavelength * 1e3)  # wavelength is in mm, sent as microns
 
     te_coefs = []
     tm_coefs = []
@@ -322,7 +322,7 @@ def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Reflectance for TE and TM modes")
     parser.add_argument("thetas", help="np.array of angles theta, in radians")
-    parser.add_argument("wavelength", help="wavelength of interest, in cm")
+    parser.add_argument("wavelength", help="wavelength of interest, in mm")
 
     args = parser.parse_args()
 
