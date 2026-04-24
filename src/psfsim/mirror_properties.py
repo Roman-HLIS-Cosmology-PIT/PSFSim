@@ -229,7 +229,7 @@ def ag_epsilon(wavelength: float, interpolate: bool = True):
 
 
 # main script
-def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float = 104.3):
+def reflect_RB_off_mirror(thetas: np.array, wavelength: float, epsilon_coat : float = 2.1, thickness: float = 110.0):
     """Mirror class that calculates the S and P reflectances for a set
     of angles theta, for a given wavelength
 
@@ -239,8 +239,10 @@ def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float 
         Angles in radians
     wavelength : float
         wavelength in mm
+    epsilon_coat : float, optional
+        The dielectric constant of the coating layer (set to ``None`` for SiO2).
     thichkness: float, optional
-       Thickness chosen such that the linear retardance cross zero at 600nm wavelength
+        Thickness chosen such that the linear retardance cross zero at 600nm wavelength
 
     Returns
     -------
@@ -262,6 +264,8 @@ def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float 
 
     # Refractive index of thin film coating (single layer, SiO2)
     eps_sio2 = sio2_epsilon(wavelength=wavelength * 1e3)  # wavelength is in mm, sent as microns
+    eps_coat = eps_sio2 if epsilon_coat is None else epsilon_coat
+    mu_coat = sio2_mag_permeability if epsilon_coat is None else 1 + 0j
 
     te_coefs = []
     tm_coefs = []
@@ -304,7 +308,7 @@ def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float 
             k_0=current_k_0,  # inverse cm
             n_inc=n_vacuum,
             theta_inc=theta,
-            epsilon=eps_sio2,
+            epsilon=eps_coat,
             mu=sio2_mag_permeability,
             polarisation_mode="TE",
         )
@@ -314,7 +318,7 @@ def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float 
             k_0=current_k_0,
             n_inc=n_vacuum,
             theta_inc=theta,
-            epsilon=eps_sio2,
+            epsilon=eps_coat,
             mu=sio2_mag_permeability,
             polarisation_mode="TM",
         )
