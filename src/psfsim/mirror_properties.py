@@ -215,17 +215,23 @@ def ag_epsilon(wavelength: float, interpolate: bool = True):
 
 
 # main script
-def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float = 0.0):
+def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float = 104.3):
     """Mirror class that calculates the S and P reflectances for a set
     of angles theta, for a given wavelength
-        Params:
-            thetas: np.array
-                Angles in radians
-            wavelength: float
-                wavelength in mm
-        Return:
-            te_ceofs, tm_coefs: complex
-                Complex-valued reflection coefficients for the TE & TM modes
+
+    Parameters
+    ----------
+    thetas : np.array
+        Angles in radians
+    wavelength : float
+        wavelength in mm
+    thichkness: float, optional
+       Thickness chosen such that the linear retardance cross zero at 600nm wavelength
+
+    Returns
+    -------
+    te_ceofs, tm_coefs: complex
+        Complex-valued reflection coefficients for the TE & TM modes
     """
     # eventually set these as params, todo
 
