@@ -183,6 +183,7 @@ def sio2_epsilon(wavelength: float):
     )
     return n_squared
 
+
 def ag_epsilon(wavelength: float, interpolate: bool = True):
     """Computes the Yang et al 2015 dielectric function (formula suspect)
     OR, if interpolate = true, will interpolate using stored data
@@ -225,6 +226,7 @@ def ag_epsilon(wavelength: float, interpolate: bool = True):
         ag_epsilon = epsilon_infinity - (h_bar_omega_plasma**2) / denom
         return ag_epsilon
 # end of epsilon functions
+
 
 # main script
 def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float = 104.3):
@@ -335,6 +337,7 @@ def reflect_RB_off_mirror(thetas: np.array, wavelength: float, thickness: float 
     tm_coefs = np.array(tm_coefs)
 
     return te_coefs, -1 * tm_coefs
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Reflectance for TE and TM modes")
