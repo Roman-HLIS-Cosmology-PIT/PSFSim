@@ -1,5 +1,5 @@
 # mirror_properties class
-# For use with PSFsim's raybundle objects to calculate
+# For use with RomanRayBundle objects to calculate
 # reflectance coefficients for s and p polarization modes
 #
 # Created 16-Apr-2026
