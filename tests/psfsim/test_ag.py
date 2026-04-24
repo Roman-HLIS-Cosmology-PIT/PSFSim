@@ -26,7 +26,8 @@ def test_ag():
         s = f"{wl:5.3f} {n.real:7.4f} {n.imag:7.4f}"
 
         # get reflections off bare silver
-        RS, RP = reflect_RB_off_mirror(thetas, wl / 1.0e4, thickness=0.0)
+        # wl in mm
+        RS, RP = reflect_RB_off_mirror(thetas, wl / 1.0e3, thickness=0.0)
         power_RS = np.abs(RS) ** 2
         power_RP = np.abs(RP) ** 2
         dphase = np.angle(RP / RS)
