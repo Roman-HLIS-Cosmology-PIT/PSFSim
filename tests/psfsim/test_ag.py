@@ -1,14 +1,14 @@
 """Test function for indices of refraction."""
 
 import numpy as np
-
 from psfsim.mirror_properties import ag_epsilon, reflect_RB_off_mirror
+
 
 def test_ag():
     """Test function for bare silver mirror."""
 
     # Angle of incidence grid for test
-    thetas = np.array([0., 20., 45.], dtype=np.float64) * np.pi / 180.0
+    thetas = np.array([0.0, 20.0, 45.0], dtype=np.float64) * np.pi / 180.0
 
     for i in range(81):
         wl = 0.3 + 0.025 * i  # wavelength in microns
@@ -27,9 +27,9 @@ def test_ag():
 
         # get reflections off bare silver
         RS, RP = reflect_RB_off_mirror(thetas, wl / 1.0e4, thickness=0.0)
-        power_RS = np.abs(RS)**2
-        power_RP = np.abs(RP)**2
-        dphase = np.angle(RP/RS)
+        power_RS = np.abs(RS) ** 2
+        power_RP = np.abs(RP) ** 2
+        dphase = np.angle(RP / RS)
         # check S=P at normal incidence
         assert np.abs(power_RS - power_RP)[0] < 1.0e-5
         assert np.abs(dphase[0]) < 1.0e-5
