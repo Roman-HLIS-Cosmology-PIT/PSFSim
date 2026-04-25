@@ -2,6 +2,8 @@ import numpy as np
 import scipy
 from astropy.io import fits
 
+from .mirror_properties import reflect_RB_model
+
 
 def _lanczos_weight(dx, dy, a=3):
     """
@@ -889,6 +891,7 @@ def _RomanRayBundle(
     jacobian=None,
     hires=None,
     ovsamp=6,
+    idealmirror=False,
 ):
     """
     Carries out trace through RST optics.
@@ -915,6 +918,8 @@ def _RomanRayBundle(
         ``hires[0]`` is a 1D array of y-values and ``hires[1]`` is a 1D array of x-values.
     ovsamp : int, optional
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
+    idealmirror : bool, optional
+        Forces the mirror to be an ideal conducting surface instead of the model.
 
     Returns
     -------
@@ -948,6 +953,8 @@ def _RomanRayBundle(
     }[usefilter[0].upper()]
     if wl is None:
         wl = wlref
+
+    _reflect_RB_model = None if idealmirror else reflect_RB_model
 
     # initialization
     RB = RayBundle(
@@ -1086,6 +1093,7 @@ def _RomanRayBundle(
         Rinv=-1.0 / 5671.1342,
         K=-0.9728630311,
         activeZone=[{"CIR": 1184.02, "OBS": 321.31}],
+        rCoefs=_reflect_RB_model,
     )
 
     # Secondary mirror
@@ -1094,6 +1102,7 @@ def _RomanRayBundle(
         Rinv=-1.0 / 1299.6164,
         K=-1.6338521231,
         activeZone=[{"CIR": 266.255}],
+        rCoefs=_reflect_RB_model,
     )
 
     # PM hole
@@ -1125,6 +1134,7 @@ def _RomanRayBundle(
             {"CIR": 16.98, "ADX": 134.13, "ADY": -106.6},
             {"CIR": 16.98, "ADX": -134.13, "ADY": -106.6},
         ],
+        rCoefs=_reflect_RB_model,
     )
 
     # Entrance aperture plate
@@ -1163,6 +1173,7 @@ def _RomanRayBundle(
             {"REX": 169.255, "REY": 47.7, "ADY": -92.27},
             {"REX": 216.955, "REY": 142.135, "ADY": 49.865},
         ],
+        rCoefs=_reflect_RB_model,
     )
 
     # Tertiary mirror
@@ -1186,6 +1197,7 @@ def _RomanRayBundle(
             {"CIR": 105.28, "ADX": -197.435, "ADY": 120.565},
             {"REX": 256.189698, "REY": 31.9859, "ADY": 444.7891},
         ],
+        rCoefs=_reflect_RB_model,
     )
 
     # Exit pupil mask
@@ -1289,7 +1301,17 @@ def _RomanRayBundle(
 
 
 def RomanRayBundle(
-    xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, jacobian=None, ovsamp=6, a_lanczos=3
+    xan,
+    yan,
+    N,
+    usefilter,
+    wl=None,
+    hasE=False,
+    width=2500.0,
+    jacobian=None,
+    ovsamp=6,
+    a_lanczos=3,
+    idealmirror=False,
 ):
     """
     Carries out trace through RST optics.
@@ -1315,6 +1337,8 @@ def RomanRayBundle(
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
     a_lanczos : int, optional
         The "a" parameter for Lanczos interpolation; this controls the size of the kernel. Default is 3.
+    idealmirror : bool, optional
+        Forces the mirror to be an ideal conducting surface instead of the model.
 
     Returns
     -------
@@ -1349,7 +1373,18 @@ def RomanRayBundle(
 
     """
 
-    RB = _RomanRayBundle(xan, yan, N, usefilter, wl=wl, hasE=hasE, width=width, jacobian=jacobian, hires=None)
+    RB = _RomanRayBundle(
+        xan,
+        yan,
+        N,
+        usefilter,
+        wl=wl,
+        hasE=hasE,
+        width=width,
+        jacobian=jacobian,
+        hires=None,
+        idealmirror=idealmirror,
+    )
     # Now figure out which pixels we need to increase the resolution.
     r = 40.0 / width * N  # radius of search in pixels
     rceil = int(np.ceil(r))
@@ -1374,6 +1409,7 @@ def RomanRayBundle(
         jacobian=jacobian,
         hires=bdycells,
         ovsamp=ovsamp,
+        idealmirror=True,
     )
     print(n, np.shape(RB_hires.open))
     print("Lanczos interpolation order:", a_lanczos)
@@ -1476,7 +1512,7 @@ def demo(writefiles=False):
     )
 
     # pupils
-    RB = RomanRayBundle(-0.399, 0.208, 512, "W", wl=9.27e-4, hasE=True)
+    RB = RomanRayBundle(-0.399, 0.208, 512, "W", wl=9.27e-4, hasE=True, idealmirror=True)
     if writefiles:
         fits.PrimaryHDU(RB.open.astype(np.int8)).writeto("temp.fits", overwrite=True)
         fits.PrimaryHDU(np.where(RB.open, RB.s - np.median(RB.s), 0)).writeto("temp-s.fits", overwrite=True)
