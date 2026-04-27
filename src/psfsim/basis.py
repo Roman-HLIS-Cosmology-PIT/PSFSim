@@ -1,6 +1,7 @@
 """Basis functions for decomposition of the figure errors."""
 
 import numpy as np
+from scipy.special import legendre_p
 
 from .zernike import noll_to_zernike, zernike
 
@@ -85,16 +86,19 @@ class ZernikeBasis(_FigureBasis):
         The maximum radius.
     nmax : int
         The maximum Zernike order.
+    skip : int, optional
+        If specified, skip orders below this value (e.g., skip=1 to not use piston).
 
     """
 
-    def __init__(self, radius, nmax):
+    def __init__(self, radius, nmax, skip=0):
         # inputs
         self.radius = radius
         self.nmax = nmax
+        self.skip = skip
 
         # number of modes
-        self.N = (nmax + 1) * (nmax + 2) // 2
+        self.N = (nmax + 1) * (nmax + 2) // 2 - skip * (skip + 1) // 2
 
     def basis(self, x, y):
         """
@@ -122,9 +126,10 @@ class ZernikeBasis(_FigureBasis):
 
         # now build the basis
         out = np.zeros(np.shape(x) + (self.N,))
+        offset = self.skip * (self.skip + 1) // 2
         for j in range(self.N):
-            n, m = noll_to_zernike(j + 1)
-            out[:, :, j] = zernike(n, m, rho, theta, normalized=True)
+            n, m = noll_to_zernike(j + 1 + offset)
+            out[..., j] = zernike(n, m, rho, theta, normalized=True)
         return out
 
     def valid(self, x, y):
@@ -149,12 +154,180 @@ class ZernikeBasis(_FigureBasis):
         return np.hypot(x, y) <= self.radius
 
 
+class LegendreBasis(_FigureBasis):
+    """
+    Legendre basis set.
+
+    Parameters
+    ----------
+    bbox : array-like of float
+        The bounding box, in the form [xmin, xmax, ymin, ymax].
+    nmax_x, nmax_y : int
+        The maximum Legendre order on each axis.
+    skip : int, optional
+        Skip modes below this order.
+
+    """
+
+    def __init__(self, bbox, nmax_x, nmax_y, skip=0):
+        # inputs
+        self.xmin = bbox[0]
+        self.xmax = bbox[1]
+        self.ymin = bbox[2]
+        self.ymax = bbox[3]
+        self.nmax_x = nmax_x
+        self.nmax_y = nmax_y
+        self.skip = skip
+
+        # number of modes
+        self.N = (nmax_x + 1) * (nmax_y + 1) - skip * (skip + 1) // 2
+
+    def basis(self, x, y):
+        """
+        The Legendre basis functions.
+
+        These are organized by order in x (outer loop) and y (inner loop),
+        and are normalized to rms=1.
+
+        Parameters
+        ----------
+        x, y : np.ndarray of float
+            The x and y coordinates of the points to evaluate.
+            These should be the same shape.
+
+        Returns
+        -------
+        np.ndarray of float
+            Basis function array at these points; shape is ``np.shape(x) + (N,)``,
+            where ``N`` is the number of basis functions.
+
+        """
+
+        out = np.zeros(np.shape(x) + (self.N,))
+        u = 2.0 * (x - self.xmin) / (self.xmax - self.xmin) - 1.0
+        v = 2.0 * (y - self.ymin) / (self.ymax - self.ymin) - 1.0
+        ly = []
+        for i in range(self.nmax_y + 1):
+            ly.append(legendre_p(i, v) * np.sqrt(2 * i + 1))
+        pos = 0
+        for i in range(self.nmax_x + 1):
+            lx = legendre_p(i, u) * np.sqrt(2 * i + 1)
+            for j in range(self.nmax_y + 1):
+                if i + j >= self.skip:
+                    out[..., pos] = lx * ly[j]
+                    pos += 1
+        return out
+
+    def valid(self, x, y):
+        """
+        Valid function.
+
+        This is True for points in a circle of radius ``self.radius``.
+
+        Parameters
+        ----------
+        x, y : np.ndarray of float
+            The x and y coordinates of the points to evaluate.
+            These should be the same shape.
+
+        Returns
+        -------
+        np.ndarray of bool
+            True if valid, False if not; shape is the same as `x`.
+
+        """
+
+        return x >= self.xmin & x <= self.xmax & y >= self.ymin & y <= self.ymax
+
+
+class LegendreBasisMaxOrder(_FigureBasis):
+    """
+    Legendre basis set with maximum order.
+
+    Parameters
+    ----------
+    bbox : array-like of float
+        The bounding box, in the form [xmin, xmax, ymin, ymax].
+    nmax : int
+        The maximum Legendre order (total).
+    skip : int, optional
+        Skip modes below this order.
+
+    """
+
+    def __init__(self, bbox, nmax, skip=0):
+        # inputs
+        self.xmin = bbox[0]
+        self.xmax = bbox[1]
+        self.ymin = bbox[2]
+        self.ymax = bbox[3]
+        self.nmax = nmax
+        self.skip = skip
+
+        # number of modes
+        self.N = (nmax + 1) * (nmax + 2) // 2 - skip * (skip + 1) // 2
+
+    def basis(self, x, y):
+        """
+        The Legendre basis functions.
+
+        These are organized by order in x (outer loop) and y (inner loop),
+        and are normalized to rms=1.
+
+        Parameters
+        ----------
+        x, y : np.ndarray of float
+            The x and y coordinates of the points to evaluate.
+            These should be the same shape.
+
+        Returns
+        -------
+        np.ndarray of float
+            Basis function array at these points; shape is ``np.shape(x) + (N,)``,
+            where ``N`` is the number of basis functions.
+
+        """
+
+        out = np.zeros(np.shape(x) + (self.N,))
+        u = 2.0 * (x - self.xmin) / (self.xmax - self.xmin) - 1.0
+        v = 2.0 * (y - self.ymin) / (self.ymax - self.ymin) - 1.0
+        ly = []
+        for i in range(self.nmax + 1):
+            ly.append(legendre_p(i, v) * np.sqrt(2 * i + 1))
+        pos = 0
+        for i in range(self.nmax + 1):
+            lx = legendre_p(i, u) * np.sqrt(2 * i + 1)
+            for j in range(self.nmax + 1):
+                if i + j >= self.skip and i + j <= self.nmax:
+                    out[..., pos] = lx * ly[j]
+                    pos += 1
+        return out
+
+    def valid(self, x, y):
+        """
+        Valid function.
+
+        This is True for points in a circle of radius ``self.radius``.
+
+        Parameters
+        ----------
+        x, y : np.ndarray of float
+            The x and y coordinates of the points to evaluate.
+            These should be the same shape.
+
+        Returns
+        -------
+        np.ndarray of bool
+            True if valid, False if not; shape is the same as `x`.
+
+        """
+
+        return x >= self.xmin & x <= self.xmax & y >= self.ymin & y <= self.ymax
+
+
 class RomanBasisSet:
     """
     Class to build a table of basis sets from a dictionary.
-
-    The intended usage is for `pars` to come from a YAML file,
-    though that isn't essential.
 
     Parameters
     ----------
@@ -163,6 +336,8 @@ class RomanBasisSet:
 
     Attributes
     ----------
+    basis : _FigureBasis
+        The basis functions (augmented with a ``start`` key for which index they start with).
     N : int
         Number of basis modes for the whole system.
 
@@ -180,8 +355,50 @@ class RomanBasisSet:
 
         # Primary mirror
         if "M1" in pars:
-            n1 = pars["M1"].get("ORDER", 5)
-            self.basis["M1"] = ZernikeBasis(2370.0, n1)
+            n1 = pars["M1"].get("ORDER", None)
+            skip = pars["M1"].get("SKIP", 0)
+            self.basis["M1"] = ZernikeBasis(1184.02, n1, skip=skip)
+
+        # Secondary mirror
+        if "M2" in pars:
+            n1 = pars["M2"].get("ORDER", None)
+            skip = pars["M2"].get("SKIP", 0)
+            self.basis["M2"] = ZernikeBasis(266.255, n1, skip=skip)
+
+        # 1st fold mirror
+        if "FM1" in pars:
+            n = pars["FM1"].get("ORDER", None)
+            skip = pars["FM1"].get("SKIP", 0)
+            self.basis["FM1"] = LegendreBasis([-151.11, 151.11, -123.58, 181.26], n, n, skip=skip)
+
+        # 2nd fold mirror
+        if "FM2" in pars:
+            nx = pars["FM2"].get("ORDERX", None)
+            ny = pars["FM2"].get("ORDERY", None)
+            skip = pars["FM2"].get("SKIP", 0)
+            self.basis["FM2"] = LegendreBasis([-216.955, 216.955, -139.97, 192.0], nx, ny, skip=skip)
+
+        # Tertiary mirror
+        if "M3" in pars:
+            nx = pars["M3"].get("ORDERX", None)
+            ny = pars["M3"].get("ORDERY", None)
+            skip = pars["M3"].get("SKIP", 0)
+            self.basis["M3"] = LegendreBasis([-302.715, 302.715, 15.285, 476.775], nx, ny, skip=skip)
+
+        # Filter
+        if "S1" in pars:
+            n1 = pars["S1"].get("ORDER", None)
+            skip = pars["S1"].get("SKIP", 0)
+            self.basis["S1"] = ZernikeBasis(52.65, n1, skip=skip)
+
+        # FPA
+        if "FPA" in pars:
+            n = pars["FPA"].get("ORDER", None)
+            skip = pars["FPA"].get("SKIP", 0)
+            for chip in range(1, 19):
+                self.basis[f"WFI{chip:02d}"] = LegendreBasisMaxOrder(
+                    [-20.44, 20.44, -20.44, 20.44], n, skip=skip
+                )
 
         # Set up parameters
         self.__call__()
@@ -189,4 +406,21 @@ class RomanBasisSet:
     def __call__(self):
         """Sets up the parameter mapping."""
 
+        current = 0
+        for j in self.basis:
+            self.basis[j].start = current
+            current += self.basis[j].N
         self.N = np.sum([self.basis[j].N for j in self.basis])
+
+
+basis_set = RomanBasisSet(
+    {
+        "M1": {"ORDER": 5, "SKIP": 2},
+        "M2": {"ORDER": 4, "SKIP": 2},
+        "FM1": {"ORDER": 5, "SKIP": 2},
+        "FM2": {"ORDERX": 5, "ORDERY": 4},
+        "M3": {"ORDERX": 4, "ORDERY": 3, "SKIP": 2},
+        "S1": {"ORDER": 3, "SKIP": 2},
+        "FPA": {"ORDER": 1},
+    }
+)

@@ -11,6 +11,10 @@ Added features include position dependent pupil mask, detector effects, Zernike 
 
 Most code lives in ``PSFObject.py``, but it may also be useful to look at ``opticsPSF.py`` and ``filter_detector_properties.py``.
 
+Additional information:
+
+- `Basis functions used to describe surface errors <docs/basis.rst>`_.
+
 Written by Nihar Dalal, Charuhas Shiveshwarkar, and Chris Hirata
 
 Data files:
