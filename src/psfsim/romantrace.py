@@ -663,7 +663,10 @@ class RayBundle:
             b = basis_set.basis[gd["surface"]]
             modes = b.basis(xy[:, :, 0], xy[:, :, 1])
             for j in range(b.N):
-                gd["grad"][:, :, b.start + j] += 2 * mu_ * modes[:, :, j]
+                if "grad" in gd:
+                    gd["grad"][:, :, b.start + j] += 2 * mu_ * modes[:, :, j]
+                if "arr" in gd and gd["arr"] is not None:
+                    self.s += 2 * mu_ * modes[:, :, j] * gd["arr"][j]
             del modes  # save some space
 
         # flip direction
@@ -786,7 +789,10 @@ class RayBundle:
             b = basis_set.basis[gd["surface"]]
             modes = b.basis(xy[:, :, 0], xy[:, :, 1])
             for j in range(b.N):
-                gd["grad"][:, :, b.start + j] += dncostheta * modes[:, :, j] * 8.0 * fratio_scale**2
+                if "grad" in gd:
+                    gd["grad"][:, :, b.start + j] += dncostheta * modes[:, :, j] * 8.0 * fratio_scale**2
+                if "arr" in gd and gd["arr"] is not None:
+                    self.s += dncostheta * modes[:, :, j] * 8.0 * fratio_scale**2 * gd["arr"][j]
             del modes  # save some space
 
         # new direction
@@ -922,7 +928,7 @@ def _RomanRayBundle(
     ovsamp=6,
     idealmirror=False,
     outsca=None,
-    grad=False,
+    errs=None,
 ):
     """
     Carries out trace through RST optics.
@@ -954,9 +960,17 @@ def _RomanRayBundle(
     outsca : int, optional
         Which output SCA to project the PSF on to? (1..18)
         The default is to choose the SCA whose center is closest to where the ray lands.
-    grad : bool, optional
-        Whether to compute the gradient of s with respect to the surface error parameters.
-        Warning: this can be big!
+    errs : dict, optional
+        The surface error model. Dictionary with keys:
+
+        - basis: ``RomanBasisSet`` object.
+
+        - grad : bool, optional: whether to compute gradient of s with respect to the surface error
+          parameters.
+
+          Warning: this can be big!
+
+        - arr: np.ndarray, optional: 1D array of amplitudes of each basis mode.
 
     Returns
     -------
@@ -973,7 +987,7 @@ def _RomanRayBundle(
             RB.E : shape (N,N,2,4), complex, electric field for the 2 initial polarizations and 3 components
            (last axis 0th component should be 0)
 
-        If `grad` is True, then also provides:
+        If ``errs["grad"]`` is True, then also provides:
             RB.grad : shape (N,N,basis_set.N), derivative of s with respect to each surface error
             parameter.
 
@@ -1001,7 +1015,14 @@ def _RomanRayBundle(
     RB = RayBundle(
         xan, yan, N, wl=wl, wlref=wlref, hasE=hasE, width=width, jacobian=jacobian, hires=hires, ovsamp=ovsamp
     )
+    grad = errs["grad"] if errs is not None and "grad" in errs else False
     RB.grad = np.zeros(np.shape(RB.s) + (basis_set.N,)) if grad else None
+
+    # set up the array of coefficients if we need it
+    arr = None
+    if errs is not None and "arr" in errs:
+        arr = errs["arr"]
+        grad = True
 
     # obstructions:
 
@@ -1136,7 +1157,7 @@ def _RomanRayBundle(
         K=-0.9728630311,
         activeZone=[{"CIR": 1184.02, "OBS": 321.31}],
         rCoefs=_reflect_RB_model,
-        gd={"grad": RB.grad, "surface": "M1"} if grad else None,
+        gd={"grad": RB.grad, "arr": arr, "surface": "M1"} if grad else None,
     )
 
     # Secondary mirror
@@ -1146,7 +1167,7 @@ def _RomanRayBundle(
         K=-1.6338521231,
         activeZone=[{"CIR": 266.255}],
         rCoefs=_reflect_RB_model,
-        gd={"grad": RB.grad, "surface": "M2"} if grad else None,
+        gd={"grad": RB.grad, "arr": arr, "surface": "M2"} if grad else None,
     )
 
     # PM hole
@@ -1179,7 +1200,7 @@ def _RomanRayBundle(
             {"CIR": 16.98, "ADX": -134.13, "ADY": -106.6},
         ],
         rCoefs=_reflect_RB_model,
-        gd={"grad": RB.grad, "surface": "FM1"} if grad else None,
+        gd={"grad": RB.grad, "arr": arr, "surface": "FM1"} if grad else None,
     )
 
     # Entrance aperture plate
@@ -1219,7 +1240,7 @@ def _RomanRayBundle(
             {"REX": 216.955, "REY": 142.135, "ADY": 49.865},
         ],
         rCoefs=_reflect_RB_model,
-        gd={"grad": RB.grad, "surface": "FM2"} if grad else None,
+        gd={"grad": RB.grad, "arr": arr, "surface": "FM2"} if grad else None,
     )
 
     # Tertiary mirror
@@ -1244,7 +1265,7 @@ def _RomanRayBundle(
             {"REX": 256.189698, "REY": 31.9859, "ADY": 444.7891},
         ],
         rCoefs=_reflect_RB_model,
-        gd={"grad": RB.grad, "surface": "M3"} if grad else None,
+        gd={"grad": RB.grad, "arr": arr, "surface": "M3"} if grad else None,
     )
 
     # Exit pupil mask
@@ -1304,7 +1325,7 @@ def _RomanRayBundle(
         K=0.0,
         n_new=n_Infrasil301(wlref),
         activeZone=[{"CIR": 52.65}],
-        gd={"grad": RB.grad, "surface": "S1"} if grad else None,
+        gd={"grad": RB.grad, "arr": arr, "surface": "S1"} if grad else None,
     )
 
     # Filter - Surface S2
@@ -1358,8 +1379,12 @@ def _RomanRayBundle(
             b = basis_set.basis[key]
             dx_from_ctr = RB.x_out - scapos[outsca - 1]
             dz = b.basis(dx_from_ctr[0], dx_from_ctr[1]) * 8.0 * fratio_scale**2
+            w = np.sqrt(1.0 - RB.u[:, :, 0] ** 2 - RB.u[:, :, 1] ** 2)
             for j in range(b.N):
-                RB.grad[:, :, b.start + j] += dz[j] * np.sqrt(1.0 - RB.u[:, :, 0] ** 2 - RB.u[:, :, 1] ** 2)
+                if RB.grad is not None:
+                    RB.grad[:, :, b.start + j] += dz[j] * w
+                if arr is not None:
+                    RB.s += arr[j] * dz[j] * w
 
     return RB
 
@@ -1377,7 +1402,7 @@ def RomanRayBundle(
     a_lanczos=3,
     idealmirror=False,
     outsca=None,
-    grad=False,
+    errs=None,
 ):
     """
     Carries out trace through RST optics.
@@ -1408,9 +1433,17 @@ def RomanRayBundle(
     outsca : int, optional
         Which output SCA to project the PSF on to? (1..18)
         The default is to choose the SCA whose center is closest to where the ray lands.
-    grad : bool, optional
-        Whether to compute the gradient of s with respect to the surface error parameters.
-        Warning: this can be big!
+    errs : dict, optional
+        The surface error model. Dictionary with keys:
+
+        - basis: ``RomanBasisSet`` object.
+
+        - grad : bool, optional: whether to compute gradient of s with respect to the surface error
+          parameters.
+
+          Warning: this can be big!
+
+        - arr: np.ndarray, optional: 1D array of amplitudes of each basis mode.
 
     Returns
     -------
@@ -1428,7 +1461,7 @@ def RomanRayBundle(
             RB.E : shape (N,N,2,4), complex, electric field for the 2 initial polarizations and 3 components
            (last axis 0th component should be 0)
 
-        If `grad` is True, then also provides:
+        If ``errs["grad"]`` is True, then also provides:
             RB.grad : shape (N,N,basis_set.N), derivative of s with respect to each surface error
             parameter.
 
@@ -1461,7 +1494,7 @@ def RomanRayBundle(
         hires=None,
         idealmirror=idealmirror,
         outsca=outsca,
-        grad=grad,
+        errs=errs,
     )
     # Now figure out which pixels we need to increase the resolution.
     r = 40.0 / width * N  # radius of search in pixels

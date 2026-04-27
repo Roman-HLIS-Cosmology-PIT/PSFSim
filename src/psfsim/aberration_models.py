@@ -40,7 +40,7 @@ def aberration_gradients(use_filter="W", nn=128, subtract_offset=False, mask=Fal
     fpos = np.loadtxt(files("psfsim.data").joinpath("fpos.dat"))
 
     for j in range(np.shape(fpos)[0]):
-        RB = RomanRayBundle(fpos[j, 0], fpos[j, 1], nn, use_filter, hasE=False, grad=True)
+        RB = RomanRayBundle(fpos[j, 0], fpos[j, 1], nn, use_filter, hasE=False, errs={"grad": True})
         if j == 0:
             n = np.shape(RB.grad)[-1]  # get number of basis modes
             g = np.zeros((np.shape(fpos)[0], nn, nn, n))
@@ -91,7 +91,7 @@ def aberration_transfer_matrix(use_filter="W", nn=128, n_zernike=22, outdiagnost
     npos = np.shape(fpos)[0]
 
     for j in range(npos):
-        RB = RomanRayBundle(fpos[j, 0], fpos[j, 1], nn, use_filter, hasE=False, grad=True)
+        RB = RomanRayBundle(fpos[j, 0], fpos[j, 1], nn, use_filter, hasE=False, errs={"grad": True})
         if j == 0:
             n = np.shape(RB.grad)[-1]  # get number of basis modes
             transfer = np.zeros((npos, n_zernike, n))

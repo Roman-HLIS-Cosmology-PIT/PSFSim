@@ -13,7 +13,7 @@ from psfsim.romantrace import RomanRayBundle
 def test_grad(tmp_path):
     """Gradient test."""
 
-    RB = RomanRayBundle(-0.399, 0.208, 128, "W", wl=9.27e-4, hasE=True, grad=True)
+    RB = RomanRayBundle(-0.399, 0.208, 128, "W", wl=9.27e-4, hasE=True, errs={"grad": True})
     assert np.shape(RB.grad)[:2] == (128, 128)
 
     # Right now, checks that these functions run --- still need to insert tests that they were *correct*!
