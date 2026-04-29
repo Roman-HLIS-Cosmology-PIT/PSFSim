@@ -249,12 +249,12 @@ class FilterDetector:
 
     def add_ice_layer(self, t):
         """
-        Add a layer (potentially of ice) to the filter.
+        Add an ice layer to the filter.
 
         Parameters
         ----------
         t : float
-            The thickness of the layer.
+            The thickness of the ice layer in microns.
 
         """
         self.ice_layer = True
