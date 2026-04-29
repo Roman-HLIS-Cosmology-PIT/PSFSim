@@ -193,8 +193,9 @@ def n_ice(wavelength):
 
     """
 
-    # Need to add code to compute the index of refraction of ice; for now just return 1.3
-    return 1.3
+    # Need to add code to compute the index of refraction of ice; for now just return
+    # a real-valued placeholder encoded as a complex number to match the API.
+    return 1.3 + 0j
 
 
 ### end materials
