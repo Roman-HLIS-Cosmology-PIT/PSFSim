@@ -33,7 +33,7 @@ def _from_angle_to_fpa(xan, yan, wavelength=0.48):
     return (np.sum(xterms), np.sum(yterms))
 
 
-def from_angle_to_fpa(xan, yan, wavelength=0.48, ray_trace=True, use_filter="H"):
+def from_angle_to_fpa(xan, yan, wavelength=0.48, ray_trace=True, use_filter="H", idealgeom=False):
     """
     Full transformation from field angle to FPA position.
 
@@ -47,6 +47,8 @@ def from_angle_to_fpa(xan, yan, wavelength=0.48, ray_trace=True, use_filter="H")
         Whether to use ray tracing. (Default recommended for accuracy.)
     use_filter : char, optional
         One-character code for which filter to use.
+    idealgeom : bool, optional
+        Forces the design model rather than with the best-fit offsets.
 
     Returns
     -------
@@ -59,7 +61,7 @@ def from_angle_to_fpa(xan, yan, wavelength=0.48, ray_trace=True, use_filter="H")
         return _from_angle_to_fpa(xan, yan, wavelength=wavelength)
 
     # below here, we are doing the ray tracing
-    xpos = _RomanRayBundle(xan, yan, 16, use_filter).x_out
+    xpos = _RomanRayBundle(xan, yan, 16, use_filter, idealgeom=idealgeom).x_out
     return (xpos[0], xpos[1])
 
 
@@ -92,7 +94,7 @@ def _from_fpa_to_angle(fpapos, wavelength=0.48):
     return (np.sum(xterms), np.sum(yterms))
 
 
-def from_fpa_to_angle(fpapos, wavelength=0.48, ray_trace=True, use_filter="H"):
+def from_fpa_to_angle(fpapos, wavelength=0.48, ray_trace=True, use_filter="H", idealgeom=False):
     """
     Full transformation from FPA position to field angle.
 
@@ -106,6 +108,8 @@ def from_fpa_to_angle(fpapos, wavelength=0.48, ray_trace=True, use_filter="H"):
         Whether to use ray tracing. (Default recommended for accuracy.)
     use_filter : char, optional
         One-character code for which filter to use.
+    idealgeom : bool, optional
+        Forces the design model rather than with the best-fit offsets.
 
     Returns
     -------
@@ -120,7 +124,7 @@ def from_fpa_to_angle(fpapos, wavelength=0.48, ray_trace=True, use_filter="H"):
 
     # iterate until we find a field position in the right place
     for _ in range(4):
-        xpos = _RomanRayBundle(xan, yan, 16, use_filter).x_out
+        xpos = _RomanRayBundle(xan, yan, 16, use_filter, idealgeom=idealgeom).x_out
         xerr = fpapos[0] - xpos[0]
         yerr = fpapos[1] - xpos[1]
         xan += xerr * 0.0030556

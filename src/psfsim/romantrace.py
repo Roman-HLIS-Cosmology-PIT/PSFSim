@@ -4,6 +4,7 @@ from astropy.io import fits
 
 from .basis import basis_set
 from .mirror_properties import reflect_RB_model
+from .offsets import fbias_offset, fpa_offset, sm_offset
 from .wfi_data import scapos
 
 fratio_scale = 8.0  # scale FPA displacement modes by 8*f^2
@@ -251,6 +252,8 @@ class RayBundle:
         ``hires[0]`` is a 1D array of y-values and ``hires[1]`` is a 1D array of x-values.
     ovsamp : int, optional
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
+    idealgeom : bool, optional
+        Forces the design model rather than with the best-fit offsets.
 
     Attributes
     ----------
@@ -353,6 +356,7 @@ class RayBundle:
         jacobian=None,
         hires=None,
         ovsamp=6,
+        idealgeom=True,
     ):
         if jacobian is None:
             jacobian = np.array([[1, 0], [0, 1]])
@@ -411,6 +415,10 @@ class RayBundle:
 
         # remove field bias, rotate to Payload Coordinate System
         field_bias = build_transform_matrix(ade=-0.496, cde=150.0, unit="degree")
+        if not idealgeom:
+            field_bias = (
+                build_transform_matrix(ade=fbias_offset[0], bde=fbias_offset[1], unit="degree") @ field_bias
+            )
         self.x = RayBundle.MiV(field_bias, self.x)
         self.p = RayBundle.MiV(field_bias, self.p)
 
@@ -926,6 +934,7 @@ def _RomanRayBundle(
     jacobian=None,
     hires=None,
     ovsamp=6,
+    idealgeom=False,
     idealmirror=False,
     outsca=None,
     errs=None,
@@ -955,6 +964,8 @@ def _RomanRayBundle(
         ``hires[0]`` is a 1D array of y-values and ``hires[1]`` is a 1D array of x-values.
     ovsamp : int, optional
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
+    idealgeom : bool, optional
+        Forces the design model rather than with the best-fit offsets.
     idealmirror : bool, optional
         Forces the mirror to be an ideal conducting surface instead of the model.
     outsca : int, optional
@@ -1013,7 +1024,17 @@ def _RomanRayBundle(
 
     # initialization
     RB = RayBundle(
-        xan, yan, N, wl=wl, wlref=wlref, hasE=hasE, width=width, jacobian=jacobian, hires=hires, ovsamp=ovsamp
+        xan,
+        yan,
+        N,
+        wl=wl,
+        wlref=wlref,
+        hasE=hasE,
+        width=width,
+        jacobian=jacobian,
+        hires=hires,
+        ovsamp=ovsamp,
+        idealgeom=idealgeom,
     )
     grad = errs["grad"] if errs is not None and "grad" in errs else False
     RB.grad = np.zeros(np.shape(RB.s) + (basis_set.N,)) if grad else None
@@ -1161,8 +1182,9 @@ def _RomanRayBundle(
     )
 
     # Secondary mirror
+    sm_offset_use = 0.0 if idealgeom else sm_offset["DZ"]
     RB.intersect_surface_and_reflect(
-        build_transform_matrix(zde=2945.4, ade=-180, cde=180),
+        build_transform_matrix(zde=2945.4 + sm_offset_use, ade=-180, cde=180),
         Rinv=-1.0 / 1299.6164,
         K=-1.6338521231,
         activeZone=[{"CIR": 266.255}],
@@ -1354,6 +1376,15 @@ def _RomanRayBundle(
         bde=-27.09897706981732,
         cde=13.3889006733882,
     )
+    if not idealgeom:
+        TrFPA = TrFPA @ build_transform_matrix(
+            xde=-fpa_offset["DX"] - fbias_offset[1] * 0.01 / 0.11 * 3600.0,
+            yde=-fpa_offset["DY"] + fbias_offset[0] * 0.01 / 0.11 * 3600.0,
+            zde=-fpa_offset["DZ"],
+            ade=fpa_offset["TILT"],
+            cde=fpa_offset["ROLL"],
+        )
+
     xyFPA, _, _ = RB.intersect_surface(TrFPA, Rinv=0.0, K=0.0, update=True)
     RB.u = np.einsum("ij,abj->abi", np.linalg.inv(TrFPA), RB.p)[:, :, 1:3]
     if hasE:
@@ -1400,6 +1431,7 @@ def RomanRayBundle(
     jacobian=None,
     ovsamp=6,
     a_lanczos=3,
+    idealgeom=False,
     idealmirror=False,
     outsca=None,
     errs=None,
@@ -1428,6 +1460,8 @@ def RomanRayBundle(
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
     a_lanczos : int, optional
         The "a" parameter for Lanczos interpolation; this controls the size of the kernel. Default is 3.
+    idealgeom : bool, optional
+        Forces the design model rather than with the best-fit offsets.
     idealmirror : bool, optional
         Forces the mirror to be an ideal conducting surface instead of the model.
     outsca : int, optional
@@ -1492,6 +1526,7 @@ def RomanRayBundle(
         width=width,
         jacobian=jacobian,
         hires=None,
+        idealgeom=idealgeom,
         idealmirror=idealmirror,
         outsca=outsca,
         errs=errs,
@@ -1621,7 +1656,7 @@ def demo(writefiles=False):
     )
 
     # pupils
-    RB = RomanRayBundle(-0.399, 0.208, 512, "W", wl=9.27e-4, hasE=True, idealmirror=True)
+    RB = RomanRayBundle(-0.399, 0.208, 512, "W", wl=9.27e-4, hasE=True, idealgeom=True, idealmirror=True)
     if writefiles:
         fits.PrimaryHDU(RB.open.astype(np.int8)).writeto("temp.fits", overwrite=True)
         fits.PrimaryHDU(np.where(RB.open, RB.s - np.median(RB.s), 0)).writeto("temp-s.fits", overwrite=True)

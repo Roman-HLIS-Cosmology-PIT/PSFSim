@@ -385,12 +385,6 @@ class RomanBasisSet:
             skip = pars["M3"].get("SKIP", 0)
             self.basis["M3"] = LegendreBasis([-302.715, 302.715, 15.285, 476.775], nx, ny, skip=skip)
 
-        # Filter
-        if "S1" in pars:
-            n1 = pars["S1"].get("ORDER", None)
-            skip = pars["S1"].get("SKIP", 0)
-            self.basis["S1"] = ZernikeBasis(52.65, n1, skip=skip)
-
         # FPA
         if "FPA" in pars:
             n = pars["FPA"].get("ORDER", None)
@@ -399,6 +393,12 @@ class RomanBasisSet:
                 self.basis[f"WFI{chip:02d}"] = LegendreBasisMaxOrder(
                     [-20.44, 20.44, -20.44, 20.44], n, skip=skip
                 )
+
+        # Filter -- put filter dependent parts last!
+        if "S1" in pars:
+            n1 = pars["S1"].get("ORDER", None)
+            skip = pars["S1"].get("SKIP", 0)
+            self.basis["S1"] = ZernikeBasis(52.65, n1, skip=skip)
 
         # Set up parameters
         self.__call__()
@@ -415,12 +415,13 @@ class RomanBasisSet:
 
 basis_set = RomanBasisSet(
     {
-        "M1": {"ORDER": 5, "SKIP": 2},
-        "M2": {"ORDER": 4, "SKIP": 2},
-        "FM1": {"ORDER": 5, "SKIP": 2},
-        "FM2": {"ORDERX": 5, "ORDERY": 4},
-        "M3": {"ORDERX": 4, "ORDERY": 3, "SKIP": 2},
-        "S1": {"ORDER": 3, "SKIP": 2},
+        "M1": {"ORDER": 6, "SKIP": 2},
+        "M3": {"ORDERX": 5, "ORDERY": 4, "SKIP": 3},
         "FPA": {"ORDER": 1},
+        "S1": {"ORDER": 6, "SKIP": 2},
     }
 )
+
+#        "M2": {"ORDER": 6, "SKIP": 3},
+#        "FM1": {"ORDER": 8, "SKIP": 3},
+#        "FM2": {"ORDERX": 5, "ORDERY": 4},

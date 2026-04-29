@@ -52,7 +52,7 @@ def aberration_gradients(use_filter="W", nn=128, subtract_offset=False, mask=Fal
         if mask:
             for k in range(n):
                 RB.grad[:, :, k] *= RB.open > 0.5
-        g[j, :, :] = -RB.grad
+        g[j, :, :, :] = -RB.grad
         # the - sign is because we want OPD in Poppy convention, not path length.
 
     return g
@@ -105,10 +105,12 @@ def aberration_transfer_matrix(use_filter="W", nn=128, n_zernike=22, outdiagnost
             # community that I want to be consistent!!)
 
         # now get the center
+        # note that there is a sign flip between (x,y) in the entrance pupil plane
+        # and (u, v) at the exit
         ctr = np.mean(RB.u[nn // 2 - 1 : nn // 2 + 1, nn // 2 - 1 : nn // 2 + 1, :], axis=(0, 1))
         rho12 = 2.0 * fratio * (RB.u - ctr[None, None, :])
         rho = np.hypot(rho12[:, :, 0], rho12[:, :, 1])
-        theta = np.arctan2(rho12[:, :, 1], rho12[:, :, 0])
+        theta = np.arctan2(-rho12[:, :, 1], -rho12[:, :, 0])
         del rho12
 
         # and the aberrations
@@ -131,12 +133,13 @@ def aberration_transfer_matrix(use_filter="W", nn=128, n_zernike=22, outdiagnost
             for zb in range(za + 1):
                 A[za, zb] = A[zb, za] = np.sum(zmode[:, :, za] * zmode[:, :, zb] * RB.open)
             for k in range(n):
-                B[za, k] = np.sum(zmode[:, :, za] * RB.grad[:, :, k] * RB.open)
+                # the - sign is to flip from path length to OPD
+                B[za, k] = -np.sum(zmode[:, :, za] * RB.grad[:, :, k] * RB.open)
             c[za] = np.sum(opd * zmode[:, :, za] * RB.open)
         s_decomp[j, :] = np.linalg.solve(A, c)
         transfer[j, :, :] = np.linalg.solve(A, B)
 
-    return transfer, -s_decomp
+    return transfer, s_decomp
 
 
 def aberration_transfer_matrix_svd(use_filter="W", nn=128, n_zernike=22):
@@ -176,7 +179,9 @@ def aberration_transfer_matrix_svd(use_filter="W", nn=128, n_zernike=22):
     return U, S, Vh
 
 
-def extract_basis_coefs(infile, use_filter, nn=128, smin=0.01, pars_input=None, flip_y=True, verbose=True):
+def extract_basis_coefs(
+    infile, use_filter, nn=128, smin=0.01, pars_input=None, flip_y=True, nmin=None, nmax=None, verbose=True
+):
     """
     Computes basis coefficients from a Zernike file.
 
@@ -191,9 +196,11 @@ def extract_basis_coefs(infile, use_filter, nn=128, smin=0.01, pars_input=None, 
     smin : float, optional
         The minimum singular value to invert.
     pars_input : np.ndarray, optional
-        If provided, take this set of instrument parameters as an initial condition.
+        If provided, take this set of instrument parameters as an initial condition; default is all 0's.
     flip_y : bool, optional
         Whether to flip the Y-axis of the input Zernikes (useful for WFI-local vs FPA coordinates).
+    nmin, nmax : int, optional
+        Minimum and maximum coefficient indices to fit (otherwise starts from `pars_input`).
     verbose : bool, optional
         Whether to talk a lot to the output.
 
@@ -216,6 +223,36 @@ def extract_basis_coefs(infile, use_filter, nn=128, smin=0.01, pars_input=None, 
     indata = indata[np.where(np.abs(w - np.median(w)) < 0.01), :].reshape((npos, -1))
     w = np.median(w)  # in microns
 
+    # Get offsets
+    # positions of rays in FPA in mm from input spreadsheet
+    pos_table = np.zeros((npos, 2))
+    pos_table[:, 0] = indata[:, header.index("global_x")]
+    pos_table[:, 1] = indata[:, header.index("global_y")]
+    pos_ref = np.zeros((npos, 2))
+    for j in range(npos):
+        RB = RomanRayBundle(fpos[j, 0], fpos[j, 1], nn, use_filter, hasE=False)
+        pos_ref[j, :] = RB.x_out
+    dpos = pos_table - pos_ref
+    if verbose:
+        for ipos in range(npos):
+            print(
+                f"{ipos:3d}   {pos_ref[ipos, 0]:7.2f} {pos_ref[ipos, 1]:7.2f}"
+                f"     {100 * dpos[ipos, 0]:8.3f} {100 * dpos[ipos, 1]:8.3f}"
+            )
+    # Linear regression of the offsets
+    A = np.ones((npos, 3))
+    A[:, :2] = pos_ref
+    print(np.shape(A), np.shape(dpos))
+    coefs, resids = np.linalg.lstsq(A, dpos)[:2]
+
+    # the fit is:
+    # [tabulated - predicted] = coefs[:2, :] @ [predicted] + coefs[-1, :]
+    if verbose:
+        print("matrix", coefs[:2, :])
+        print("intercept", coefs[-1, :])
+        print("resids", resids)
+        print("rms", np.sqrt(resids / npos))
+
     nz = 1
     while f"Z{nz + 1:d}" in header:
         nz += 1
@@ -227,6 +264,11 @@ def extract_basis_coefs(infile, use_filter, nn=128, smin=0.01, pars_input=None, 
     if flip_y:
         # Z3, 5, etc. need to be flipped, so in Python indexing, start with 2
         input_zernikes[:, 2::2] *= -1.0
+
+    # insert tip-tilt
+    # check signs!
+    input_zernikes[:, 1] += dpos[:, 0] / (4.0 * fratio)
+    input_zernikes[:, 2] += dpos[:, 1] / (4.0 * fratio)
 
     T, s_decomp = aberration_transfer_matrix(use_filter=use_filter, nn=nn, n_zernike=nz)
     shape_orig = np.shape(T)
@@ -241,30 +283,12 @@ def extract_basis_coefs(infile, use_filter, nn=128, smin=0.01, pars_input=None, 
     # and now the target change in Zernikes
     delta_zernike = input_zernikes - s_decomp
 
-    if verbose:
-        # print error table, excluding Z1-3
-        err_design = np.sum(s_decomp[:, 3:] ** 2, axis=1) ** 0.5
-        err_input = np.sum(input_zernikes[:, 3:] ** 2, axis=1) ** 0.5
-        err_residual = np.sum(delta_zernike[:, 3:] ** 2, axis=1) ** 0.5
-        # and without focus
-        err_design4 = np.sum(s_decomp[:, 4:] ** 2, axis=1) ** 0.5
-        err_input4 = np.sum(input_zernikes[:, 4:] ** 2, axis=1) ** 0.5
-        err_residual4 = np.sum(delta_zernike[:, 4:] ** 2, axis=1) ** 0.5
-        for ipos in range(npos):
-            print(
-                f"{ipos:3d} {1.0e6 * err_design[ipos]:8.5f} {1.0e6 * err_input[ipos]:8.5f} "
-                f"{1.0e6 * err_residual[ipos]:8.5f}"
-                f"   {1.0e6 * err_design4[ipos]:8.5f} {1.0e6 * err_input4[ipos]:8.5f} "
-                f"{1.0e6 * err_residual4[ipos]:8.5f}"
-            )
-        print("rms residual =", (np.sum(delta_zernike[:, 3:] ** 2) / npos) ** 0.5 * 1.0e6, "nm")
-
     # SVD of the free parameters
-    c = 3  # number of modes to skip -- we don't fit the tip-tilt here
+    c = 3  # number of modes to skip -- we don't fit the piston
     Tfit = T.reshape(shape_orig)[:, c:, :].reshape((-1, shape_orig[-1]))
     m_, n_ = np.shape(T)
-    nmin = 0
-    nmax = n_
+    nmin = 0 if nmin is None else nmin
+    nmax = n_ if nmax is None else nmax
     Tfit = Tfit[:, nmin:nmax]  # shape of the parameters to fit
     m_ -= npos * c
     if m_ < nmax - nmin:
@@ -286,22 +310,33 @@ def extract_basis_coefs(infile, use_filter, nn=128, smin=0.01, pars_input=None, 
     delta_zernike = input_zernikes - s_decomp
 
     if verbose:
-        # print error table, excluding Z1-3
-        err_design = np.sum(s_decomp[:, 3:] ** 2, axis=1) ** 0.5
-        err_input = np.sum(input_zernikes[:, 3:] ** 2, axis=1) ** 0.5
-        err_residual = np.sum(delta_zernike[:, 3:] ** 2, axis=1) ** 0.5
-        # and without focus
-        err_design4 = np.sum(s_decomp[:, 4:] ** 2, axis=1) ** 0.5
-        err_input4 = np.sum(input_zernikes[:, 4:] ** 2, axis=1) ** 0.5
-        err_residual4 = np.sum(delta_zernike[:, 4:] ** 2, axis=1) ** 0.5
+        err_residual15 = np.sum(delta_zernike[:, 15:] ** 2, axis=1) ** 0.5
         for ipos in range(npos):
             print(
-                f"{ipos:3d} {1.0e6 * err_design[ipos]:8.5f} {1.0e6 * err_input[ipos]:8.5f} "
-                f"{1.0e6 * err_residual[ipos]:8.5f}"
-                f"   {1.0e6 * err_design4[ipos]:8.5f} {1.0e6 * err_input4[ipos]:8.5f} "
-                f"{1.0e6 * err_residual4[ipos]:8.5f}"
+                f"{ipos:3d} {pos_ref[ipos, 0]:7.2f} {pos_ref[ipos, 1]:7.2f}"
+                f" {1.0e6 * delta_zernike[ipos, 1]:7.1f}"
+                f" {1.0e6 * delta_zernike[ipos, 2]:7.1f}"
+                f"  {1.0e6 * delta_zernike[ipos, 3]:6.1f}"
+                f" {1.0e6 * delta_zernike[ipos, 4]:6.1f}"
+                f" {1.0e6 * delta_zernike[ipos, 5]:6.1f}"
+                f"  {1.0e6 * delta_zernike[ipos, 6]:5.1f}"
+                f" {1.0e6 * delta_zernike[ipos, 7]:5.1f}"
+                f" {1.0e6 * delta_zernike[ipos, 8]:5.1f}"
+                f" {1.0e6 * delta_zernike[ipos, 9]:5.1f}"
+                f"  {1.0e6 * delta_zernike[ipos, 10]:5.1f}"
+                f" {1.0e6 * delta_zernike[ipos, 11]:5.1f}"
+                f" {1.0e6 * delta_zernike[ipos, 12]:5.1f}"
+                f" {1.0e6 * delta_zernike[ipos, 13]:5.1f}"
+                f" {1.0e6 * delta_zernike[ipos, 14]:5.1f}"
+                f" {1.0e6 * delta_zernike[ipos, 15]:5.1f}"
+                f"   {1.0e6 * err_residual15[ipos]:5.1f}"
             )
+        print(
+            "rms residual =", (np.sum(delta_zernike[:, 1:] ** 2) / npos) ** 0.5 * 1.0e6, "nm (incl tip+tilt)"
+        )
         print("rms residual =", (np.sum(delta_zernike[:, 3:] ** 2) / npos) ** 0.5 * 1.0e6, "nm")
+        for j in range(1, len(delta_zernike[0, :])):
+            print(f"{j+1} {np.mean(delta_zernike[:, j])} {np.std(delta_zernike[:, j])}")
 
     return pars
 
