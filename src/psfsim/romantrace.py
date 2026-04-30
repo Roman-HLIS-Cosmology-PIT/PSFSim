@@ -798,7 +798,7 @@ class RayBundle:
             modes = b.basis(xy[:, :, 0], xy[:, :, 1])
             for j in range(b.N):
                 if "grad" in gd:
-                    gd["grad"][:, :, b.start + j] += dncostheta * modes[:, :, j] * 8.0 * fratio_scale**2
+                    gd["grad"][:, :, b.start + j] += dncostheta * modes[:, :, j]
                 if "arr" in gd and gd["arr"] is not None:
                     self.s += dncostheta * modes[:, :, j] * 8.0 * fratio_scale**2 * gd["arr"][j]
             del modes  # save some space

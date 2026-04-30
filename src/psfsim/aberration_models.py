@@ -352,15 +352,17 @@ def display_aberration_gradients(outfile):
 
     """
 
-    nn = 100
+    nn = 100  # must be a multiple of 4
     table = aberration_gradients(nn=nn, subtract_offset=True, mask=True)[::5, :, :, :].astype(np.float32)
     n = np.shape(table)[-1]
-    table2 = np.zeros((n, 3 * nn, 6 * nn), dtype=np.float32)
+    table2 = np.zeros((n, 15 * nn // 4, 6 * nn), dtype=np.float32)
     indx = [2, 2, 2, 1, 1, 1, 0, 0, 0, 3, 3, 3, 4, 4, 4, 5, 5, 5]
     indy = [2, 1, 0] * 6
+    y_offset = [3, 1, 0, 0, 1, 3]
     for sca in range(18):
+        dy = nn // 4 * y_offset[indx[sca]]
         table2[
-            :, indy[sca] * nn : (indy[sca] + 1) * nn, indx[sca] * nn : (indx[sca] + 1) * nn
+            :, indy[sca] * nn + dy : (indy[sca] + 1) * nn + dy, indx[sca] * nn : (indx[sca] + 1) * nn
         ] = np.transpose(table[sca], axes=(2, 0, 1))
 
     fits.PrimaryHDU(table2).writeto(outfile, overwrite=True)
