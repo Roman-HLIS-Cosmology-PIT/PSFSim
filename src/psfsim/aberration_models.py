@@ -6,6 +6,7 @@ import numpy as np
 from astropy.io import fits
 
 from .romantrace import RomanRayBundle
+from .wfi_data import remove_tiptilt
 from .zernike import noll_to_zernike, zernike
 
 # parameters
@@ -180,7 +181,16 @@ def aberration_transfer_matrix_svd(use_filter="W", nn=128, n_zernike=22):
 
 
 def extract_basis_coefs(
-    infile, use_filter, nn=128, smin=0.01, pars_input=None, flip_y=True, nmin=None, nmax=None, verbose=True
+    infile,
+    use_filter,
+    nn=128,
+    smin=0.01,
+    pars_input=None,
+    flip_y=True,
+    nmin=None,
+    nmax=None,
+    c=3,
+    verbose=True,
 ):
     """
     Computes basis coefficients from a Zernike file.
@@ -201,6 +211,9 @@ def extract_basis_coefs(
         Whether to flip the Y-axis of the input Zernikes (useful for WFI-local vs FPA coordinates).
     nmin, nmax : int, optional
         Minimum and maximum coefficient indices to fit (otherwise starts from `pars_input`).
+    c : int, optional
+        Number of Zernike modes to exclude from the fit. This is usually either 3 (default, skip piston
+        and tip+tilt) or 1 (skip piston but include tip+tilt).
     verbose : bool, optional
         Whether to talk a lot to the output.
 
@@ -270,7 +283,15 @@ def extract_basis_coefs(
     input_zernikes[:, 1] += dpos[:, 0] / (4.0 * fratio)
     input_zernikes[:, 2] += dpos[:, 1] / (4.0 * fratio)
 
+    # get transfer matrix
     T, s_decomp = aberration_transfer_matrix(use_filter=use_filter, nn=nn, n_zernike=nz)
+    # and null out data we won't use
+    if use_filter[0] in remove_tiptilt:
+        for ipos in remove_tiptilt[use_filter]:
+            input_zernikes[ipos, 1:3] = 0.0
+            s_decomp[ipos, 1:3] = 0.0
+            T[ipos, 1:3, :] = 0.0
+    # reshape for SVD
     shape_orig = np.shape(T)
     T = T.reshape((-1, np.shape(T)[-1]))
 
@@ -284,7 +305,6 @@ def extract_basis_coefs(
     delta_zernike = input_zernikes - s_decomp
 
     # SVD of the free parameters
-    c = 3  # number of modes to skip -- we don't fit the piston
     Tfit = T.reshape(shape_orig)[:, c:, :].reshape((-1, shape_orig[-1]))
     m_, n_ = np.shape(T)
     nmin = 0 if nmin is None else nmin

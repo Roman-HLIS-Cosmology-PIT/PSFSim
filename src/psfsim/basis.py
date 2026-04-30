@@ -418,7 +418,7 @@ basis_set = RomanBasisSet(
         "M1": {"ORDER": 6, "SKIP": 2},
         "M3": {"ORDERX": 5, "ORDERY": 4, "SKIP": 3},
         "FPA": {"ORDER": 1},
-        "S1": {"ORDER": 6, "SKIP": 2},
+        "S1": {"ORDER": 6, "SKIP": 1},
     }
 )
 

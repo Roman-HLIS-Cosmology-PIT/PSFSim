@@ -1902,3 +1902,9 @@ fpa_to_angle_poly_coefficients = np.array(
     ],
     dtype=np.float64,
 ).reshape((21, 21, 2))
+
+
+# Field points to remove from tip-tilt fit
+# (The project spreadsheet switched to scientific notation
+# and didn't save enough significant digits to use this.)
+remove_tiptilt = {"W": [83]}
