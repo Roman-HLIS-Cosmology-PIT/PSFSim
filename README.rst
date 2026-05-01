@@ -13,7 +13,7 @@ Most code lives in ``PSFObject.py``, but it may also be useful to look at ``opti
 
 Additional information:
 
-- `Basis functions used to describe surface errors <docs/basis.rst>`_.
+- `Model description <docs/model.rst>`_.
 
 Written by Nihar Dalal, Charuhas Shiveshwarkar, and Chris Hirata
 
