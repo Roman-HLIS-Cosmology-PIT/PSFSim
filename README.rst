@@ -14,6 +14,7 @@ Most code lives in ``PSFObject.py``, but it may also be useful to look at ``opti
 Additional information:
 
 - `Model description <docs/model.rst>`_.
+- `Coordinates in PSFSim <docs/coordinates.rst>`_.
 
 Written by Nihar Dalal, Charuhas Shiveshwarkar, and Chris Hirata
 
