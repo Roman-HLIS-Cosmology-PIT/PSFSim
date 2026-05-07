@@ -243,34 +243,26 @@ class FilterDetector:
         self.sgn = sgn
         self.ice_layer = False
         self.t_ice = None
-        self.base_characteristic_matrix_cache = {}
 
 
-
-    def add_ice_layer(self, t):
+    def add_ice_layer(self, t_ice):
         """
         Add an ice layer to the filter.
 
         Parameters
         ----------
-        t : float
+        t_ice : float
             The thickness of the ice layer in microns.
 
         """
         self.ice_layer = True
-        self.t_ice = t
+        self.t_ice = t_ice
 
 
-    def base_characteristic_matrix(self, ll, ux, uy):
+
+    def characteristic_matrix(self, ll, ux, uy):
         """
-        Characteristic matrix calculation without an extra ice layer. This
-        function also caches the result, so that if the same wavelength and
-        shape of `ux` are used again, the cached result is returned. Note that
-        in the caching, I am assuming that the ux and uy values are fixed and
-        completely determined by a given wavelength and shape of `ux` (and
-        `uy`), which is true for the current implementation of the ray tracing,
-        but may not be true in general. If this caching turns out to be a
-        problem, we can always modify the key to include more information about the `ux` and `uy` arrays.
+        Characteristic matrix calculation
 
         Parameters
         ----------
@@ -286,27 +278,35 @@ class FilterDetector:
             shape(`ux`) + (2, 2); that is, each cell has a 2x2 characteristic matrix.
 
         """
-
-        # print("Calculating characteristic matrices......")
-        # start_time = time.time()
-
         #   returns characteristic matrix of the interference filter for (vacuum) wavelength ll and
         #   angle of incidence given by sin_theta = (ux**2 + uy**2)**0.5
 
         #    Note that this function returns a pair of 2x2 matrices which are respectively the chara
         #    cteristic matrices for the TE and TM modes of the incident wave
 
+        if self.ice_layer:
+            n0 = n_ice(ll)
+            es = [n0**2] + self.e
+            ns = [n0] + self.n
+            ts = [self.t_ice] + self.t
+            mus = [1] + self.mu
+            nlayer = 1 + self.nlayer
+
+        else:
+            es = self.e
+            ns = self.n
+            ts = self.t
+            mus = self.mu
+            nlayer = self.nlayer
+
+        assert nlayer == len(es)
+
+
         try:
             shape = ux.shape
         except AttributeError:
             shape = (1, 1)
 
-        cache_key = (ll, shape)
-
-        try:
-            return self.base_characteristic_matrix_cache[cache_key]
-        except KeyError:
-            pass
 
         mask = (ux**2 + uy**2) <= 1.0
         # mask = np.abs(ux) + np.abs(uy) <= 1.0
@@ -315,9 +315,9 @@ class FilterDetector:
         # Get wave numbers
         k0 = 2 * np.pi / ll
         kz = []
-        for j in range(self.nlayer):
+        for j in range(nlayer):
             kzj = np.zeros_like(ux, dtype=np.complex128)
-            kzj[mask] = k0 * np.sqrt(self.n[j] ** 2 - u[mask] ** 2)
+            kzj[mask] = k0 * np.sqrt(ns[j] ** 2 - u[mask] ** 2)
             kz.append(kzj)
 
         # Initialize characteristic matrices
@@ -326,104 +326,29 @@ class FilterDetector:
         M_TE_net[mask, 1, 1] = 1.0
         M_TM_net = np.copy(M_TE_net)
 
-        for j in range(self.nlayer):
+        for j in range(nlayer):
             # Characteristic matrix of layer j for the TE wave
             M_TE_j = np.zeros(shape + (2, 2), dtype=np.complex128)
 
-            M_TE_j[mask, 0, 0] = np.cos(kz[j][mask] * self.t[j])
-            M_TE_j[mask, 1, 1] = np.cos(kz[j][mask] * self.t[j])
-            M_TE_j[mask, 0, 1] = -(k0 * self.mu[j] / kz[j][mask]) * 1j * np.sin(kz[j][mask] * self.t[j])
-            M_TE_j[mask, 1, 0] = -(kz[j][mask] / k0 / self.mu[j]) * 1j * np.sin(kz[j][mask] * self.t[j])
+            M_TE_j[mask, 0, 0] = np.cos(kz[j][mask] * ts[j])
+            M_TE_j[mask, 1, 1] = np.cos(kz[j][mask] * ts[j])
+            M_TE_j[mask, 0, 1] = -(k0 * mus[j] / kz[j][mask]) * 1j * np.sin(kz[j][mask] * ts[j])
+            M_TE_j[mask, 1, 0] = -(kz[j][mask] / k0 / mus[j]) * 1j * np.sin(kz[j][mask] * ts[j])
 
             # Characteristic matrix of layer j for TM wave
             M_TM_j = np.zeros(shape + (2, 2), dtype=np.complex128)
 
-            M_TM_j[mask, 0, 0] = np.cos(kz[j][mask] * self.t[j])
-            M_TM_j[mask, 1, 1] = np.cos(kz[j][mask] * self.t[j])
-            M_TM_j[mask, 0, 1] = -(k0 * self.e[j] / kz[j][mask]) * 1j * np.sin(kz[j][mask] * self.t[j])
-            M_TM_j[mask, 1, 0] = -(kz[j][mask] / k0 / self.e[j]) * 1j * np.sin(kz[j][mask] * self.t[j])
+            M_TM_j[mask, 0, 0] = np.cos(kz[j][mask] * ts[j])
+            M_TM_j[mask, 1, 1] = np.cos(kz[j][mask] * ts[j])
+            M_TM_j[mask, 0, 1] = -(k0 * es[j] / kz[j][mask]) * 1j * np.sin(kz[j][mask] * ts[j])
+            M_TM_j[mask, 1, 0] = -(kz[j][mask] / k0 / es[j]) * 1j * np.sin(kz[j][mask] * ts[j])
 
             # multiply
             M_TE_net = np.matmul(M_TE_net, M_TE_j)
             M_TM_net = np.matmul(M_TM_net, M_TM_j)
 
-        # end_time = time.time()
-        # print(f"Finished computing characteristic matrices in {end_time-start_time:.3f}")
-        self.base_characteristic_matrix_cache[cache_key] = {"TE": M_TE_net, "TM": M_TM_net}
-
-
         return {"TE": M_TE_net, "TM": M_TM_net}
 
-    def characteristic_matrix(self, ll, ux, uy):
-        """
-        Characteristic matrix calculation, with an optional ice layer.
-
-        Parameters
-        ----------
-        ll : float
-            The vacuum wavelength of incident light.
-        ux, uy : np.ndarray of float
-            Orthographic projection of the incident ray directions.
-
-        Returns
-        -------
-        dict
-            Two keys: "TE" and "TM"; each is an np.ndarray of complex, with
-            shape(`ux`) + (2, 2); that is, each cell has a 2x2 characteristic matrix.
-
-        """
-
-
-        base_char_matrices = self.base_characteristic_matrix(ll, ux, uy)
-        M_TE_net = base_char_matrices["TE"]
-        M_TM_net = base_char_matrices["TM"]
-
-
-        if self.ice_layer:
-            # If there is an ice layer, we can compute the characteristic
-            # matrix as the product of the base characteristic matrix and
-            # the characteristic matrix of the ice layer
-
-            mask = (ux**2 + uy**2) <= 1.0
-            k0 = 2 * np.pi / ll
-            u = np.sqrt((ux**2) + (uy**2))
-
-
-            kz_ice = np.zeros_like(ux, dtype=np.complex128)
-            n_ice_val = n_ice(ll)
-            kz_ice[mask] = k0 * np.sqrt(n_ice_val**2 - u[mask] ** 2)
-
-
-            # Characteristic matrix of the ice layer for the TE wave
-            M_TE_ice = np.zeros(ux.shape + (2, 2), dtype=np.complex128)
-
-            M_TE_ice[mask, 0, 0] = np.cos(kz_ice[mask] * self.t_ice)
-            M_TE_ice[mask, 1, 1] = np.cos(kz_ice[mask] * self.t_ice)
-            M_TE_ice[mask, 0, 1] = -(k0 * 1.0 / kz_ice[mask]) * 1j * np.sin(kz_ice[mask] * self.t_ice)
-            M_TE_ice[mask, 1, 0] = -(kz_ice[mask] / k0 / 1.0) * 1j * np.sin(kz_ice[mask] * self.t_ice)
-
-            # Characteristic matrix of the ice layer for TM wave
-            M_TM_ice = np.zeros(ux.shape + (2, 2), dtype=np.complex128)
-            M_TM_ice[mask, 0, 0] = np.cos(kz_ice[mask] * self.t_ice)
-            M_TM_ice[mask, 1, 1] = np.cos(kz_ice[mask] * self.t_ice)
-            M_TM_ice[mask, 0, 1] = (
-                -(k0 * n_ice_val**2 / kz_ice[mask])
-                * 1j
-                * np.sin(kz_ice[mask] * self.t_ice)
-            )
-            M_TM_ice[mask, 1, 0] = (
-                -(kz_ice[mask] / k0 / n_ice_val**2)
-                * 1j
-                * np.sin(kz_ice[mask] * self.t_ice)
-            )
-
-            # Total characteristic matrix is the product of the base
-            # characteristic matrix and the ice layer characteristic matrix
-            M_TE_net = np.matmul(M_TE_ice, M_TE_net)
-            M_TM_net = np.matmul(M_TM_ice, M_TM_net)
-
-
-        return {"TE": M_TE_net, "TM": M_TM_net}
 
 
     def transmission(self, ll, ux, uy, use_HgCdTe=True):
