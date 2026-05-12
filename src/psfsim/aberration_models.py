@@ -191,6 +191,7 @@ def extract_basis_coefs(
     nmax=None,
     c=3,
     verbose=True,
+    return_coefs=False,
 ):
     """
     Computes basis coefficients from a Zernike file.
@@ -216,11 +217,22 @@ def extract_basis_coefs(
         and tip+tilt) or 1 (skip piston but include tip+tilt).
     verbose : bool, optional
         Whether to talk a lot to the output.
+    return_coefs : bool, optional
+        If set to True, returns the matrix of coefficients for the difference between the
+        astrometric model computed by PSFSim and the table provided by the Project.
 
     Returns
     -------
     np.ndarray
-        A 1D array of the inferred basis coefficients.
+        If `return_coefs` is False (default), this is
+        a 1D array of the inferred basis coefficients.
+
+        If `return_coefs` is True, this is a 2D array of shape (3, 3) for the residual of the FPA
+        positions::
+
+            [tabulated - predicted] = coefs[:2, :] @ [predicted] + coefs[-1, :]
+
+        where the 2nd axis has order x, y, focus.
 
     """
 
@@ -255,7 +267,8 @@ def extract_basis_coefs(
     # Linear regression of the offsets
     A = np.ones((npos, 3))
     A[:, :2] = pos_ref
-    print(np.shape(A), np.shape(dpos))
+    if verbose:
+        print("shape of A=", np.shape(A), "shape of dpos=", np.shape(dpos))
     coefs, resids = np.linalg.lstsq(A, dpos)[:2]
 
     # the fit is:
@@ -303,6 +316,13 @@ def extract_basis_coefs(
 
     # and now the target change in Zernikes
     delta_zernike = input_zernikes - s_decomp
+
+    if return_coefs:
+        dpos2 = np.zeros((npos, 3))
+        dpos2[:, :2] = dpos
+        dpos2[:, 2] = delta_zernike[:, 3]  # focus
+        coefs2, resids2 = np.linalg.lstsq(A, dpos2)[:2]
+        return coefs2
 
     # SVD of the free parameters
     Tfit = T.reshape(shape_orig)[:, c:, :].reshape((-1, shape_orig[-1]))

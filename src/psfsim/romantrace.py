@@ -417,7 +417,10 @@ class RayBundle:
         field_bias = build_transform_matrix(ade=-0.496, cde=150.0, unit="degree")
         if not idealgeom:
             field_bias = (
-                build_transform_matrix(ade=fbias_offset[0], bde=fbias_offset[1], unit="degree") @ field_bias
+                build_transform_matrix(
+                    ade=fbias_offset["VERTICAL"], bde=fbias_offset["HORIZONTAL"], unit="degree"
+                )
+                @ field_bias
             )
         self.x = RayBundle.MiV(field_bias, self.x)
         self.p = RayBundle.MiV(field_bias, self.p)
@@ -1378,10 +1381,11 @@ def _RomanRayBundle(
     )
     if not idealgeom:
         TrFPA = TrFPA @ build_transform_matrix(
-            xde=-fpa_offset["DX"] - fbias_offset[1] * 0.01 / 0.11 * 3600.0,
-            yde=-fpa_offset["DY"] + fbias_offset[0] * 0.01 / 0.11 * 3600.0,
+            xde=-fpa_offset["DX"] - fbias_offset["HORIZONTAL"] * 0.01 / 0.11 * 3600.0,
+            yde=-fpa_offset["DY"] + fbias_offset["VERTICAL"] * 0.01 / 0.11 * 3600.0,
             zde=-fpa_offset["DZ"],
             ade=fpa_offset["TILT"],
+            bde=fpa_offset["TIP"],
             cde=fpa_offset["ROLL"],
         )
 
