@@ -7,6 +7,7 @@ import pandas as pd
 from astropy.io import fits
 
 from . import wfi_data, zernike
+from .perturbations import cycle10_perturbations
 from .romantrace import RomanRayBundle
 from .wfi_coordinate_transformations import from_fpa_to_angle, from_sca_to_fpa
 
@@ -161,6 +162,10 @@ class GeometricOptics:
         Whether to use ray tracing.
     pixelsampling : float, optional
         Desired FFT-based output pixel sampling in microns.
+    cycle : int, optional
+        Which cycle to use for the Zernike modes.
+    mjd : float, optional
+        The MJD to use for the optical model.
 
     Attributes
     ----------
@@ -217,6 +222,8 @@ class GeometricOptics:
         ray_trace=True,
         pixelsampling=1.00,
         a_lanczos=3,
+        cycle=9,
+        mjd=None,
     ):
         # sca position in mm
         # wavelength in micrometers
@@ -269,6 +276,13 @@ class GeometricOptics:
         self.ucen = self.uvcoefs[0][0] + (self.uvcoefs[0][1] + self.uvcoefs[0][2]) * (self.ulen - 1.0) / 2.0
         self.vcen = self.uvcoefs[1][0] + (self.uvcoefs[1][1] + self.uvcoefs[1][2]) * (self.ulen - 1.0) / 2.0
         self.du = (self.uvcoefs[0][1] + self.uvcoefs[1][2]) / 2.0
+
+        # load data
+        self.cycle = cycle
+        self.mjd = mjd
+        self.perturbations = None
+        if cycle == 10:
+            self.perturbations = cycle10_perturbations(use_filter)
 
         # Load pupil mask from raytrace - more accurate
         # self.uArray = self.pupilMaskU[:, :, 0]
