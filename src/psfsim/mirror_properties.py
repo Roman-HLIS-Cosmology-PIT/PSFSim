@@ -405,21 +405,27 @@ def reflect_RB_model(thetas, wavelength):
 
     This is packaged so you can use it in ``romantrace.py``.
 
-    Right now this is an idealized 2-layer coating. It gets the right IR behavior
-    for the reflectivities, and the correct linear retardance behavior with zero-crossing
-    at 600 nm. However, the reflectivity is a bit too low in the visible. This may be an
-    issue with the dielectric function of the silver (this varies from sample to sample,
-    and it's possible that the Im epsilon in the Yang et al. 2015 sample is a bit larger
-    than for our coating). So this version has a ``reduce`` variable that allows one to
-    adjust the loss to match the measured reflectivity of 98.4% at 500 nm.
+    Right now this is an idealized 1-layer coating. It gets the right behavior for the
+    reflectivities, and the correct linear retardance behavior with zero-crossing at 600 nm.
 
-    While the zero-crossing is now right, and the model correctly gets that the S-polarized
-    reflectivity is greater than the P-polarized, the behavior of the S and P reflectivities
-    getting closer together around 1100 nm and then being farther apart at shorter and longer
-    wavelengths is not reproduced here.
+    The reflectivities at 45 degrees (compared to the data we got from L3 Harris) are:
+
+    +------------+-------------+------------+-------------+------------+
+    | Wavelength | S-pol model | S-pol data | P-pol model | P-pol data |
+    +------------+-------------+------------+-------------+------------+
+    | 500 nm     | 98.8%       | 99.0%      | 97.5%       | 97.8%      |
+    +------------+-------------+------------+-------------+------------+
+    | 1100 nm    | 97.9%       | 97.8%      | 98.2%       | 97.8%      |
+    +------------+-------------+------------+-------------+------------+
+    | 2400 nm    | 99.2%       | 99.5%      | 98.7%       | 98.5%      |
+    +------------+-------------+------------+-------------+------------+
 
     So for now I recommend using this only to assess how significant the polarization effects
-    are likely to be --- this isn't the "real" model!
+    are likely to be --- this isn't the "truth"!
+
+    There is a phase shift inserted here so that the reflectivity is measured relative to an
+    ideal surface at 160 nm below (toward substrate) relative to the top surface of the protective
+    coating.
 
     Parameters
     ----------
@@ -435,7 +441,9 @@ def reflect_RB_model(thetas, wavelength):
 
     """
 
-    return reflect_RB_off_mirror(thetas, wavelength, epsilon_coat=None, thickness=102.5, reduce=0.165)
+    return np.exp(-4j * np.pi / wavelength * 1.6e-4 * np.cos(thetas)) * reflect_RB_off_mirror(
+        thetas, wavelength, epsilon_coat=2.25, thickness=166.0, reduce=0.0
+    )
 
 
 if __name__ == "__main__":
