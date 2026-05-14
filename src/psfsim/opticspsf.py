@@ -523,7 +523,7 @@ class GeometricOptics:
             raise ValueError("Cycle {self.cycle:d} not defined.")
 
         self.urhoPolar = np.sqrt((self.u_array() - self.ucen) ** 2 + (self.v_array() - self.vcen) ** 2)
-        self.uthetaPolar = np.arctan2(self.v_array() - self.vcen, self.u_array() - self.ucen)
+        self.uthetaPolar = np.arctan2(self.v_array() - self.vcen, -(self.u_array() - self.ucen))
 
         infile = files("psfsim.data").joinpath("wim_zernikes_cycle9.csv.gz")  # reads data directory
         mydata = pd.read_csv(infile, sep=",", header=0, compression="gzip")
@@ -544,7 +544,8 @@ class GeometricOptics:
             zernCoeff = altgriddata(points, zernCoeffsToInterpolate, (self.scax, self.scay))
             nZern, mZern = zernike.noll_to_zernike(i + 1)
             # print(">>>", zernike.zernike(nZern, mZern, self.urhoPolar, self.uthetaPolar))
-            path_diff += zernCoeff * zernike.zernike(
+            path_diff -= zernCoeff * zernike.zernike(
                 nZern, mZern, 2 * self.focalLength * self.urhoPolar, self.uthetaPolar
             )
+            # - sign since OPD in the file has a sign difference
         return path_diff

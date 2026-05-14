@@ -65,6 +65,10 @@ class PSFObject:
         The interference filter object to use for computing the transmitted electric field
         and intensity within the detector. Defaults to the interference filter specified
         above as `default_interference_filter` if unspecified.
+    cycle : int, optional
+        Which cycle to use for the Zernike modes.
+    mjd : float, optional
+        The MJD to use for the optical model.
 
 
     Attributes
@@ -104,6 +108,8 @@ class PSFObject:
         detector_thickness=2,
         zlen=20,
         interference_filter=default_interference_filter,
+        cycle=9,
+        mjd=None,
     ):
         self.wavelength = wavelength
         self.npix_boundary = npix_boundary
@@ -128,6 +134,8 @@ class PSFObject:
             ray_trace=ray_trace,
             pixelsampling=10.0 / ovsamp,
             a_lanczos=a_lanczos,
+            cycle=cycle,
+            mjd=mjd,
         )
         self.ux, self.uy = (
             self.optics.u_array(),

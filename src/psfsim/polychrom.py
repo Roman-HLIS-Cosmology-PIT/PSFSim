@@ -94,6 +94,8 @@ class PolychromaticPSF:
         add_focus=None,
         optical_psf_only=False,
         req_in_bandpass=True,
+        cycle=9,
+        mjd=None,
     ):
         """
         Compute the polychromatic PSF by integrating monochromatic PSFs across wavelength.
@@ -124,6 +126,11 @@ class PolychromaticPSF:
             Whether to only accept in-band light (turning this on will make things faster
             for some settings, but will miss detail in the PSF from out-of-band leakage).
             Recommend True for fast computation, False for best accuracy.
+        cycle : int, optional
+            Which cycle to use for the Zernike modes.
+        mjd : float, optional
+            The MJD to use for the optical model.
+
         Returns
         -------
         np.ndarray
@@ -163,6 +170,8 @@ class PolychromaticPSF:
                 use_postage_stamp_size=use_postage_stamp_size,
                 ray_trace=ray_trace,
                 add_focus=add_focus,
+                cycle=cycle,
+                mjd=mjd,
             )
             this_psf.get_optical_psf()
             if optical_psf_only:

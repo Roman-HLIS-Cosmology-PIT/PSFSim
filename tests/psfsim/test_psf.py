@@ -4,8 +4,20 @@ import numpy as np
 from psfsim.psfobject import PSFObject
 
 
-def test_psfobject():
-    """Test function for PSF object."""
+def _pt(cycle):
+    """
+    Test function for PSF object in a single cycle.
+
+    Parameters
+    ----------
+    cycle : int
+        Which model cycle to use.
+
+    Returns
+    -------
+    None
+
+    """
 
     n = 8
 
@@ -19,6 +31,7 @@ def test_psfobject():
         npix_boundary=1,
         use_postage_stamp_size=False,
         add_focus=None,
+        cycle=cycle,
     )
 
     assert np.abs(obj.dx - 10.0 / n) < 1.0e-3
@@ -36,3 +49,10 @@ def test_psfobject():
     assert obj.detector_image.shape == (obj.postage_stamp_size * n, obj.postage_stamp_size * n)
     assert np.all(obj.detector_image >= 0)
     # assert obj.npix_boundary == -1 # <-- used to force failure so we can look at the logs
+
+
+def test_psfobject():
+    """Test function for PSF object for each cycle."""
+
+    for c in [9, 10]:
+        _pt(c)

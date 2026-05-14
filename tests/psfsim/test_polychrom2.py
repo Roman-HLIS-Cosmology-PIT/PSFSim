@@ -2,10 +2,23 @@
 
 import numpy as np
 import psfsim.polychrom
+from astropy.io import fits
 
 
-def test_poly_h():
-    """Simple H-band test."""
+def _h(cycle):
+    """
+    Simple H-band test using the given cycle.
+
+    Parameters
+    ----------
+    cycle : int
+        The design cycle number.
+
+    Returns
+    -------
+    None
+
+    """
 
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
@@ -43,3 +56,22 @@ def test_poly_h():
     assert np.abs(scft[11]) < 0.075
     assert 0.1 < np.abs(scft[12]) < 0.2
     assert np.abs(scft[13]) < 0.075
+
+
+def test_h():
+    """Test of the polychromatic PSF for the given cycle."""
+
+    for c in [9, 10]:
+        _h(c)
+
+
+def test_diff():
+    """Test of the difference of PSFs."""
+
+    p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6))
+    arr9 = p.compute_poly_psf(use_filter="H", ovsamp=8, cycle=9)
+    arr10 = p.compute_poly_psf(use_filter="H", ovsamp=8, cycle=10)
+
+    # note Cycle 10 is shifted a little above Cycle 9, hence the 1 pixel offset
+    err = np.amax(np.abs(arr9[:-1, :] - arr10[1:, :]))
+    assert err < 1.3e-4
