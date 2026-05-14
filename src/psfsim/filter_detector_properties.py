@@ -177,6 +177,7 @@ def n_mercadtel(wavelength, T=89.0, x=0.445, force_old=False, force_short=False)
 
     return n
 
+
 def n_ice(wavelength):
     """
     Ice index of refraction.
@@ -244,7 +245,6 @@ class FilterDetector:
         self.ice_layer = False
         self.t_ice = None
 
-
     def add_ice_layer(self, t_ice):
         """
         Add an ice layer to the filter.
@@ -257,8 +257,6 @@ class FilterDetector:
         """
         self.ice_layer = True
         self.t_ice = t_ice
-
-
 
     def characteristic_matrix(self, ll, ux, uy):
         """
@@ -301,12 +299,10 @@ class FilterDetector:
 
         assert nlayer == len(es)
 
-
         try:
             shape = ux.shape
         except AttributeError:
             shape = (1, 1)
-
 
         mask = (ux**2 + uy**2) <= 1.0
         # mask = np.abs(ux) + np.abs(uy) <= 1.0
@@ -348,8 +344,6 @@ class FilterDetector:
             M_TM_net = np.matmul(M_TM_net, M_TM_j)
 
         return {"TE": M_TE_net, "TM": M_TM_net}
-
-
 
     def transmission(self, ll, ux, uy, use_HgCdTe=True):
         """
