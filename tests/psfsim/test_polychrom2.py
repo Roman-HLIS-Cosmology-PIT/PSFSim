@@ -2,7 +2,6 @@
 
 import numpy as np
 import psfsim.polychrom
-from astropy.io import fits
 
 
 def _h(cycle):
