@@ -143,8 +143,8 @@ def thin_film_characteristic_matrix(thickness, k_0, n_inc, theta_inc, epsilon, m
     # compute the matrix
     matrix = np.array(
         [
-            [np.cos(argument), np.sin(argument) * 1j / gamma],
-            [np.sin(argument) * 1j * gamma, np.cos(argument)],
+            [np.cos(argument), -np.sin(argument) * 1j / gamma],
+            [-np.sin(argument) * 1j * gamma, np.cos(argument)],
         ]
     )
 
