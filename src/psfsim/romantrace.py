@@ -2,6 +2,13 @@ import numpy as np
 import scipy
 from astropy.io import fits
 
+from .basis import basis_set
+from .mirror_properties import reflect_RB_model
+from .offsets import fbias_offset, fpa_offset, sm_offset
+from .wfi_data import scapos
+
+fratio_scale = 8.0  # scale FPA displacement modes by 8*f^2
+
 
 def _lanczos_weight(dx, dy, a=3):
     """
@@ -245,6 +252,8 @@ class RayBundle:
         ``hires[0]`` is a 1D array of y-values and ``hires[1]`` is a 1D array of x-values.
     ovsamp : int, optional
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
+    idealgeom : bool, optional
+        Forces the design model rather than with the best-fit offsets.
 
     Attributes
     ----------
@@ -347,6 +356,7 @@ class RayBundle:
         jacobian=None,
         hires=None,
         ovsamp=6,
+        idealgeom=True,
     ):
         if jacobian is None:
             jacobian = np.array([[1, 0], [0, 1]])
@@ -405,6 +415,13 @@ class RayBundle:
 
         # remove field bias, rotate to Payload Coordinate System
         field_bias = build_transform_matrix(ade=-0.496, cde=150.0, unit="degree")
+        if not idealgeom:
+            field_bias = (
+                build_transform_matrix(
+                    ade=fbias_offset["VERTICAL"], bde=fbias_offset["HORIZONTAL"], unit="degree"
+                )
+                @ field_bias
+            )
         self.x = RayBundle.MiV(field_bias, self.x)
         self.p = RayBundle.MiV(field_bias, self.p)
 
@@ -583,7 +600,7 @@ class RayBundle:
                     False,
                 )
 
-    def intersect_surface_and_reflect(self, Trf, Rinv=0.0, K=0.0, rCoefs=None, activeZone=None):
+    def intersect_surface_and_reflect(self, Trf, Rinv=0.0, K=0.0, rCoefs=None, activeZone=None, gd=None):
         """
         Propagates rays to a surface and performs a reflection.
 
@@ -603,6 +620,9 @@ class RayBundle:
         activeZone : dict, optional
             A dictionary of CODEV codes for the active region. Valid keys are
             `CIR``, ``REX``, ``REY``, ``ADX``, ``ADY``, and ``ARO``.
+        gd : dict, optional
+            A dictionary of parameters for gradient computation. Should have keys:
+            ``grad``: where to write the gradient map; and ``surface``: which surface (e.g., ``M1``).
 
         Returns
         -------
@@ -649,6 +669,17 @@ class RayBundle:
         mu_ = np.abs(mu)
         theta_inc = np.where(mu_ < 1, np.arccos(mu_), 0)  # in radians
 
+        # gradient with respect to surface error
+        if gd is not None and gd["surface"] in basis_set.basis:
+            b = basis_set.basis[gd["surface"]]
+            modes = b.basis(xy[:, :, 0], xy[:, :, 1])
+            for j in range(b.N):
+                if "grad" in gd:
+                    gd["grad"][:, :, b.start + j] += 2 * mu_ * modes[:, :, j]
+                if "arr" in gd and gd["arr"] is not None:
+                    self.s += 2 * mu_ * modes[:, :, j] * gd["arr"][j]
+            del modes  # save some space
+
         # flip direction
         p_out = self.p - 2 * mu[:, :, None] * norm
 
@@ -690,7 +721,9 @@ class RayBundle:
         # update outgoing direction
         self.p = p_out
 
-    def intersect_surface_and_refract(self, Trf, Rinv=0.0, K=0.0, n_new=1.0, tCoefs=None, activeZone=None):
+    def intersect_surface_and_refract(
+        self, Trf, Rinv=0.0, K=0.0, n_new=1.0, tCoefs=None, activeZone=None, gd=None
+    ):
         """
         Propagates rays to a surface and performs a refraction.
 
@@ -712,6 +745,9 @@ class RayBundle:
         activeZone : dict, optional
             A dictionary of CODEV codes for the active region. Valid keys are
             `CIR``, ``REX``, ``REY``, ``ADX``, ``ADY``, and ``ARO``.
+        gd : dict, optional
+            A dictionary of parameters for gradient computation. Should have keys:
+            ``grad``: where to write the gradient map; and ``surface``: which surface (e.g., ``M1``).
 
         Returns
         -------
@@ -757,6 +793,18 @@ class RayBundle:
         mu = np.sum(norm * self.p, axis=-1)
         mu_ = np.abs(mu)
         theta_inc = np.where(mu_ < 1, np.arccos(mu_), 0)  # in radians
+
+        # gradient with respect to surface error
+        if gd is not None and gd["surface"] in basis_set.basis:
+            dncostheta = self.n_loc * mu_ - np.sqrt(n_new**2 - self.n_loc**2 * np.sin(theta_inc) ** 2)
+            b = basis_set.basis[gd["surface"]]
+            modes = b.basis(xy[:, :, 0], xy[:, :, 1])
+            for j in range(b.N):
+                if "grad" in gd:
+                    gd["grad"][:, :, b.start + j] += dncostheta * modes[:, :, j]
+                if "arr" in gd and gd["arr"] is not None:
+                    self.s += dncostheta * modes[:, :, j] * 8.0 * fratio_scale**2 * gd["arr"][j]
+            del modes  # save some space
 
         # new direction
         n_new__n_old = n_new / self.n_loc
@@ -889,6 +937,10 @@ def _RomanRayBundle(
     jacobian=None,
     hires=None,
     ovsamp=6,
+    idealgeom=False,
+    idealmirror=False,
+    outsca=None,
+    errs=None,
 ):
     """
     Carries out trace through RST optics.
@@ -915,6 +967,24 @@ def _RomanRayBundle(
         ``hires[0]`` is a 1D array of y-values and ``hires[1]`` is a 1D array of x-values.
     ovsamp : int, optional
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
+    idealgeom : bool, optional
+        Forces the design model rather than with the best-fit offsets.
+    idealmirror : bool, optional
+        Forces the mirror to be an ideal conducting surface instead of the model.
+    outsca : int, optional
+        Which output SCA to project the PSF on to? (1..18)
+        The default is to choose the SCA whose center is closest to where the ray lands.
+    errs : dict, optional
+        The surface error model. Dictionary with keys:
+
+        - basis: ``RomanBasisSet`` object.
+
+        - grad : bool, optional: whether to compute gradient of s with respect to the surface error
+          parameters.
+
+          Warning: this can be big!
+
+        - arr: np.ndarray, optional: 1D array of amplitudes of each basis mode.
 
     Returns
     -------
@@ -930,6 +1000,10 @@ def _RomanRayBundle(
 
             RB.E : shape (N,N,2,4), complex, electric field for the 2 initial polarizations and 3 components
            (last axis 0th component should be 0)
+
+        If ``errs["grad"]`` is True, then also provides:
+            RB.grad : shape (N,N,basis_set.N), derivative of s with respect to each surface error
+            parameter.
 
     """
 
@@ -949,10 +1023,30 @@ def _RomanRayBundle(
     if wl is None:
         wl = wlref
 
+    _reflect_RB_model = None if idealmirror else reflect_RB_model
+
     # initialization
     RB = RayBundle(
-        xan, yan, N, wl=wl, wlref=wlref, hasE=hasE, width=width, jacobian=jacobian, hires=hires, ovsamp=ovsamp
+        xan,
+        yan,
+        N,
+        wl=wl,
+        wlref=wlref,
+        hasE=hasE,
+        width=width,
+        jacobian=jacobian,
+        hires=hires,
+        ovsamp=ovsamp,
+        idealgeom=idealgeom,
     )
+    grad = errs["grad"] if errs is not None and "grad" in errs else False
+    RB.grad = np.zeros(np.shape(RB.s) + (basis_set.N,)) if grad else None
+
+    # set up the array of coefficients if we need it
+    arr = None
+    if errs is not None and "arr" in errs:
+        arr = errs["arr"]
+        grad = True
 
     # obstructions:
 
@@ -1086,14 +1180,19 @@ def _RomanRayBundle(
         Rinv=-1.0 / 5671.1342,
         K=-0.9728630311,
         activeZone=[{"CIR": 1184.02, "OBS": 321.31}],
+        rCoefs=_reflect_RB_model,
+        gd={"grad": RB.grad, "arr": arr, "surface": "M1"} if grad else None,
     )
 
     # Secondary mirror
+    sm_offset_use = 0.0 if idealgeom else sm_offset["DZ"]
     RB.intersect_surface_and_reflect(
-        build_transform_matrix(zde=2945.4, ade=-180, cde=180),
+        build_transform_matrix(zde=2945.4 + sm_offset_use, ade=-180, cde=180),
         Rinv=-1.0 / 1299.6164,
         K=-1.6338521231,
         activeZone=[{"CIR": 266.255}],
+        rCoefs=_reflect_RB_model,
+        gd={"grad": RB.grad, "arr": arr, "surface": "M2"} if grad else None,
     )
 
     # PM hole
@@ -1125,6 +1224,8 @@ def _RomanRayBundle(
             {"CIR": 16.98, "ADX": 134.13, "ADY": -106.6},
             {"CIR": 16.98, "ADX": -134.13, "ADY": -106.6},
         ],
+        rCoefs=_reflect_RB_model,
+        gd={"grad": RB.grad, "arr": arr, "surface": "FM1"} if grad else None,
     )
 
     # Entrance aperture plate
@@ -1163,6 +1264,8 @@ def _RomanRayBundle(
             {"REX": 169.255, "REY": 47.7, "ADY": -92.27},
             {"REX": 216.955, "REY": 142.135, "ADY": 49.865},
         ],
+        rCoefs=_reflect_RB_model,
+        gd={"grad": RB.grad, "arr": arr, "surface": "FM2"} if grad else None,
     )
 
     # Tertiary mirror
@@ -1186,6 +1289,8 @@ def _RomanRayBundle(
             {"CIR": 105.28, "ADX": -197.435, "ADY": 120.565},
             {"REX": 256.189698, "REY": 31.9859, "ADY": 444.7891},
         ],
+        rCoefs=_reflect_RB_model,
+        gd={"grad": RB.grad, "arr": arr, "surface": "M3"} if grad else None,
     )
 
     # Exit pupil mask
@@ -1245,6 +1350,7 @@ def _RomanRayBundle(
         K=0.0,
         n_new=n_Infrasil301(wlref),
         activeZone=[{"CIR": 52.65}],
+        gd={"grad": RB.grad, "arr": arr, "surface": "S1"} if grad else None,
     )
 
     # Filter - Surface S2
@@ -1273,6 +1379,16 @@ def _RomanRayBundle(
         bde=-27.09897706981732,
         cde=13.3889006733882,
     )
+    if not idealgeom:
+        TrFPA = TrFPA @ build_transform_matrix(
+            xde=-fpa_offset["DX"] - fbias_offset["HORIZONTAL"] * 0.01 / 0.11 * 3600.0,
+            yde=-fpa_offset["DY"] + fbias_offset["VERTICAL"] * 0.01 / 0.11 * 3600.0,
+            zde=-fpa_offset["DZ"],
+            ade=fpa_offset["TILT"],
+            bde=fpa_offset["TIP"],
+            cde=fpa_offset["ROLL"],
+        )
+
     xyFPA, _, _ = RB.intersect_surface(TrFPA, Rinv=0.0, K=0.0, update=True)
     RB.u = np.einsum("ij,abj->abi", np.linalg.inv(TrFPA), RB.p)[:, :, 1:3]
     if hasE:
@@ -1285,11 +1401,44 @@ def _RomanRayBundle(
         RB.x_out = np.mean(xyFPA, axis=(0, 1))
     RB.s += np.sum(RB.u * (RB.x_out[None, None, :] - xyFPA), axis=-1)
 
+    # now get which chip we want to project onto
+    if outsca is None:
+        # "smallest bounding square" distance in the focal plane
+        dist = np.amax(np.abs(RB.x_out[None, :] - scapos), axis=1)
+        outsca = 1 + np.argmin(dist)
+
+    # get gradients with respect to the displacement of each SCA
+    if grad:
+        key = f"WFI{outsca:02d}"
+        if key in basis_set.basis:
+            b = basis_set.basis[key]
+            dx_from_ctr = RB.x_out - scapos[outsca - 1]
+            dz = b.basis(dx_from_ctr[0], dx_from_ctr[1]) * 8.0 * fratio_scale**2
+            w = np.sqrt(1.0 - RB.u[:, :, 0] ** 2 - RB.u[:, :, 1] ** 2)
+            for j in range(b.N):
+                if RB.grad is not None:
+                    RB.grad[:, :, b.start + j] += dz[j] * w
+                if arr is not None:
+                    RB.s += arr[j] * dz[j] * w
+
     return RB
 
 
 def RomanRayBundle(
-    xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, jacobian=None, ovsamp=6, a_lanczos=3
+    xan,
+    yan,
+    N,
+    usefilter,
+    wl=None,
+    hasE=False,
+    width=2500.0,
+    jacobian=None,
+    ovsamp=6,
+    a_lanczos=3,
+    idealgeom=False,
+    idealmirror=False,
+    outsca=None,
+    errs=None,
 ):
     """
     Carries out trace through RST optics.
@@ -1315,6 +1464,24 @@ def RomanRayBundle(
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
     a_lanczos : int, optional
         The "a" parameter for Lanczos interpolation; this controls the size of the kernel. Default is 3.
+    idealgeom : bool, optional
+        Forces the design model rather than with the best-fit offsets.
+    idealmirror : bool, optional
+        Forces the mirror to be an ideal conducting surface instead of the model.
+    outsca : int, optional
+        Which output SCA to project the PSF on to? (1..18)
+        The default is to choose the SCA whose center is closest to where the ray lands.
+    errs : dict, optional
+        The surface error model. Dictionary with keys:
+
+        - basis: ``RomanBasisSet`` object.
+
+        - grad : bool, optional: whether to compute gradient of s with respect to the surface error
+          parameters.
+
+          Warning: this can be big!
+
+        - arr: np.ndarray, optional: 1D array of amplitudes of each basis mode.
 
     Returns
     -------
@@ -1331,6 +1498,10 @@ def RomanRayBundle(
 
             RB.E : shape (N,N,2,4), complex, electric field for the 2 initial polarizations and 3 components
            (last axis 0th component should be 0)
+
+        If ``errs["grad"]`` is True, then also provides:
+            RB.grad : shape (N,N,basis_set.N), derivative of s with respect to each surface error
+            parameter.
 
     See Also
     --------
@@ -1349,7 +1520,21 @@ def RomanRayBundle(
 
     """
 
-    RB = _RomanRayBundle(xan, yan, N, usefilter, wl=wl, hasE=hasE, width=width, jacobian=jacobian, hires=None)
+    RB = _RomanRayBundle(
+        xan,
+        yan,
+        N,
+        usefilter,
+        wl=wl,
+        hasE=hasE,
+        width=width,
+        jacobian=jacobian,
+        hires=None,
+        idealgeom=idealgeom,
+        idealmirror=idealmirror,
+        outsca=outsca,
+        errs=errs,
+    )
     # Now figure out which pixels we need to increase the resolution.
     r = 40.0 / width * N  # radius of search in pixels
     rceil = int(np.ceil(r))
@@ -1374,9 +1559,8 @@ def RomanRayBundle(
         jacobian=jacobian,
         hires=bdycells,
         ovsamp=ovsamp,
+        idealmirror=True,
     )
-    print(n, np.shape(RB_hires.open))
-    print("Lanczos interpolation order:", a_lanczos)
 
     new_values = _apply_lanczos_reweighting(
         RB.open,
@@ -1476,7 +1660,7 @@ def demo(writefiles=False):
     )
 
     # pupils
-    RB = RomanRayBundle(-0.399, 0.208, 512, "W", wl=9.27e-4, hasE=True)
+    RB = RomanRayBundle(-0.399, 0.208, 512, "W", wl=9.27e-4, hasE=True, idealgeom=True, idealmirror=True)
     if writefiles:
         fits.PrimaryHDU(RB.open.astype(np.int8)).writeto("temp.fits", overwrite=True)
         fits.PrimaryHDU(np.where(RB.open, RB.s - np.median(RB.s), 0)).writeto("temp-s.fits", overwrite=True)

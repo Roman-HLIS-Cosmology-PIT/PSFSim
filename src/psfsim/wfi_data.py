@@ -15,6 +15,8 @@ This contains the following arrays:
   and fpa_to_angle_poly_coefficients[i,j,1]
   are the coefficients for the y-angle in terms of x^exponents[j,0] * y^exponents[j,1] at wavelength i.
 
+- scapos: shape (18, 2). The centers of each chip in FPA coordinates, in mm.
+
 Also defines the scalars:
 
 - pix: float. Pixel size in microns.
@@ -45,6 +47,31 @@ cdpar = {
     "w": [0.17519, 0.53146, 0.29335],  # weights of the Gaussians
     "c": [0.4522, 0.8050, 1.4329],  # widths of the Gaussians in units of sigma_s
 }
+
+# Chip positions in mm
+scapos = np.array(
+    [
+        [-22.1400, 12.1500],
+        [-22.2900, -37.0300],
+        [-22.4400, -82.0600],
+        [-66.4200, 20.9000],
+        [-66.9200, -28.2800],
+        [-67.4200, -73.0600],
+        [-110.7000, 42.2000],
+        [-111.4800, -6.9800],
+        [-112.6400, -51.0600],
+        [22.1400, 12.1500],
+        [22.2900, -37.0300],
+        [22.4400, -82.0600],
+        [66.4200, 20.9000],
+        [66.9200, -28.2800],
+        [67.4200, -73.0600],
+        [110.7000, 42.2000],
+        [111.4800, -6.9800],
+        [112.6400, -51.0600],
+    ],
+    dtype=np.float64,
+)
 
 wavelength = np.array(
     [
@@ -1875,3 +1902,9 @@ fpa_to_angle_poly_coefficients = np.array(
     ],
     dtype=np.float64,
 ).reshape((21, 21, 2))
+
+
+# Field points to remove from tip-tilt fit
+# (The project spreadsheet switched to scientific notation
+# and didn't save enough significant digits to use this.)
+remove_tiptilt = {"W": [83]}

@@ -1,5 +1,6 @@
 """Optics objects."""
 
+import warnings
 from importlib.resources import files
 
 import numpy as np
@@ -7,6 +8,7 @@ import pandas as pd
 from astropy.io import fits
 
 from . import wfi_data, zernike
+from .perturbations import cycle10_perturbations
 from .romantrace import RomanRayBundle
 from .wfi_coordinate_transformations import from_fpa_to_angle, from_sca_to_fpa
 
@@ -161,6 +163,10 @@ class GeometricOptics:
         Whether to use ray tracing.
     pixelsampling : float, optional
         Desired FFT-based output pixel sampling in microns.
+    cycle : int, optional
+        Which cycle to use for the Zernike modes.
+    mjd : float, optional
+        The MJD to use for the optical model.
 
     Attributes
     ----------
@@ -217,6 +223,8 @@ class GeometricOptics:
         ray_trace=True,
         pixelsampling=1.00,
         a_lanczos=3,
+        cycle=9,
+        mjd=None,
     ):
         # sca position in mm
         # wavelength in micrometers
@@ -257,6 +265,13 @@ class GeometricOptics:
 
         self.use_filter = use_filter
 
+        # load perturbation data
+        self.cycle = cycle
+        self.mjd = mjd
+        self.perturbations = None
+        if cycle == 10:
+            self.perturbations = cycle10_perturbations(use_filter)
+
         # Compute Distortion Matrix and dterminant
         self.distortionMatrix = self.compute_distortion_matrix(method="raytrace")
         self.determinant = self.compute_determinant()
@@ -280,7 +295,7 @@ class GeometricOptics:
         # self.ucen = 0.5 * (self.umin + self.umax)
         # self.vcen = 0.5 * (self.vmin + self.vmax)
         # Get path difference map
-        self.path_difference = self.path_diff()
+        self.path_difference = self.path_diff(use_ray_trace=ray_trace)
 
         # self.integrand = self.pupilMask*self.determinant\
         # *expm(2*np.pi/self.wavelength*1j*self.pathDifference)
@@ -419,6 +434,7 @@ class GeometricOptics:
                 hasE=True,
                 jacobian=jacobian,
                 a_lanczos=self.a_lanczos,
+                errs=self.perturbations,
             )
 
             # Find bounding box of open pupil
@@ -457,6 +473,7 @@ class GeometricOptics:
                 wl=self.wavelength * 0.001,
                 hasE=True,
                 jacobian=jacobian,
+                errs=self.perturbations,
             )
 
             self.rb = self.rb.pad(self.ulen)
@@ -473,9 +490,15 @@ class GeometricOptics:
 
         return mask
 
-    def path_diff(self):
+    def path_diff(self, use_ray_trace=True):
         """
-        Path difference map computed from Zernike coefficients from Cycle 9 data.
+        Path difference map. The behavior depends on the selected cycle.
+
+
+        The method is:
+
+        - in Cycle 9, looks up the Zernike modes
+        - in Cycle 10, uses the perturbation model
 
         Returns
         -------
@@ -485,8 +508,22 @@ class GeometricOptics:
 
         """
 
+        # Cycle 10
+        if self.cycle == 10:
+            # I don't expect people will use this, but it prevents an error.
+            if not use_ray_trace:
+                warnings.warn("using Cycle 10 without ray trace!")
+                return np.zeros(np.shape(self.u_array))
+
+            path_diff = self.rb.s - np.sum(self.rb.s * self.rb.open) / np.sum(self.rb.open)
+            return path_diff * 1000.0  # convert to microns
+
+        # Below here, we must be in Cycle 9
+        if self.cycle != 9:
+            raise ValueError("Cycle {self.cycle:d} not defined.")
+
         self.urhoPolar = np.sqrt((self.u_array() - self.ucen) ** 2 + (self.v_array() - self.vcen) ** 2)
-        self.uthetaPolar = np.arctan2(self.v_array() - self.vcen, self.u_array() - self.ucen)
+        self.uthetaPolar = np.arctan2(self.v_array() - self.vcen, -(self.u_array() - self.ucen))
 
         infile = files("psfsim.data").joinpath("wim_zernikes_cycle9.csv.gz")  # reads data directory
         mydata = pd.read_csv(infile, sep=",", header=0, compression="gzip")
@@ -507,7 +544,8 @@ class GeometricOptics:
             zernCoeff = altgriddata(points, zernCoeffsToInterpolate, (self.scax, self.scay))
             nZern, mZern = zernike.noll_to_zernike(i + 1)
             # print(">>>", zernike.zernike(nZern, mZern, self.urhoPolar, self.uthetaPolar))
-            path_diff += zernCoeff * zernike.zernike(
+            path_diff -= zernCoeff * zernike.zernike(
                 nZern, mZern, 2 * self.focalLength * self.urhoPolar, self.uthetaPolar
             )
+            # - sign since OPD in the file has a sign difference
         return path_diff
