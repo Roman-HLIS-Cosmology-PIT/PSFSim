@@ -5,7 +5,8 @@ from numpy import newaxis as na
 from scipy.fft import ifft2
 
 from . import wfi_coordinate_transformations as wfi
-from .filter_detector_properties import FilterDetector
+from .filter_detector_properties import FilterDetector, n_mercadtel
+from .index_cdte import n_cdte
 from .mtf_diffusion import intensity_to_image
 from .opticspsf import GeometricOptics
 from .polarisation_decomposition import polarisation_mode_decomposition
@@ -23,9 +24,6 @@ def parallel_MTF_image(args):
     xd, yd, imageX, imageY, Intensity_integrated, npix_boundary = args
     return MTF_image(xd, yd, imageX, imageY, Intensity_integrated, npix_boundary)
 '''
-
-
-default_interference_filter = FilterDetector([1.5, 1.43, 2.0], [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0], 1)
 
 
 class PSFObject:
@@ -63,8 +61,16 @@ class PSFObject:
         and intensity within the detector.
     interference_filter : psfsim.filter_detector_properties.FilterDetector, optional
         The interference filter object to use for computing the transmitted electric field
-        and intensity within the detector. Defaults to the interference filter specified
-        above as `default_interference_filter` if unspecified.
+        and intensity within the detector. Defaults to an ideal 3-layer interference
+        filter (to get the right wiggle shape) + thin layer of CdTe/HgCdTe (to give the
+        additional loss in the blue).
+
+        Note that if you really want to model the response of each SCA, you will need some
+        additional empirical corrections on top of this, both because there are thickness
+        variations and also because there is a lot of physics associated with whether you get
+        electrons absorbed right near the illuminated surface that we aren't modeling --- we're
+        just using a 2-layer "dead zone" with ideal materials to mock up what is probably a
+        region with varying band gap and probability of collecting the hole that gets released.
     cycle : int, optional
         Which cycle to use for the Zernike modes.
     mjd : float, optional
@@ -107,14 +113,22 @@ class PSFObject:
         add_focus=None,
         detector_thickness=2,
         zlen=20,
-        interference_filter=default_interference_filter,
+        interference_filter=None,
         cycle=9,
         mjd=None,
     ):
         self.wavelength = wavelength
         self.npix_boundary = npix_boundary
 
+        if interference_filter is None:
+            # this is the default filter
+            interference_filter = FilterDetector(
+                [1.35, 1.82, 2.45, n_cdte(wavelength), n_mercadtel(wavelength)],
+                [0.163, 0.137, 0.084, 0.010, 0.008],
+                1,
+            )
         self.interference_filter = interference_filter
+
         self.postage_stamp_size = postage_stamp_size
         self.z_array = np.linspace(0, detector_thickness, zlen)
         # The following sets the ulen of the GeometricOptics object based on the postage_stamp_size if
