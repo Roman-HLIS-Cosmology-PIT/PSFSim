@@ -103,4 +103,4 @@ The dielectric function of the HgCdTe follows:
 - The exponential model of J. Chu et al., *J. Appl. Phys.*, **75**:1234 (1994) with band gap from G. Hansen et al., *J. Appl. Phys.*, **53**:7099 (1982) at wavelengths >1.5 µm.
 - An interpolation in the range 1-1.5 µm.
 
-*The dielectric coating is a toy model right now, we'll fix this soon.*
+The "default" AR coating model is an ideal 3-layer coating with geometrically increasing index of refraction; this places the interference features in the correct locations. An additional thin 2-layer absorber (CdTe/HgCdTe) is added at the bottom. (This reduces the blue sensitivity; the "true" structure of the interface between the AR coating and bulk HgCdTe is a lot more complicated, but from the perspective of the PSF what is important is to have a 2D layer with the right resistance as a function of frequency that absorbs some light without leading to a collected hole. There is quite a bit of chip-to-chip variation in this and we want to ultimately replace the current default model with an empirically tuned model that has some spatial variation across the focal plane.)
