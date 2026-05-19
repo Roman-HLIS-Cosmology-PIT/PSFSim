@@ -101,68 +101,6 @@ class TestQuadratureIntegrator:
 class TestPSFObjectWithQuadrature:
     """Test PSFObject integration with new quadrature method."""
 
-    def test_psfobject_initialization(self):
-        """Test that PSFObject initializes with quadrature integrator."""
-        obj = PSFObject(
-            4,
-            20.15,
-            5.12,
-            wavelength=1.35,
-            postage_stamp_size=31,
-            ovsamp=8,
-            detector_thickness=2.0,
-            zlen=20,
-            cycle=9,
-        )
-
-        # Check that quadrature integrator is initialized
-        assert hasattr(obj, "_quadrature_integrator"), "PSFObject should have _quadrature_integrator"
-        assert hasattr(obj, "_quad_nodes"), "PSFObject should have cached _quad_nodes"
-        assert hasattr(obj, "_quad_weights"), "PSFObject should have cached _quad_weights"
-        assert hasattr(obj, "_quad_order"), "PSFObject should have cached _quad_order"
-
-        # Check shapes
-        assert len(obj._quad_nodes) == len(obj._quad_weights), "Nodes and weights should have same length"
-        assert obj._quad_order == len(obj._quad_nodes), "Order should match number of nodes"
-
-    def test_psfobject_optical_psf(self):
-        """Test that optical PSF computation works with quadrature integrator."""
-        obj = PSFObject(
-            4,
-            20.15,
-            5.12,
-            wavelength=1.35,
-            postage_stamp_size=31,
-            ovsamp=8,
-            cycle=9,
-        )
-
-        obj.get_optical_psf()
-        assert obj.Optical_PSF.shape == (obj.ulen, obj.ulen)
-        assert np.isclose(np.sum(obj.Optical_PSF), 1.0, rtol=1e-12, atol=1e-12)
-        assert np.min(obj.Optical_PSF) >= -1e-10
-
-    def test_psfobject_intensity_in_detector(self):
-        """Test that intensity integration works with quadrature method."""
-        obj = PSFObject(
-            4,
-            20.15,
-            5.12,
-            wavelength=1.35,
-            postage_stamp_size=31,
-            ovsamp=8,
-            detector_thickness=2.0,
-            cycle=9,
-        )
-
-        # This calls get_Intensity_from_E internally
-        obj.get_Intensity_in_detector()
-
-        assert hasattr(obj, "Intensity_in_detector"), "Should compute Intensity_in_detector"
-        assert obj.Intensity_in_detector.shape == (obj.ulen, obj.ulen)
-        assert np.all(np.isfinite(obj.Intensity_in_detector)), "Intensity should be finite"
-        assert np.all(obj.Intensity_in_detector >= -1e-10), "Intensity should be non-negative"
-
     def test_psfobject_full_pipeline(self):
         """Test full PSF computation pipeline with quadrature integration."""
         obj = PSFObject(
@@ -177,7 +115,18 @@ class TestPSFObjectWithQuadrature:
 
         # Run full pipeline
         obj.get_optical_psf()
+
+        assert obj.Optical_PSF.shape == (obj.ulen, obj.ulen)
+        assert np.isclose(np.sum(obj.Optical_PSF), 1.0, rtol=1e-12, atol=1e-12)
+        assert np.min(obj.Optical_PSF) >= -1e-10
+
         obj.get_Intensity_in_detector()
+
+        assert hasattr(obj, "Intensity_in_detector"), "Should compute Intensity_in_detector"
+        assert obj.Intensity_in_detector.shape == (obj.ulen, obj.ulen)
+        assert np.all(np.isfinite(obj.Intensity_in_detector)), "Intensity should be finite"
+        assert np.all(obj.Intensity_in_detector >= -1e-10), "Intensity should be non-negative"
+
         obj.get_image_from_Intensity()
 
         # Check results
@@ -188,6 +137,14 @@ class TestPSFObjectWithQuadrature:
         assert np.all(obj.detector_image >= -1e-10), "Detector image should be non-negative"
         assert np.all(np.isfinite(obj.detector_image)), "Detector image should be finite"
         assert obj._quad_order < 20, "Quadrature order should be fewer than uniform trapezoid points"
+        assert hasattr(obj, "_quadrature_integrator"), "PSFObject should have _quadrature_integrator"
+        assert hasattr(obj, "_quad_nodes"), "PSFObject should have cached _quad_nodes"
+        assert hasattr(obj, "_quad_weights"), "PSFObject should have cached _quad_weights"
+        assert hasattr(obj, "_quad_order"), "PSFObject should have cached _quad_order"
+
+        # Check shapes
+        assert len(obj._quad_nodes) == len(obj._quad_weights), "Nodes and weights should have same length"
+        assert obj._quad_order == len(obj._quad_nodes), "Order should match number of nodes"
 
 
 if __name__ == "__main__":
