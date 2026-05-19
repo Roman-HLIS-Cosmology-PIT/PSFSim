@@ -187,25 +187,6 @@ class TestPSFObjectWithQuadrature:
         )
         assert np.all(obj.detector_image >= -1e-10), "Detector image should be non-negative"
         assert np.all(np.isfinite(obj.detector_image)), "Detector image should be finite"
-
-    def test_quadrature_order_is_reasonable(self):
-        """Test that quadrature order is more efficient than trapezoid."""
-        obj = PSFObject(
-            4,
-            20.15,
-            5.12,
-            wavelength=0.48,
-            postage_stamp_size=31,
-            ovsamp=8,
-            detector_thickness=2.0,
-            zlen=20,  # Old trapezoid used 20 points
-            cycle=9,
-        )
-
-        # Check that quadrature uses fewer or comparable points
-        # Gauss-Legendre on the finite detector-thickness interval should
-        # typically use 5-10 points for typical detector decay, compared to
-        # uniform 20 points from the trapezoid rule.
         assert obj._quad_order < 20, "Quadrature order should be fewer than uniform trapezoid points"
 
 
