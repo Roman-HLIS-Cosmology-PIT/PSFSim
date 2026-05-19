@@ -181,7 +181,10 @@ class TestPSFObjectWithQuadrature:
         obj.get_image_from_Intensity()
 
         # Check results
-        assert obj.detector_image.shape == (obj.postage_stamp_size * 8, obj.postage_stamp_size * 8)
+        assert obj.detector_image.shape == (
+            obj.postage_stamp_size * obj.ovsamp,
+            obj.postage_stamp_size * obj.ovsamp,
+        )
         assert np.all(obj.detector_image >= -1e-10), "Detector image should be non-negative"
         assert np.all(np.isfinite(obj.detector_image)), "Detector image should be finite"
 
