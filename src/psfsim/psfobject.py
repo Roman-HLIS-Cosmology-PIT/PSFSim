@@ -159,18 +159,6 @@ class PSFObject:
         )  # np.meshgrid(self.Optics.uX, self.Optics.uY, indexing='ij')
         self.u = np.sqrt(self.ux**2 + self.uy**2)
         self.mask = self.u <= 1
-
-        # Initialize adaptive Gaussian quadrature integrator for detector depth integration
-        self._quadrature_integrator = QuadratureIntegrator(
-            wavelength, detector_thickness, self.ux, self.uy, self.interference_filter
-        )
-        # Get optimized nodes for evaluation
-        (
-            self._quad_nodes,
-            self._quad_weights,
-            self._quad_order,
-        ) = self._quadrature_integrator.get_nodes_and_weights()
-
         # sX = (self.wavelength / (self.optics.umax - self.optics.umin)) * (
         #     -(self.optics.ulen / 2.0) + np.array(range(self.optics.ulen))
         # )  # postage stamp coordinates along the FPA axes in microns
@@ -400,6 +388,17 @@ class PSFObject:
             The intensity in the detector, integrated over the depth of the detector,
             after passing through the interference filter, using adaptive Gaussian quadrature.
         """
+
+        # Initialize adaptive Gaussian quadrature integrator for detector depth integration
+        self._quadrature_integrator = QuadratureIntegrator(
+            self.wavelength, self.detector_thickness, self.ux, self.uy, self.interference_filter
+        )
+        # Get optimized nodes for evaluation
+        (
+            self._quad_nodes,
+            self._quad_weights,
+            self._quad_order,
+        ) = self._quadrature_integrator.get_nodes_and_weights()
 
         filter = self.interference_filter
         # Evaluate E-field at adaptive quadrature nodes instead of uniform z_array
