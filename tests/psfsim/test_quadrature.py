@@ -203,8 +203,9 @@ class TestPSFObjectWithQuadrature:
         )
 
         # Check that quadrature uses fewer or comparable points
-        # Gauss-Laguerre with adaptive order should typically use 5-10 points
-        # for typical detector decay, compared to uniform 20 points from trapezoid
+        # Gauss-Legendre on the finite detector-thickness interval should
+        # typically use 5-10 points for typical detector decay, compared to
+        # uniform 20 points from the trapezoid rule.
         assert obj._quad_order < 20, "Quadrature order should be fewer than uniform trapezoid points"
 
 
