@@ -162,6 +162,8 @@ class QuadratureIntegrator:
         order : int
             Number of quadrature points used.
         """
+        if self._cached_nodes is not None and self._cached_weights is not None:
+            return self._cached_nodes, self._cached_weights, self._cached_order
         # Analyze decay to get adaptive order
         decay_length = self.analyze_decay()
         order = self._adaptive_order(decay_length)
