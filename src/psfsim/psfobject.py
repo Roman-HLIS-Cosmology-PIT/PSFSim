@@ -138,7 +138,7 @@ class PSFObject:
         self.ulen = 2048  # default value
         if use_postage_stamp_size:
             self.ulen = use_postage_stamp_size
-        self.oversamp = ovsamp
+        self.ovsamp = ovsamp
 
         self.optics = GeometricOptics(
             scanum,
@@ -468,7 +468,7 @@ class PSFObject:
             y_in=self.y_A,
             x_out=x_out,
             y_out=y_out,
-            n_out=self.postage_stamp_size * self.oversamp,
+            n_out=self.postage_stamp_size * self.ovsamp,
             dx=self.dx,
             reflect=reflect,
             tophat=tophat,
