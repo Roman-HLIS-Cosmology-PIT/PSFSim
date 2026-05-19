@@ -9,8 +9,10 @@ class QuadratureIntegrator:
     Adaptive Gaussian quadrature integrator for decaying functions.
 
     Optimizes quadrature nodes and weights based on the characteristic decay length
-    of the intensity function in the detector. Uses generalized Gauss-Laguerre
-    quadrature with exponential weight matched to the absorption in HgCdTe.
+    of the intensity function in the detector. The implementation uses adaptive
+    Gauss-Legendre quadrature on the finite detector-thickness interval, selecting
+    the quadrature order to better resolve rapidly decaying intensity profiles in
+    HgCdTe.
 
     Attributes
     ----------
