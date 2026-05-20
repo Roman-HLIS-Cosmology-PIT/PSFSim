@@ -2,10 +2,8 @@
 
 import numpy as np
 import pytest
-from psfsim.filter_detector_properties import FilterDetector, n_mercadtel
-from psfsim.index_cdte import n_cdte
 from psfsim.psfobject import PSFObject
-from psfsim.quadrature_integration import QuadratureIntegrator
+from psfsim.quadrature_integration import build_exponential_decay_quadrature
 
 
 class TestQuadratureIntegrator:
@@ -17,26 +15,22 @@ class TestQuadratureIntegrator:
 
         Analytical result: (1 - e^(-alpha*d)) / alpha
         """
-        wavelength = 0.48  # microns
+
+        alpha = 1.0
         detector_thickness = 2.0  # microns
-
-        # Create minimal ux, uy for testing (just a grid)
-        ux = np.zeros((2, 2))
-        uy = np.zeros((2, 2))
-
-        filter_obj = FilterDetector(
-            [1.35, 1.82, 2.45, n_cdte(wavelength), n_mercadtel(wavelength)],
-            [0.163, 0.137, 0.084, 0.010, 0.008],
-            1,
-        )
-
-        integrator = QuadratureIntegrator(wavelength, detector_thickness, ux, uy, filter_obj)
-        z_nodes, z_weights, order = integrator.get_nodes_and_weights()
+        n_order = 5
+        z_nodes, z_weights = build_exponential_decay_quadrature(alpha, 0.0, detector_thickness, n_order)
 
         # Test with alpha = 1.0 (decay length = 1 micron)
-        alpha = 1.0
-        f_nodes = np.exp(-alpha * z_nodes)
+
+        f_nodes = np.ones_like(z_nodes)
         integral_quad = np.dot(f_nodes, z_weights)
+
+        assert np.all(z_nodes >= 0), "Quadrature nodes should be non-negative"
+        assert np.all(z_nodes <= detector_thickness + 1e-10), "Quadrature nodes exceed detector thickness"
+
+        # All weights should be positive
+        assert np.all(z_weights > 0), "Quadrature weights should be positive"
 
         # Analytical value
         integral_exact = (1.0 - np.exp(-alpha * detector_thickness)) / alpha
@@ -44,58 +38,6 @@ class TestQuadratureIntegrator:
         # Check relative error < 1%
         rel_error = np.abs(integral_quad - integral_exact) / integral_exact
         assert rel_error < 0.01, f"Quadrature error {rel_error:.2e} exceeds 1% for pure exponential"
-
-        # Check that we're using a reasonable order
-        assert 3 <= order <= 15, f"Quadrature order {order} out of expected range"
-
-    def test_adaptive_order(self):
-        """Test that adaptive order selection responds to decay length."""
-        wavelength = 0.48
-        detector_thickness = 2.0
-
-        ux = np.zeros((4, 4))
-        uy = np.zeros((4, 4))
-
-        filter_obj = FilterDetector(
-            [1.35, 1.82, 2.45, n_cdte(wavelength), n_mercadtel(wavelength)],
-            [0.163, 0.137, 0.084, 0.010, 0.008],
-            1,
-        )
-
-        integrator = QuadratureIntegrator(wavelength, detector_thickness, ux, uy, filter_obj)
-
-        # Test _adaptive_order with different decay lengths
-        order_sharp = integrator._adaptive_order(0.1)  # 0.1 / 2.0 = 0.05 << 0.15
-        order_moderate = integrator._adaptive_order(0.5)  # 0.5 / 2.0 = 0.25 in [0.15, 0.3)
-        order_slow = integrator._adaptive_order(3.0)  # 3.0 / 2.0 = 1.5 in [1.5, inf)
-
-        # Sharp decay should use more points than slow decay
-        assert order_sharp > order_moderate, "Sharp decay should use more quadrature points"
-        assert order_moderate > order_slow, "Moderate decay should use more points than slow"
-
-    def test_quadrature_nodes_in_range(self):
-        """Test that quadrature nodes are within detector thickness."""
-        wavelength = 0.5
-        detector_thickness = 2.0
-
-        ux = np.random.randn(8, 8) * 0.1  # Small random values
-        uy = np.random.randn(8, 8) * 0.1
-
-        filter_obj = FilterDetector(
-            [1.35, 1.82, 2.45, n_cdte(wavelength), n_mercadtel(wavelength)],
-            [0.163, 0.137, 0.084, 0.010, 0.008],
-            1,
-        )
-
-        integrator = QuadratureIntegrator(wavelength, detector_thickness, ux, uy, filter_obj)
-        z_nodes, z_weights, _ = integrator.get_nodes_and_weights()
-
-        # All nodes should be within [0, detector_thickness]
-        assert np.all(z_nodes >= 0), "Quadrature nodes should be non-negative"
-        assert np.all(z_nodes <= detector_thickness + 1e-10), "Quadrature nodes exceed detector thickness"
-
-        # All weights should be positive
-        assert np.all(z_weights > 0), "Quadrature weights should be positive"
 
 
 class TestPSFObjectWithQuadrature:
