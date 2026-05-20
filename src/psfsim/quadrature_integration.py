@@ -28,6 +28,7 @@ class ExponentialDecayPolynomials:
         Integration interval bounds.
     n_order : int
         Maximum polynomial order to compute.
+
     """
 
     def __init__(self, alpha, z_min, z_max, n_order):
@@ -198,6 +199,7 @@ class ExponentialDecayPolynomials:
         Compute Gaussian quadrature nodes and weights using Golub-Welsch algorithm.
 
         The Golub-Welsch algorithm:
+
         1. Build the symmetric tridiagonal Jacobi matrix from recurrence coefficients
         2. Compute eigenvalues (which are the quadrature nodes)
         3. Compute weights from the first row of the eigenvector matrix
@@ -212,8 +214,11 @@ class ExponentialDecayPolynomials:
         nodes : np.ndarray of shape (n,)
             Quadrature nodes (sorted, in [z_min, z_max]).
         weights : np.ndarray of shape (n,)
-            Quadrature weights (corresponding to nodes).
+            Quadrature weights (corresponding to nodes). These are in the form of
+            int_a^b f(z) dz = sum_j v_j f(z_j).
+
         """
+
         # Build symmetric tridiagonal Jacobi matrix
         # Diagonal: alpha_0, alpha_1, ..., alpha_{n-1}
         # Off-diagonal: sqrt(beta_1), sqrt(beta_2), ..., sqrt(beta_{n-1})
@@ -234,6 +239,9 @@ class ExponentialDecayPolynomials:
         # weight_i = mu_0 * v_{0,i}^2, where mu_0 = integral w(z) dz
         mu_0 = self._moments[0]
         weights = mu_0 * (eigenvectors[0, :] ** 2)
+
+        # convert weights from "w" to "v" (in Numerical Recipes notation)
+        weights *= np.exp(self.alpha * nodes)
 
         return nodes, weights
 
@@ -261,7 +269,9 @@ def build_exponential_decay_quadrature(alpha, z_min, z_max, n_order):
         Quadrature nodes in [z_min, z_max].
     weights : np.ndarray of shape (n_order,)
         Quadrature weights.
+
     """
+
     builder = ExponentialDecayPolynomials(alpha, z_min, z_max, n_order)
     nodes, weights = builder.compute_quadrature_nodes_and_weights(n_order)
 
@@ -288,6 +298,7 @@ class QuadratureIntegrator:
         Interference filter object for accessing transmission properties.
     k0 : float
         Wave number in vacuum (2π/wavelength).
+
     """
 
     def __init__(self, wavelength, detector_thickness, ux, uy, filter_obj):
@@ -329,7 +340,9 @@ class QuadratureIntegrator:
         kz_imag : np.ndarray (same shape as ux, uy)
             Imaginary part of wave vector in detector material.
             Positive values indicate exponential decay: I(z) ~ exp(-2*kz_imag*z).
+
         """
+
         from .filter_detector_properties import n_mercadtel
 
         u = np.sqrt(self.ux**2 + self.uy**2)

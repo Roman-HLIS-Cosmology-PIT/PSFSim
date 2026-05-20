@@ -23,7 +23,7 @@ class TestQuadratureIntegrator:
 
         # Test with alpha = 1.0 (decay length = 1 micron)
 
-        f_nodes = np.ones_like(z_nodes)
+        f_nodes = np.exp(-alpha * z_nodes)
         integral_quad = np.dot(f_nodes, z_weights)
 
         assert np.all(z_nodes >= 0), "Quadrature nodes should be non-negative"
@@ -32,12 +32,17 @@ class TestQuadratureIntegrator:
         # All weights should be positive
         assert np.all(z_weights > 0), "Quadrature weights should be positive"
 
+        # Test exponentially falling function
+        x = np.sum(z_weights * np.exp(-2.0 * alpha * z_nodes))
+        x_analytic = (1.0 - np.exp(-2.0 * alpha * detector_thickness)) / 2 / alpha
+        assert np.abs(np.log(x / x_analytic)) < 1e-3
+
         # Analytical value
         integral_exact = (1.0 - np.exp(-alpha * detector_thickness)) / alpha
 
         # Check relative error < 1%
         rel_error = np.abs(integral_quad - integral_exact) / integral_exact
-        assert rel_error < 0.01, f"Quadrature error {rel_error:.2e} exceeds 1% for pure exponential"
+        assert rel_error < 1e-3, f"Quadrature error {rel_error:.2e} exceeds 0.1% for pure exponential"
 
 
 class TestPSFObjectWithQuadrature:
