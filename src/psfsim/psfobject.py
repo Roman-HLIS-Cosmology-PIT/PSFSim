@@ -10,6 +10,7 @@ from .index_cdte import n_cdte
 from .mtf_diffusion import intensity_to_image
 from .opticspsf import GeometricOptics
 from .polarisation_decomposition import polarisation_mode_decomposition
+from .quadrature_integration import QuadratureIntegrator
 from .wfi_data import pix
 from .zernike import noll_to_zernike, zernike
 
@@ -130,13 +131,14 @@ class PSFObject:
         self.interference_filter = interference_filter
 
         self.postage_stamp_size = postage_stamp_size
+        self.detector_thickness = detector_thickness
         self.z_array = np.linspace(0, detector_thickness, zlen)
         # The following sets the ulen of the GeometricOptics object based on the postage_stamp_size if
         # use_postage_stamp_size is True.
         self.ulen = 2048  # default value
         if use_postage_stamp_size:
             self.ulen = use_postage_stamp_size
-        self.oversamp = ovsamp
+        self.ovsamp = ovsamp
 
         self.optics = GeometricOptics(
             scanum,
@@ -157,7 +159,6 @@ class PSFObject:
         )  # np.meshgrid(self.Optics.uX, self.Optics.uY, indexing='ij')
         self.u = np.sqrt(self.ux**2 + self.uy**2)
         self.mask = self.u <= 1
-
         # sX = (self.wavelength / (self.optics.umax - self.optics.umin)) * (
         #     -(self.optics.ulen / 2.0) + np.array(range(self.optics.ulen))
         # )  # postage stamp coordinates along the FPA axes in microns
@@ -367,6 +368,9 @@ class PSFObject:
         This is used to get the intensity in the detector after passing through the
         interference filter.
 
+        Uses adaptive Gaussian quadrature integration optimized for exponential decay
+        in the HgCdTe detector material, replacing the previous trapezoid rule.
+
         Parameters
         ----------
         A_TE : np.ndarray of complex of shape same as `ux` and `uy`
@@ -382,11 +386,23 @@ class PSFObject:
         -------
         Intensity_integrated : np.ndarray of float of shape same as `ux` and `uy`
             The intensity in the detector, integrated over the depth of the detector,
-            after passing through the interference filter.
+            after passing through the interference filter, using adaptive Gaussian quadrature.
         """
 
+        # Initialize adaptive Gaussian quadrature integrator for detector depth integration
+        self._quadrature_integrator = QuadratureIntegrator(
+            self.wavelength, self.detector_thickness, self.ux, self.uy, self.interference_filter
+        )
+        # Get optimized nodes for evaluation
+        (
+            self._quad_nodes,
+            self._quad_weights,
+            self._quad_order,
+        ) = self._quadrature_integrator.get_nodes_and_weights()
+
         filter = self.interference_filter
-        E = filter.transmitted_E(self.wavelength, self.ux, self.uy, self.z_array, A_TE=A_TE, A_TM=A_TM)
+        # Evaluate E-field at adaptive quadrature nodes instead of uniform z_array
+        E = filter.transmitted_E(self.wavelength, self.ux, self.uy, self._quad_nodes, A_TE=A_TE, A_TM=A_TM)
         Ex = E[0]
         Ey = E[1]
         Ez = E[2]
@@ -401,12 +417,9 @@ class PSFObject:
 
         Intensity = (abs(Ex_postage_stamp) ** 2) + (abs(Ey_postage_stamp) ** 2) + (abs(Ez_postage_stamp) ** 2)
 
-        # Intensity_integrated = np.trapezoid(Intensity, x=self.z_array, axis=2)
-        # this is a version of the trapezoid rule that works independently of numpy version
-        Intensity_integrated = 0.5 * (self.z_array[1] - self.z_array[0]) * Intensity[:, :, 0]
-        for iz in range(1, len(self.z_array) - 1):
-            Intensity_integrated += 0.5 * (self.z_array[iz + 1] - self.z_array[iz - 1]) * Intensity[:, :, iz]
-        Intensity_integrated += 0.5 * (self.z_array[-1] - self.z_array[-2]) * Intensity[:, :, -1]
+        # Apply adaptive Gaussian quadrature integration
+        # Intensity has shape (ux, uy, nz_quad); integrate along axis 2 using precomputed weights
+        Intensity_integrated = np.tensordot(Intensity, self._quad_weights, axes=(2, 0))
 
         return Intensity_integrated
 
@@ -454,7 +467,7 @@ class PSFObject:
             y_in=self.y_A,
             x_out=x_out,
             y_out=y_out,
-            n_out=self.postage_stamp_size * self.oversamp,
+            n_out=self.postage_stamp_size * self.ovsamp,
             dx=self.dx,
             reflect=reflect,
             tophat=tophat,
