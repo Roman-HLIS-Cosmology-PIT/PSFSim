@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 from psfsim.psfobject import PSFObject
-from psfsim.quadrature_integration import build_exponential_decay_quadrature
+from psfsim.quadrature_integration import build_exponential_decay_quadrature, QuadratureIntegrator
 
 
 class TestQuadratureIntegrator:
@@ -43,6 +43,26 @@ class TestQuadratureIntegrator:
         # Check relative error < 1%
         rel_error = np.abs(integral_quad - integral_exact) / integral_exact
         assert rel_error < 1e-3, f"Quadrature error {rel_error:.2e} exceeds 0.1% for pure exponential"
+
+
+    def test_integration_via_internal(self):
+        """Tests the integration via QuadratureIntegrator."""
+
+        u, v = np.meshgrid(np.linspace(0, 0.2, 8), np.linspace(0, 0.2, 8))
+        q = QuadratureIntegrator(0.8, 5.0, u, v, None)
+
+        # make an array of exponentials
+        a = np.linspace(0.5, 5.0, 10)
+        z_nodes = q.get_nodes_and_weights()[0]
+        intensity = np.exp(-a[None, :] * z_nodes[:, None])
+        sums = q.integrate(intensity, axis=0)
+        integral_exact = (1.0 - np.exp(-a * 5.0)) / a
+        err = np.abs(np.log(sums / integral_exact))
+        print(err)
+        assert err[0] < 0.1
+        assert err[1] < 0.01
+        assert err[2] < 0.002
+        assert np.all(err[3:] < 2e-4)
 
 
 class TestPSFObjectWithQuadrature:
