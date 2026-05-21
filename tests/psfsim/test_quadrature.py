@@ -63,6 +63,24 @@ class TestQuadratureIntegrator:
         assert err[2] < 0.002
         assert np.all(err[3:] < 2e-4)
 
+    def test_integration_via_internal_null(self):
+        """Tests the integration via QuadratureIntegrator, submitting nothing."""
+
+        u = v = np.zeros((0,))
+        q = QuadratureIntegrator(0.8, 5.0, u, v, None)
+
+        # make an array of exponentials
+        a = np.linspace(0.5, 5.0, 10)
+        z_nodes = q.get_nodes_and_weights()[0]
+        intensity = np.exp(-a[None, :] * z_nodes[:, None])
+        sums = q.integrate(intensity, axis=0)
+        integral_exact = (1.0 - np.exp(-a * 5.0)) / a
+        err = np.abs(np.log(sums / integral_exact))
+        print(err)
+        assert np.all(err[:6] < 0.01)
+        assert err[6] < 0.2
+        # the largest alphas are not so good -- that's expected
+
 
 class TestPSFObjectWithQuadrature:
     """Test PSFObject integration with new quadrature method."""

@@ -384,8 +384,8 @@ class QuadratureIntegrator:
             alpha_char = 1.0 / self.detector_thickness
             return self.detector_thickness, alpha_char
 
-        # Characteristic decay constant (maximum, conservative estimate)
-        alpha_char = np.max(alpha_valid)
+        # Characteristic decay constant (maximum distance -> min alpha, conservative estimate)
+        alpha_char = np.min(alpha_valid)
         decay_length = 1.0 / alpha_char
 
         return decay_length, alpha_char
