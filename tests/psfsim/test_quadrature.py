@@ -16,7 +16,7 @@ class TestQuadratureIntegrator:
         Analytical result: (1 - e^(-alpha*d)) / alpha
         """
 
-        alpha = 1.0
+        alpha = 1.1
         detector_thickness = 2.0  # microns
         n_order = 5
         z_nodes, z_weights = build_exponential_decay_quadrature(alpha, 0.0, detector_thickness, n_order)
