@@ -1,6 +1,6 @@
 numpy
 numba
-scipy
+scipy>=1.15.0
 astropy
 galsim
 pandas

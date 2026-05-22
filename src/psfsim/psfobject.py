@@ -179,7 +179,7 @@ class PSFObject:
 
         if add_focus is not None:
             nZern, mZern = noll_to_zernike(4)
-            self.optics.pathDifference += add_focus * zernike(
+            self.optics.path_difference += add_focus * zernike(
                 nZern, mZern, 2 * self.optics.focalLength * self.optics.urhoPolar, self.optics.uthetaPolar
             )
 
