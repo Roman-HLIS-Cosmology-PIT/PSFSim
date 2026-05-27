@@ -139,15 +139,13 @@ class PSFObject:
         self.ulen = 2048  # default value
         if use_postage_stamp_size is not None:
             if isinstance(use_postage_stamp_size, bool) or not isinstance(
-                use_postage_stamp_size, (int, np.integer)
+                use_postage_stamp_size, (int | np.integer)
             ):
                 raise TypeError(
-                    "use_postage_stamp_size must be a positive integer number " "of native pixels or None."
+                    "use_postage_stamp_size must be a positive integer number of native pixels or None."
                 )
             if use_postage_stamp_size <= 0:
-                raise ValueError(
-                    "use_postage_stamp_size must be a positive integer number " "of native pixels."
-                )
+                raise ValueError("use_postage_stamp_size must be a positive integer number of native pixels.")
             self.ulen = use_postage_stamp_size * self.ovsamp
 
         self.optics = GeometricOptics(
