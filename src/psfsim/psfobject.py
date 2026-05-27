@@ -48,7 +48,7 @@ class PSFObject:
     npix_boundary : int, optional
         ?
     use_postage_stamp_size : int, optional
-        Force pupil postage stamp size instead of internal calculation.
+        Force pupil postage stamp size instead of internal calculation. In native pixels.
     ray_trace : bool, optional
         Whether to use ray tracing. (Only turn off for testing.)
     add_focus : variable
@@ -133,12 +133,12 @@ class PSFObject:
         self.postage_stamp_size = postage_stamp_size
         self.detector_thickness = detector_thickness
         self.z_array = np.linspace(0, detector_thickness, zlen)
+        self.ovsamp = ovsamp
         # The following sets the ulen of the GeometricOptics object based on the postage_stamp_size if
         # use_postage_stamp_size is True.
         self.ulen = 2048  # default value
         if use_postage_stamp_size:
-            self.ulen = use_postage_stamp_size
-        self.ovsamp = ovsamp
+            self.ulen = use_postage_stamp_size * self.ovsamp
 
         self.optics = GeometricOptics(
             scanum,
@@ -148,7 +148,7 @@ class PSFObject:
             use_filter=use_filter,
             ulen=self.ulen,
             ray_trace=ray_trace,
-            pixelsampling=10.0 / ovsamp,
+            pixelsampling=10.0 / self.ovsamp,
             a_lanczos=a_lanczos,
             cycle=cycle,
             mjd=mjd,
