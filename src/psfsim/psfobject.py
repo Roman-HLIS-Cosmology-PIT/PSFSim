@@ -134,10 +134,23 @@ class PSFObject:
         self.detector_thickness = detector_thickness
         self.z_array = np.linspace(0, detector_thickness, zlen)
         self.ovsamp = ovsamp
-        # The following sets the ulen of the GeometricOptics object based on the postage_stamp_size if
-        # use_postage_stamp_size is True.
+        # The following sets the ulen of the GeometricOptics object based on
+        # use_postage_stamp_size when an explicit native-pixel size is provided.
         self.ulen = 2048  # default value
-        if use_postage_stamp_size:
+        if use_postage_stamp_size is not None:
+            if (
+                isinstance(use_postage_stamp_size, bool)
+                or not isinstance(use_postage_stamp_size, (int, np.integer))
+            ):
+                raise TypeError(
+                    "use_postage_stamp_size must be a positive integer number "
+                    "of native pixels or None."
+                )
+            if use_postage_stamp_size <= 0:
+                raise ValueError(
+                    "use_postage_stamp_size must be a positive integer number "
+                    "of native pixels."
+                )
             self.ulen = use_postage_stamp_size * self.ovsamp
 
         self.optics = GeometricOptics(
