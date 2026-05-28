@@ -461,6 +461,9 @@ class GeometricOptics:
             # original samplingwidth/pupilSampling ratio.
             width_ratio = bounded_width / self.samplingwidth
             scaled_pupilSampling = max(1, int(np.round(self.pupilSampling * width_ratio)))
+            target_parity = self.ulen % 2
+            if scaled_pupilSampling % 2 != target_parity:
+                scaled_pupilSampling += 1
             bounded_width = self.samplingwidth * scaled_pupilSampling / self.pupilSampling
 
             # Second pass: trace at full resolution with bounded width

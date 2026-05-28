@@ -22,7 +22,7 @@ def _h(cycle):
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
     p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6))
-    arr = p.compute_poly_psf(use_filter="H", ovsamp=8)
+    arr = p.compute_poly_psf(use_filter="H", ovsamp=8, use_postage_stamp_size=80, cycle=cycle)
 
     # These are to alert us to things that change.
     # If you do a big enough model update, they might fail,
@@ -55,21 +55,14 @@ def _h(cycle):
     assert np.abs(scft[11]) < 0.075
     assert 0.1 < np.abs(scft[12]) < 0.2
     assert np.abs(scft[13]) < 0.075
-
-
-def test_h():
-    """Test of the polychromatic PSF for the given cycle."""
-
-    for c in [9, 10]:
-        _h(c)
+    return arr
 
 
 def test_diff():
-    """Test of the difference of PSFs."""
+    """Test the expected offset between the cycle 9 and cycle 10 polychromatic PSFs."""
 
-    p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6))
-    arr9 = p.compute_poly_psf(use_filter="H", ovsamp=8, cycle=9)
-    arr10 = p.compute_poly_psf(use_filter="H", ovsamp=8, cycle=10)
+    arr9 = _h(cycle=9)
+    arr10 = _h(cycle=10)
 
     # note Cycle 10 is shifted a little above Cycle 9, hence the 1 pixel offset
     err = np.amax(np.abs(arr9[:-1, :] - arr10[1:, :]))

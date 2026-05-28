@@ -185,7 +185,7 @@ def test_poly_h():
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
     p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6))
-    arr = p.compute_poly_psf(use_filter="H", ovsamp=8)
+    arr = p.compute_poly_psf(use_filter="H", ovsamp=8, use_postage_stamp_size=80)
 
     # These are to alert us to things that change.
     # If you do a big enough model update, they might fail,

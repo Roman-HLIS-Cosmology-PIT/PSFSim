@@ -113,7 +113,7 @@ class PolychromaticPSF:
         use_filter : str, optional
             The filter as a string (e.g., "H").
         use_postage_stamp_size : int, optional
-            Force pupil postage stamp size instead of internal calculation.
+            Force pupil postage stamp size instead of internal calculation. In native pixels.
         npix_boundary : int, optional
             ?
         ray_trace : bool, optional

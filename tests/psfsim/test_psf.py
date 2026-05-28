@@ -29,7 +29,7 @@ def _pt(cycle):
         postage_stamp_size=31,
         ovsamp=n,
         npix_boundary=1,
-        use_postage_stamp_size=False,
+        use_postage_stamp_size=None,
         add_focus=None,
         cycle=cycle,
     )
