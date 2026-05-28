@@ -59,7 +59,7 @@ def _h(cycle):
 
 
 def test_diff():
-    """Test of the polychromatic PSF for the given cycle."""
+    """Test the expected offset between the cycle 9 and cycle 10 polychromatic PSFs."""
 
     arr9 = _h(cycle=9)
     arr10 = _h(cycle=10)
