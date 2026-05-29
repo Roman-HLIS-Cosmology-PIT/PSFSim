@@ -86,4 +86,4 @@ def noll_to_zernike(j):
     sign_of_shift = -(j & 1) + ~(j & 1) + 2
     base_case = n & 1
     m = (sign_of_shift * (base_case + number_of_shifts * 2)).astype(int)
-    return int(n), int(m)
+    return np.int_(n), np.int_(m)
