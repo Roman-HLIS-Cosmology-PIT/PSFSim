@@ -91,7 +91,7 @@ class PolychromaticPSF:
         npix_boundary=1,
         use_postage_stamp_size=None,
         ray_trace=True,
-        add_focus=None,
+        extra_abberations=None,
         optical_psf_only=False,
         req_in_bandpass=True,
         cycle=9,
@@ -118,8 +118,16 @@ class PolychromaticPSF:
             ?
         ray_trace : bool, optional
             Whether to use ray tracing. (Only turn off for testing.)
-        add_focus : variable
-            Parameter for adding focus.
+        extra_abberations: float array, optional
+            Parameters corresponding to zernike polynomials for introducing abberations that
+            add to the optical path length and produce different abberations. Supports up to
+            5 parameters (Z2, Z3, Z4, Z5, and Z6 in that order). The effects of each polynomial
+            are as follows:
+            Z2: horizontal centering
+            Z3: vertical centering
+            Z4: focus
+            Z5: astigmatism
+            Z6: also astigmatism
         optical_psf_only : bool, optional
             Whether to draw the optical PSF only.
         req_in_bandpass : bool, optional
@@ -169,7 +177,7 @@ class PolychromaticPSF:
                 npix_boundary=npix_boundary,
                 use_postage_stamp_size=use_postage_stamp_size,
                 ray_trace=ray_trace,
-                add_focus=add_focus,
+                extra_abberations=extra_abberations,
                 cycle=cycle,
                 mjd=mjd,
             )
