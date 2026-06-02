@@ -1,6 +1,7 @@
 """Test functions for psfobject.py."""
 
 import numpy as np
+import pytest
 from psfsim.psfobject import PSFObject
 
 
@@ -30,13 +31,11 @@ def _pt(cycle):
         ovsamp=n,
         npix_boundary=1,
         use_postage_stamp_size=None,
-        extra_abberrations=None,
+        extra_aberrations=None,
         cycle=cycle,
     )
 
     assert np.abs(obj.dx - 10.0 / n) < 1.0e-3
-
-    print(obj.ulen)
 
     obj.get_optical_psf()
     assert obj.E_FPA_h_polarized.shape == obj.E_FPA_v_polarized.shape
@@ -58,12 +57,13 @@ def test_psfobject():
         _pt(c)
 
 
-def test_psfobject_extra_abberrations():
-    """Test function for PSF object with extra abberrations."""
+def test_psfobject_extra_aberrations():
+    """Test function for PSF object with extra aberrations."""
 
     n = 8
 
-    extra_abberrations = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+    extra_aberrations = [0.1, 0.2, 0.3, 0.4, 0.5]
+    fake_aberrations = [0.5, 0.4, 0.3, 0.2, 0.1, 0.9]
 
     obj_base = PSFObject(
         4,
@@ -74,7 +74,7 @@ def test_psfobject_extra_abberrations():
         ovsamp=n,
         npix_boundary=1,
         use_postage_stamp_size=None,
-        extra_abberrations=None,
+        extra_aberrations=None,
         cycle=10,
     )
 
@@ -87,17 +87,28 @@ def test_psfobject_extra_abberrations():
         ovsamp=n,
         npix_boundary=1,
         use_postage_stamp_size=None,
-        extra_abberrations=extra_abberrations,
+        extra_aberrations=extra_aberrations,
         cycle=10,
     )
 
+    with pytest.raises(ValueError, match="extra_aberrations supports at most 5 coefficients"):
+        PSFObject(
+            4,
+            20.15,
+            5.12,
+            wavelength=1.35,
+            postage_stamp_size=31,
+            ovsamp=n,
+            npix_boundary=1,
+            use_postage_stamp_size=None,
+            extra_aberrations=fake_aberrations,
+            cycle=10,
+        )
     assert np.abs(obj.dx - 10.0 / n) < 1.0e-3
-
-    print(obj.ulen)
 
     obj.get_optical_psf()
     obj_base.get_optical_psf()
     assert obj.E_FPA_h_polarized.shape == obj.E_FPA_v_polarized.shape
     assert obj.E_FPA_h_polarized.shape == (obj.ulen, obj.ulen, 3)
     assert obj.Optical_PSF.shape == (obj.ulen, obj.ulen)
-    assert obj_base.Optical_PSF != obj.Optical_PSF
+    assert not np.allclose(obj_base.Optical_PSF, obj.Optical_PSF)

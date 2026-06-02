@@ -285,6 +285,9 @@ class GeometricOptics:
         self.vcen = self.uvcoefs[1][0] + (self.uvcoefs[1][1] + self.uvcoefs[1][2]) * (self.ulen - 1.0) / 2.0
         self.du = (self.uvcoefs[0][1] + self.uvcoefs[1][2]) / 2.0
 
+        self.urhoPolar = np.sqrt((self.u_array() - self.ucen) ** 2 + (self.v_array() - self.vcen) ** 2)
+        self.uthetaPolar = np.arctan2(self.v_array() - self.vcen, -(self.u_array() - self.ucen))
+
         # Load pupil mask from raytrace - more accurate
         # self.uArray = self.pupilMaskU[:, :, 0]
         # self.vArray = self.pupilMaskU[:, :, 1]
@@ -524,9 +527,6 @@ class GeometricOptics:
         # Below here, we must be in Cycle 9
         if self.cycle != 9:
             raise ValueError("Cycle {self.cycle:d} not defined.")
-
-        self.urhoPolar = np.sqrt((self.u_array() - self.ucen) ** 2 + (self.v_array() - self.vcen) ** 2)
-        self.uthetaPolar = np.arctan2(self.v_array() - self.vcen, -(self.u_array() - self.ucen))
 
         infile = files("psfsim.data").joinpath("wim_zernikes_cycle9.csv.gz")  # reads data directory
         mydata = pd.read_csv(infile, sep=",", header=0, compression="gzip")

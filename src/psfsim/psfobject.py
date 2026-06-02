@@ -51,9 +51,9 @@ class PSFObject:
         Force pupil postage stamp size instead of internal calculation. In native pixels.
     ray_trace : bool, optional
         Whether to use ray tracing. (Only turn off for testing.)
-    extra_abberations: float array, optional
-        Parameters corresponding to zernike polynomials for introducing abberations that
-        add to the optical path length and produce different abberations. Supports up to
+    extra_aberrations: float array, optional
+        Parameters corresponding to zernike polynomials for introducing aberrations that
+        add to the optical path length and produce different aberrations. Supports up to
         5 parameters (Z2, Z3, Z4, Z5, and Z6 in that order). The effects of each polynomial
         are as follows:
         Z2: horizontal centering
@@ -119,7 +119,7 @@ class PSFObject:
         a_lanczos=3,
         use_postage_stamp_size=None,
         ray_trace=True,
-        extra_abberations=None,
+        extra_aberrations=None,
         detector_thickness=2,
         zlen=20,
         interference_filter=None,
@@ -193,20 +193,15 @@ class PSFObject:
 
         self.dx = self.optics.wavelength / np.abs(self.ulen * self.optics.du)
 
-        # if add_focus is not None:
-        #     nZern, mZern = noll_to_zernike(4)
-        #     print( nZern, mZern )
-        #     self.optics.path_difference += add_focus * zernike(
-        #         nZern, mZern, 2 * self.optics.focalLength * self.optics.urhoPolar, self.optics.uthetaPolar
-        #     )
-
-        if extra_abberations is not None:
+        if extra_aberrations is not None:
+            if len(extra_aberrations) > 5:
+                raise ValueError("extra_aberrations supports at most 5 coefficients (Z2–Z6).")
             noll_coeffs = np.arange(2, 7)
             coeff_count = noll_coeffs.size
             nArr, mArr = noll_to_zernike(noll_coeffs)
 
             # I think this loop could be avoided but not sure if it's really worth it.
-            for n, m, mag in zip(nArr, mArr, extra_abberations[:coeff_count], strict=False):
+            for n, m, mag in zip(nArr, mArr, extra_aberrations[:coeff_count], strict=False):
                 self.optics.path_difference += (
                     (
                         mag
