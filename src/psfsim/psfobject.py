@@ -206,10 +206,17 @@ class PSFObject:
             nArr, mArr = noll_to_zernike(noll_coeffs)
 
             # I think this loop could be avoided but not sure if it's really worth it.
-            for n, m, mag in zip( nArr, mArr, extra_abberations[:coeff_count] ):
-                self.optics.path_difference += (mag * zernike(
-                    n, m, 2 * self.optics.focalLength * self.optics.urhoPolar, self.optics.uthetaPolar
-                )) if mag is not None else 0
+            for n, m, mag in zip(nArr, mArr, extra_abberations[:coeff_count], strict=False):
+                self.optics.path_difference += (
+                    (
+                        mag
+                        * zernike(
+                            n, m, 2 * self.optics.focalLength * self.optics.urhoPolar, self.optics.uthetaPolar
+                        )
+                    )
+                    if mag is not None
+                    else 0
+                )
 
         prefactor = (
             self.optics.pupil_mask

@@ -30,7 +30,7 @@ def _pt(cycle):
         ovsamp=n,
         npix_boundary=1,
         use_postage_stamp_size=None,
-        add_focus=None,
+        extra_abberrations=None,
         cycle=cycle,
     )
 
@@ -56,3 +56,48 @@ def test_psfobject():
 
     for c in [9, 10]:
         _pt(c)
+
+
+def test_psfobject_extra_abberrations():
+    """Test function for PSF object with extra abberrations."""
+
+    n = 8
+
+    extra_abberrations = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+
+    obj_base = PSFObject(
+        4,
+        20.15,
+        5.12,
+        wavelength=1.35,
+        postage_stamp_size=31,
+        ovsamp=n,
+        npix_boundary=1,
+        use_postage_stamp_size=None,
+        extra_abberrations=None,
+        cycle=10,
+    )
+
+    obj = PSFObject(
+        4,
+        20.15,
+        5.12,
+        wavelength=1.35,
+        postage_stamp_size=31,
+        ovsamp=n,
+        npix_boundary=1,
+        use_postage_stamp_size=None,
+        extra_abberrations=extra_abberrations,
+        cycle=10,
+    )
+
+    assert np.abs(obj.dx - 10.0 / n) < 1.0e-3
+
+    print(obj.ulen)
+
+    obj.get_optical_psf()
+    obj_base.get_optical_psf()
+    assert obj.E_FPA_h_polarized.shape == obj.E_FPA_v_polarized.shape
+    assert obj.E_FPA_h_polarized.shape == (obj.ulen, obj.ulen, 3)
+    assert obj.Optical_PSF.shape == (obj.ulen, obj.ulen)
+    assert obj_base.Optical_PSF != obj.Optical_PSF
