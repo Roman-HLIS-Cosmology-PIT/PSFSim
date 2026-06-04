@@ -1409,7 +1409,7 @@ def RomanRayBundle(
 
     """
 
-    RB = _RomanRayBundle(xan, yan, N, usefilter, wl=wl, hasE=hasE, width=width, jacobian=jacobian, hires=None)
+    RB = _RomanRayBundle(xan, yan, N, usefilter, wl=wl, hasE=hasE, width=width, jacobian=jacobian, hires=None, ghostpath=ghostpath)
     # Now figure out which pixels we need to increase the resolution.
     r = 40.0 / width * N  # radius of search in pixels
     rceil = int(np.ceil(r))
@@ -1434,6 +1434,7 @@ def RomanRayBundle(
         jacobian=jacobian,
         hires=bdycells,
         ovsamp=ovsamp,
+        ghostpath=ghostpath,
     )
     print(n, np.shape(RB_hires.open))
     print("Lanczos interpolation order:", a_lanczos)
