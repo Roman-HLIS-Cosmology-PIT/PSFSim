@@ -876,6 +876,8 @@ class RayBundle:
 
         """
         current_size = self.N1
+        if current_size >= target_size:
+            return self  # No padding needed, return original
 
         # Center the current data in the output arrays
         offset_y = (target_size - current_size) // 2
