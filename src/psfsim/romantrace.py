@@ -877,7 +877,9 @@ class RayBundle:
         """
         current_size = self.N1
         if current_size >= target_size:
-            return self  # No padding needed, return original
+            raise ValueError(
+                "It seems like you're trying to draw an undersampled PSF - please change the oversampling factor to a larger value!"
+            )
 
         # Center the current data in the output arrays
         offset_y = (target_size - current_size) // 2
