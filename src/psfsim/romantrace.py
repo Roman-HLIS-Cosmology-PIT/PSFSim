@@ -890,6 +890,7 @@ def _RomanRayBundle(
     jacobian=None,
     hires=None,
     ovsamp=6,
+    ghostpath=False,
 ):
     """
     Carries out trace through RST optics.
@@ -916,6 +917,8 @@ def _RomanRayBundle(
         ``hires[0]`` is a 1D array of y-values and ``hires[1]`` is a 1D array of x-values.
     ovsamp : int, optional
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
+    ghostpath : bool, optional
+        Whether to include ghost from filter reflections between S1/S2. Default is False.
 
     Returns
     -------
@@ -1232,23 +1235,61 @@ def _RomanRayBundle(
             ],
         )
 
-    # Filter - Surface S1
-    RB.intersect_surface_and_refract(
-        build_transform_matrix(
-            xde=531.5125171153529,
-            yde=-920.606684502614,
-            zde=-539.1713886876893,
-            ade=102.76851389522,
-            bde=29.38268469198068,
-            cde=173.6554980927907,
-        ),
-        Rinv=-1.0 / 1500.0,
-        K=0.0,
-        n_new=n_Infrasil301(wlref),
-        activeZone=[{"CIR": 52.65}],
-    )
+    # # Filter - Surface S1
+    # RB.intersect_surface_and_refract(
+    #     build_transform_matrix(
+    #         xde=531.5125171153529,
+    #         yde=-920.606684502614,
+    #         zde=-539.1713886876893,
+    #         ade=102.76851389522,
+    #         bde=29.38268469198068,
+    #         cde=173.6554980927907,
+    #     ),
+    #     Rinv=-1.0 / 1500.0,
+    #     K=0.0,
+    #     n_new=n_Infrasil301(wlref),
+    #     activeZone=[{"CIR": 52.65}],
+    # )
 
-    # Filter - Surface S2
+    # # Filter - Surface S2
+    # S2 = build_transform_matrix(
+    #     xde=536.4189215396419,
+    #     yde=-929.1048262479633,
+    #     zde=-537.2455687321163,
+    #     ade=102.76851389522,
+    #     bde=29.38268469198068,
+    #     cde=173.6554980927907,
+    # )
+    # Rinv2 = -1.0 / 1499.31453814
+    # _, _, L = RB.intersect_surface(S2, Rinv=Rinv2, K=0.0, update=False)
+    # RB.s += L * (n_Infrasil301(wl) - n_Infrasil301(wlref))
+    # # comment - the ray trace follows the geometric path at wlref, but we include the wavelength dependence
+    # # in the path length.
+    # # This way, the DCR does not appear in the astrometry, rather it is a decentering of the PSF.
+    # RB.intersect_surface_and_refract(S2, Rinv=Rinv2, K=0.0, n_new=1.0, activeZone=[{"CIR": 52.65}])
+
+    # START ELLE 
+    # so we'll start by putting things here. if successful, this will replace lines 1235-1266
+    # aka replace first comment about S1 through final intersect/refract through s2
+
+    # testing just putting transformation matrices/defs first then having refract/reflect after
+
+    # DEFINE/GET STUFF FOR S1
+    S1 = build_transform_matrix(
+        xde=531.5125171153529,
+        yde=-920.606684502614,
+        zde=-539.1713886876893,
+        ade=102.76851389522,
+        bde=29.38268469198068,
+        cde=173.6554980927907,
+    ),
+    Rinv1=-1.0 / 1500.0
+    K1=0.0
+    n_new1=n_Infrasil301(wlref)
+    activeZone1=[{"CIR": 52.65}]
+    # in general need to ask about this. like what indents/why different for s1/s2/need different names or not
+
+    # DEFINE/GET STUFF FOR S2
     S2 = build_transform_matrix(
         xde=536.4189215396419,
         yde=-929.1048262479633,
@@ -1258,12 +1299,28 @@ def _RomanRayBundle(
         cde=173.6554980927907,
     )
     Rinv2 = -1.0 / 1499.31453814
+    K2=0.0
+    n_new2=1.0
+    activeZone2=[{"CIR": 52.65}]
+ 
+
+    # now for int/refract/reflect including ghost
+    # step 1... see photo
+    # int/refract through S1
+    RB.intersect_surface_and_refract(S1, Rinv=Rinv1, K=K1, n_new=n_new1, activeZone=activeZone1)
+
+    # ghost time
+    if ghostpath:
+        RB.intersect_surface_and_reflect(S2, Rinv=Rinv2, K=K2, activeZone=activeZone2)
+        RB.intersect_surface_and_reflect(S1, Rinv=Rinv1, K=K1, n_new=1.0, activeZone=activeZone1)
+    
+
+
+    # END ELLE. down here is the refract through S2!
     _, _, L = RB.intersect_surface(S2, Rinv=Rinv2, K=0.0, update=False)
     RB.s += L * (n_Infrasil301(wl) - n_Infrasil301(wlref))
-    # comment - the ray trace follows the geometric path at wlref, but we include the wavelength dependence
-    # in the path length.
-    # This way, the DCR does not appear in the astrometry, rather it is a decentering of the PSF.
-    RB.intersect_surface_and_refract(S2, Rinv=Rinv2, K=0.0, n_new=1.0, activeZone=[{"CIR": 52.65}])
+    RB.intersect_surface_and_refract(S2, Rinv=Rinv2, K=K2, n_new=n_new2, activeZone=activeZone2)
+
 
     # FPA
     TrFPA = build_transform_matrix(
@@ -1288,9 +1345,10 @@ def _RomanRayBundle(
 
     return RB
 
+# ELLE DOING STUFF HERE TOO
 
 def RomanRayBundle(
-    xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, jacobian=None, ovsamp=6, a_lanczos=3
+    xan, yan, N, usefilter, wl=None, hasE=False, width=2500.0, jacobian=None, ovsamp=6, a_lanczos=3, ghostpath=False,
 ):
     """
     Carries out trace through RST optics.
@@ -1316,6 +1374,8 @@ def RomanRayBundle(
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
     a_lanczos : int, optional
         The "a" parameter for Lanczos interpolation; this controls the size of the kernel. Default is 3.
+    ghostpath : bool, optional
+        Whether to include ghost from filter reflections between S1/S2. Default is False.
 
     Returns
     -------
