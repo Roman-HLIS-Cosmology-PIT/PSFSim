@@ -2,8 +2,7 @@ import numpy as np
 import scipy
 from astropy.io import fits
 
-# Katherine is editing this file
-# so is Elle!
+
 def _lanczos_weight(dx, dy, a=3):
     """
     Lanczos function.
