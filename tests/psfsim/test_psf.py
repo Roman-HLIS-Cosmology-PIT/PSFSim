@@ -104,6 +104,21 @@ def test_psfobject_extra_aberrations():
             extra_aberrations=fake_aberrations,
             cycle=10,
         )
+    with pytest.raises(
+        ValueError, match="Please increase oversampling factor - can't draw undersampled PSF."
+    ):
+        PSFObject(
+            4,
+            20.15,
+            5.12,
+            wavelength=1.35,
+            postage_stamp_size=31,
+            ovsamp=1,
+            npix_boundary=1,
+            use_postage_stamp_size=96,
+            extra_aberrations=None,
+            cycle=10,
+        )
     assert np.abs(obj.dx - 10.0 / n) < 1.0e-3
 
     obj.get_optical_psf()
