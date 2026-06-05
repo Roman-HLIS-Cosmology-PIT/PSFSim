@@ -77,7 +77,7 @@ def noll_to_zernike(j):
 
     Returns
     -------
-    n, m : tuple[int]
+    n, m : tuple[np.int_]
         The radial and azimuthal orders of the Zernike polynomial.
     """
     n = (np.ceil(-1 / 2 + np.sqrt(1 + 8 * j) / 2) - 1).astype(int)
@@ -86,4 +86,4 @@ def noll_to_zernike(j):
     sign_of_shift = -(j & 1) + ~(j & 1) + 2
     base_case = n & 1
     m = (sign_of_shift * (base_case + number_of_shifts * 2)).astype(int)
-    return int(n), int(m)
+    return np.int_(n), np.int_(m)
