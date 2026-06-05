@@ -1234,38 +1234,7 @@ def _RomanRayBundle(
             ],
         )
 
-    # # Filter - Surface S1
-    # RB.intersect_surface_and_refract(
-    #     build_transform_matrix(
-    #         xde=531.5125171153529,
-    #         yde=-920.606684502614,
-    #         zde=-539.1713886876893,
-    #         ade=102.76851389522,
-    #         bde=29.38268469198068,
-    #         cde=173.6554980927907,
-    #     ),
-    #     Rinv=-1.0 / 1500.0,
-    #     K=0.0,
-    #     n_new=n_Infrasil301(wlref),
-    #     activeZone=[{"CIR": 52.65}],
-    # )
 
-    # # Filter - Surface S2
-    # S2 = build_transform_matrix(
-    #     xde=536.4189215396419,
-    #     yde=-929.1048262479633,
-    #     zde=-537.2455687321163,
-    #     ade=102.76851389522,
-    #     bde=29.38268469198068,
-    #     cde=173.6554980927907,
-    # )
-    # Rinv2 = -1.0 / 1499.31453814
-    # _, _, L = RB.intersect_surface(S2, Rinv=Rinv2, K=0.0, update=False)
-    # RB.s += L * (n_Infrasil301(wl) - n_Infrasil301(wlref))
-    # # comment - the ray trace follows the geometric path at wlref, but we include the wavelength dependence
-    # # in the path length.
-    # # This way, the DCR does not appear in the astrometry, rather it is a decentering of the PSF.
-    # RB.intersect_surface_and_refract(S2, Rinv=Rinv2, K=0.0, n_new=1.0, activeZone=[{"CIR": 52.65}])
 
     # START ELLE 
     # so we'll start by putting things here. if successful, this will replace lines 1235-1266
