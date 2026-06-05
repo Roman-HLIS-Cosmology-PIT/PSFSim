@@ -7,6 +7,8 @@ import numpy as np
 from astropy import constants as const
 from astropy import units as u
 
+from .utils.trapz import trapz
+
 fNuRef = 3.631e-23 * (u.W / u.m**2) / u.Hz  # W/m^2/Hz
 
 
@@ -99,11 +101,11 @@ if __name__ == "__main__":
             fLambdaRef = fNuRef * const.c / wav**2
             norm = (
                 10 ** (-0.4 * mag)
-                * np.trapz(fLambdaRef * transmissionCurve * wav, x=wav)
-                / np.trapz(fluxUnnorm * transmissionCurve * wav, x=wav)
+                * trapz(fLambdaRef * transmissionCurve * wav, x=wav)
+                / trapz(fluxUnnorm * transmissionCurve * wav, x=wav)
             )
             flux = norm * fluxUnnorm
-            nPhotQ = np.trapz(flux * effAreaTable["F184"] * u.m**2 * wav * tExp / (const.h * const.c), x=wav)
+            nPhotQ = trapz(flux * effAreaTable["F184"] * u.m**2 * wav * tExp / (const.h * const.c), x=wav)
             nPhotQ = nPhotQ.decompose()
             # nPhotQ = nPhotQ.to(1/(u.s*u.cm**2))
             nPhot = nPhotQ.value

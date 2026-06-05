@@ -5,10 +5,12 @@ from numpy import newaxis as na
 from scipy.fft import ifft2
 
 from . import wfi_coordinate_transformations as wfi
-from .filter_detector_properties import FilterDetector
+from .filter_detector_properties import FilterDetector, n_mercadtel
+from .index_cdte import n_cdte
 from .mtf_diffusion import intensity_to_image
 from .opticspsf import GeometricOptics
 from .polarisation_decomposition import polarisation_mode_decomposition
+from .quadrature_integration import QuadratureIntegrator
 from .wfi_data import pix
 from .zernike import noll_to_zernike, zernike
 
@@ -23,9 +25,6 @@ def parallel_MTF_image(args):
     xd, yd, imageX, imageY, Intensity_integrated, npix_boundary = args
     return MTF_image(xd, yd, imageX, imageY, Intensity_integrated, npix_boundary)
 '''
-
-
-default_interference_filter = FilterDetector([1.5, 1.43, 2.0], [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0], 1)
 
 
 class PSFObject:
@@ -49,11 +48,19 @@ class PSFObject:
     npix_boundary : int, optional
         ?
     use_postage_stamp_size : int, optional
-        Force pupil postage stamp size instead of internal calculation.
+        Force pupil postage stamp size instead of internal calculation. In native pixels.
     ray_trace : bool, optional
         Whether to use ray tracing. (Only turn off for testing.)
-    add_focus : variable
-        Parameter for adding focus.
+    extra_aberrations: float array, optional
+        Parameters corresponding to zernike polynomials for introducing aberrations that
+        add to the optical path length and produce different aberrations. Supports up to
+        5 parameters (Z2, Z3, Z4, Z5, and Z6 in that order). The effects of each polynomial
+        are as follows:
+        Z2: horizontal centering
+        Z3: vertical centering
+        Z4: focus
+        Z5: astigmatism
+        Z6: also astigmatism
     detector_thickness : float, optional
         Thickness of the detector in microns. This is used to compute the electric field
         and intensity within the detector.
@@ -63,8 +70,20 @@ class PSFObject:
         and intensity within the detector.
     interference_filter : psfsim.filter_detector_properties.FilterDetector, optional
         The interference filter object to use for computing the transmitted electric field
-        and intensity within the detector. Defaults to the interference filter specified
-        above as `default_interference_filter` if unspecified.
+        and intensity within the detector. Defaults to an ideal 3-layer interference
+        filter (to get the right wiggle shape) + thin layer of CdTe/HgCdTe (to give the
+        additional loss in the blue).
+
+        Note that if you really want to model the response of each SCA, you will need some
+        additional empirical corrections on top of this, both because there are thickness
+        variations and also because there is a lot of physics associated with whether you get
+        electrons absorbed right near the illuminated surface that we aren't modeling --- we're
+        just using a 2-layer "dead zone" with ideal materials to mock up what is probably a
+        region with varying band gap and probability of collecting the hole that gets released.
+    cycle : int, optional
+        Which cycle to use for the Zernike modes.
+    mjd : float, optional
+        The MJD to use for the optical model.
 
 
     Attributes
@@ -100,23 +119,42 @@ class PSFObject:
         a_lanczos=3,
         use_postage_stamp_size=None,
         ray_trace=True,
-        add_focus=None,
+        extra_aberrations=None,
         detector_thickness=2,
         zlen=20,
-        interference_filter=default_interference_filter,
+        interference_filter=None,
+        cycle=9,
+        mjd=None,
     ):
         self.wavelength = wavelength
         self.npix_boundary = npix_boundary
 
+        if interference_filter is None:
+            # this is the default filter
+            interference_filter = FilterDetector(
+                [1.35, 1.82, 2.45, n_cdte(wavelength), n_mercadtel(wavelength)],
+                [0.163, 0.137, 0.084, 0.010, 0.008],
+                1,
+            )
         self.interference_filter = interference_filter
+
         self.postage_stamp_size = postage_stamp_size
+        self.detector_thickness = detector_thickness
         self.z_array = np.linspace(0, detector_thickness, zlen)
-        # The following sets the ulen of the GeometricOptics object based on the postage_stamp_size if
-        # use_postage_stamp_size is True.
+        self.ovsamp = ovsamp
+        # The following sets the ulen of the GeometricOptics object based on
+        # use_postage_stamp_size when an explicit native-pixel size is provided.
         self.ulen = 2048  # default value
-        if use_postage_stamp_size:
-            self.ulen = use_postage_stamp_size
-        self.oversamp = ovsamp
+        if use_postage_stamp_size is not None:
+            if isinstance(use_postage_stamp_size, bool) or not isinstance(
+                use_postage_stamp_size, (int | np.integer)
+            ):
+                raise TypeError(
+                    "use_postage_stamp_size must be a positive integer number of native pixels or None."
+                )
+            if use_postage_stamp_size <= 0:
+                raise ValueError("use_postage_stamp_size must be a positive integer number of native pixels.")
+            self.ulen = use_postage_stamp_size * self.ovsamp
 
         self.optics = GeometricOptics(
             scanum,
@@ -126,8 +164,10 @@ class PSFObject:
             use_filter=use_filter,
             ulen=self.ulen,
             ray_trace=ray_trace,
-            pixelsampling=10.0 / ovsamp,
+            pixelsampling=10.0 / self.ovsamp,
             a_lanczos=a_lanczos,
+            cycle=cycle,
+            mjd=mjd,
         )
         self.ux, self.uy = (
             self.optics.u_array(),
@@ -135,7 +175,6 @@ class PSFObject:
         )  # np.meshgrid(self.Optics.uX, self.Optics.uY, indexing='ij')
         self.u = np.sqrt(self.ux**2 + self.uy**2)
         self.mask = self.u <= 1
-
         # sX = (self.wavelength / (self.optics.umax - self.optics.umin)) * (
         #     -(self.optics.ulen / 2.0) + np.array(range(self.optics.ulen))
         # )  # postage stamp coordinates along the FPA axes in microns
@@ -154,11 +193,25 @@ class PSFObject:
 
         self.dx = self.optics.wavelength / np.abs(self.ulen * self.optics.du)
 
-        if add_focus is not None:
-            nZern, mZern = noll_to_zernike(4)
-            self.optics.pathDifference += add_focus * zernike(
-                nZern, mZern, 2 * self.optics.focalLength * self.optics.urhoPolar, self.optics.uthetaPolar
-            )
+        if extra_aberrations is not None:
+            if len(extra_aberrations) > 5:
+                raise ValueError("extra_aberrations supports at most 5 coefficients (Z2–Z6).")
+            noll_coeffs = np.arange(2, 7)
+            coeff_count = noll_coeffs.size
+            nArr, mArr = noll_to_zernike(noll_coeffs)
+
+            # I think this loop could be avoided but not sure if it's really worth it.
+            for n, m, mag in zip(nArr, mArr, extra_aberrations[:coeff_count], strict=False):
+                self.optics.path_difference += (
+                    (
+                        mag
+                        * zernike(
+                            n, m, 2 * self.optics.focalLength * self.optics.urhoPolar, self.optics.uthetaPolar
+                        )
+                    )
+                    if mag is not None
+                    else 0
+                )
 
         prefactor = (
             self.optics.pupil_mask
@@ -345,6 +398,9 @@ class PSFObject:
         This is used to get the intensity in the detector after passing through the
         interference filter.
 
+        Uses adaptive Gaussian quadrature integration optimized for exponential decay
+        in the HgCdTe detector material, replacing the previous trapezoid rule.
+
         Parameters
         ----------
         A_TE : np.ndarray of complex of shape same as `ux` and `uy`
@@ -360,11 +416,23 @@ class PSFObject:
         -------
         Intensity_integrated : np.ndarray of float of shape same as `ux` and `uy`
             The intensity in the detector, integrated over the depth of the detector,
-            after passing through the interference filter.
+            after passing through the interference filter, using adaptive Gaussian quadrature.
         """
 
+        # Initialize adaptive Gaussian quadrature integrator for detector depth integration
+        self._quadrature_integrator = QuadratureIntegrator(
+            self.wavelength, self.detector_thickness, self.ux, self.uy, self.interference_filter
+        )
+        # Get optimized nodes for evaluation
+        (
+            self._quad_nodes,
+            self._quad_weights,
+            self._quad_order,
+        ) = self._quadrature_integrator.get_nodes_and_weights()
+
         filter = self.interference_filter
-        E = filter.transmitted_E(self.wavelength, self.ux, self.uy, self.z_array, A_TE=A_TE, A_TM=A_TM)
+        # Evaluate E-field at adaptive quadrature nodes instead of uniform z_array
+        E = filter.transmitted_E(self.wavelength, self.ux, self.uy, self._quad_nodes, A_TE=A_TE, A_TM=A_TM)
         Ex = E[0]
         Ey = E[1]
         Ez = E[2]
@@ -379,12 +447,9 @@ class PSFObject:
 
         Intensity = (abs(Ex_postage_stamp) ** 2) + (abs(Ey_postage_stamp) ** 2) + (abs(Ez_postage_stamp) ** 2)
 
-        # Intensity_integrated = np.trapezoid(Intensity, x=self.z_array, axis=2)
-        # this is a version of the trapezoid rule that works independently of numpy version
-        Intensity_integrated = 0.5 * (self.z_array[1] - self.z_array[0]) * Intensity[:, :, 0]
-        for iz in range(1, len(self.z_array) - 1):
-            Intensity_integrated += 0.5 * (self.z_array[iz + 1] - self.z_array[iz - 1]) * Intensity[:, :, iz]
-        Intensity_integrated += 0.5 * (self.z_array[-1] - self.z_array[-2]) * Intensity[:, :, -1]
+        # Apply adaptive Gaussian quadrature integration
+        # Intensity has shape (ux, uy, nz_quad); integrate along axis 2 using precomputed weights
+        Intensity_integrated = np.tensordot(Intensity, self._quad_weights, axes=(2, 0))
 
         return Intensity_integrated
 
@@ -432,7 +497,7 @@ class PSFObject:
             y_in=self.y_A,
             x_out=x_out,
             y_out=y_out,
-            n_out=self.postage_stamp_size * self.oversamp,
+            n_out=self.postage_stamp_size * self.ovsamp,
             dx=self.dx,
             reflect=reflect,
             tophat=tophat,

@@ -91,9 +91,11 @@ class PolychromaticPSF:
         npix_boundary=1,
         use_postage_stamp_size=None,
         ray_trace=True,
-        add_focus=None,
+        extra_aberrations=None,
         optical_psf_only=False,
         req_in_bandpass=True,
+        cycle=9,
+        mjd=None,
     ):
         """
         Compute the polychromatic PSF by integrating monochromatic PSFs across wavelength.
@@ -111,19 +113,32 @@ class PolychromaticPSF:
         use_filter : str, optional
             The filter as a string (e.g., "H").
         use_postage_stamp_size : int, optional
-            Force pupil postage stamp size instead of internal calculation.
+            Force pupil postage stamp size instead of internal calculation. In native pixels.
         npix_boundary : int, optional
             ?
         ray_trace : bool, optional
             Whether to use ray tracing. (Only turn off for testing.)
-        add_focus : variable
-            Parameter for adding focus.
+        extra_aberrations: float array, optional
+            Parameters corresponding to zernike polynomials for introducing aberrations that
+            add to the optical path length and produce different aberrations. Supports up to
+            5 parameters (Z2, Z3, Z4, Z5, and Z6 in that order). The effects of each polynomial
+            are as follows:
+            Z2: horizontal centering
+            Z3: vertical centering
+            Z4: focus
+            Z5: astigmatism
+            Z6: also astigmatism
         optical_psf_only : bool, optional
             Whether to draw the optical PSF only.
         req_in_bandpass : bool, optional
             Whether to only accept in-band light (turning this on will make things faster
             for some settings, but will miss detail in the PSF from out-of-band leakage).
             Recommend True for fast computation, False for best accuracy.
+        cycle : int, optional
+            Which cycle to use for the Zernike modes.
+        mjd : float, optional
+            The MJD to use for the optical model.
+
         Returns
         -------
         np.ndarray
@@ -162,7 +177,9 @@ class PolychromaticPSF:
                 npix_boundary=npix_boundary,
                 use_postage_stamp_size=use_postage_stamp_size,
                 ray_trace=ray_trace,
-                add_focus=add_focus,
+                extra_aberrations=extra_aberrations,
+                cycle=cycle,
+                mjd=mjd,
             )
             this_psf.get_optical_psf()
             if optical_psf_only:

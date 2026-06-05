@@ -178,6 +178,27 @@ def n_mercadtel(wavelength, T=89.0, x=0.445, force_old=False, force_short=False)
     return n
 
 
+def n_ice(wavelength):
+    """
+    Ice index of refraction.
+
+    Parameters
+    ----------
+    wavelength : float
+        Vacuum wavelength in microns.
+
+    Returns
+    -------
+    complex
+        The complex index of refraction of ice.
+
+    """
+
+    # Need to add code to compute the index of refraction of ice; for now just return
+    # a real-valued placeholder encoded as a complex number to match the API.
+    return 1.3 + 0j
+
+
 ### end materials
 
 
@@ -212,19 +233,34 @@ class FilterDetector:
     """
 
     def __init__(self, n, t, sgn):
-        self.n = n
+        self.n = list(n)
         self.nlayer = len(self.n)
 
         self.e = [self.n[j] ** 2 for j in range(self.nlayer)]
         self.mu = [1.0 for j in range(self.nlayer)]
         self.muHgCdTe = 1.0  # assume non-magnetic substrate
 
-        self.t = t
+        self.t = list(t)
         self.sgn = sgn
+        self.ice_layer = False
+        self.t_ice = None
+
+    def add_ice_layer(self, t_ice):
+        """
+        Add an ice layer to the filter.
+
+        Parameters
+        ----------
+        t_ice : float
+            The thickness of the ice layer in microns.
+
+        """
+        self.ice_layer = True
+        self.t_ice = t_ice
 
     def characteristic_matrix(self, ll, ux, uy):
         """
-        Characteristic matrix calculation.
+        Characteristic matrix calculation
 
         Parameters
         ----------
@@ -240,20 +276,34 @@ class FilterDetector:
             shape(`ux`) + (2, 2); that is, each cell has a 2x2 characteristic matrix.
 
         """
-
-        # print("Calculating characteristic matrices......")
-        # start_time = time.time()
-
         #   returns characteristic matrix of the interference filter for (vacuum) wavelength ll and
         #   angle of incidence given by sin_theta = (ux**2 + uy**2)**0.5
 
         #    Note that this function returns a pair of 2x2 matrices which are respectively the chara
         #    cteristic matrices for the TE and TM modes of the incident wave
 
+        if self.ice_layer:
+            n0 = n_ice(ll)
+            es = [n0**2] + self.e
+            ns = [n0] + self.n
+            ts = [self.t_ice] + self.t
+            mus = [1] + self.mu
+            nlayer = 1 + self.nlayer
+
+        else:
+            es = self.e
+            ns = self.n
+            ts = self.t
+            mus = self.mu
+            nlayer = self.nlayer
+
+        assert nlayer == len(es)
+
         try:
             shape = ux.shape
         except AttributeError:
             shape = (1, 1)
+
         mask = (ux**2 + uy**2) <= 1.0
         # mask = np.abs(ux) + np.abs(uy) <= 1.0
         u = np.sqrt((ux**2) + (uy**2))
@@ -261,9 +311,9 @@ class FilterDetector:
         # Get wave numbers
         k0 = 2 * np.pi / ll
         kz = []
-        for j in range(self.nlayer):
+        for j in range(nlayer):
             kzj = np.zeros_like(ux, dtype=np.complex128)
-            kzj[mask] = k0 * np.sqrt(self.n[j] ** 2 - u[mask] ** 2)
+            kzj[mask] = k0 * np.sqrt(ns[j] ** 2 - u[mask] ** 2)
             kz.append(kzj)
 
         # Initialize characteristic matrices
@@ -272,29 +322,26 @@ class FilterDetector:
         M_TE_net[mask, 1, 1] = 1.0
         M_TM_net = np.copy(M_TE_net)
 
-        for j in range(self.nlayer):
+        for j in range(nlayer):
             # Characteristic matrix of layer j for the TE wave
             M_TE_j = np.zeros(shape + (2, 2), dtype=np.complex128)
 
-            M_TE_j[mask, 0, 0] = np.cos(kz[j][mask] * self.t[j])
-            M_TE_j[mask, 1, 1] = np.cos(kz[j][mask] * self.t[j])
-            M_TE_j[mask, 0, 1] = -(k0 * self.mu[j] / kz[j][mask]) * 1j * np.sin(kz[j][mask] * self.t[j])
-            M_TE_j[mask, 1, 0] = -(kz[j][mask] / k0 / self.mu[j]) * 1j * np.sin(kz[j][mask] * self.t[j])
+            M_TE_j[mask, 0, 0] = np.cos(kz[j][mask] * ts[j])
+            M_TE_j[mask, 1, 1] = np.cos(kz[j][mask] * ts[j])
+            M_TE_j[mask, 0, 1] = -(k0 * mus[j] / kz[j][mask]) * 1j * np.sin(kz[j][mask] * ts[j])
+            M_TE_j[mask, 1, 0] = -(kz[j][mask] / k0 / mus[j]) * 1j * np.sin(kz[j][mask] * ts[j])
 
             # Characteristic matrix of layer j for TM wave
             M_TM_j = np.zeros(shape + (2, 2), dtype=np.complex128)
 
-            M_TM_j[mask, 0, 0] = np.cos(kz[j][mask] * self.t[j])
-            M_TM_j[mask, 1, 1] = np.cos(kz[j][mask] * self.t[j])
-            M_TM_j[mask, 0, 1] = -(k0 * self.e[j] / kz[j][mask]) * 1j * np.sin(kz[j][mask] * self.t[j])
-            M_TM_j[mask, 1, 0] = -(kz[j][mask] / k0 / self.e[j]) * 1j * np.sin(kz[j][mask] * self.t[j])
+            M_TM_j[mask, 0, 0] = np.cos(kz[j][mask] * ts[j])
+            M_TM_j[mask, 1, 1] = np.cos(kz[j][mask] * ts[j])
+            M_TM_j[mask, 0, 1] = -(k0 * es[j] / kz[j][mask]) * 1j * np.sin(kz[j][mask] * ts[j])
+            M_TM_j[mask, 1, 0] = -(kz[j][mask] / k0 / es[j]) * 1j * np.sin(kz[j][mask] * ts[j])
 
             # multiply
             M_TE_net = np.matmul(M_TE_net, M_TE_j)
             M_TM_net = np.matmul(M_TM_net, M_TM_j)
-
-        # end_time = time.time()
-        # print(f"Finished computing characteristic matrices in {end_time-start_time:.3f}")
 
         return {"TE": M_TE_net, "TM": M_TM_net}
 
@@ -442,7 +489,7 @@ class FilterDetector:
             mask & (kz.imag < 0.0)
         ]  # choose the root with positive imaginary part
 
-        T_coeff = self.transmission(ll, ux, uy)
+        T_coeff = self.transmission(ll, ux, uy, use_HgCdTe=use_nHgCdTe)
         Transmission_TE = T_coeff["TE"]
         Transmission_TM = T_coeff["TM"]
 
@@ -494,3 +541,38 @@ class FilterDetector:
         # print("Total calculation done in ", end_time - start_time, " seconds")
 
         return (Ex, Ey, Ez)
+
+    def transmitted_power(self, ll, theta):
+        """
+        Computes the transmitted power fraction through the AR coating.
+
+        Parameters
+        ----------
+        ll : float
+            Vacuum wavelength (in microns).
+        theta : np.ndarray of float
+            The angles of incidence
+
+        Returns
+        -------
+        power_S, power_P : np.ndarray
+            The transmitted power fractions in each polarization at the indicated incidence
+            angles.
+
+        """
+
+        # refraction information
+        alpha = np.sin(theta)
+        n = n_mercadtel(ll)
+        costheta_inc = np.cos(theta)
+        costheta_tr = np.sqrt(1.0 - alpha**2 / n**2)
+
+        # Flux scales with Ex^* Hy - Ey^* * Hx
+        #
+        # TE: flux ~ |Ex|^2 Re {cos theta * n}
+        # TM: flux ~ |Hx|^2 Re {cos theta / n}
+        cm = self.transmission(ll, np.zeros_like(theta), alpha)
+        power_S = np.abs(cm["TE"]) ** 2 * np.real(costheta_tr * n) / costheta_inc
+        power_P = np.abs(cm["TM"]) ** 2 * np.real(costheta_tr / n) / costheta_inc
+
+        return power_S, power_P
