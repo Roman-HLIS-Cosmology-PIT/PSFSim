@@ -1281,7 +1281,7 @@ def _RomanRayBundle(
         ade=102.76851389522,
         bde=29.38268469198068,
         cde=173.6554980927907,
-    ),
+    )
     Rinv1=-1.0 / 1500.0
     K1=0.0
     n_new1=n_Infrasil301(wlref)
