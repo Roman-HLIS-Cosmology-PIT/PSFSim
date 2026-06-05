@@ -1309,8 +1309,8 @@ def _RomanRayBundle(
 
     # ghost time
     if ghostpath:
-        RB.intersect_surface_and_reflect(S2, Rinv=Rinv2, K=K2, n_new=n_new2, activeZone=activeZone2)
-        RB.intersect_surface_and_reflect(S1, Rinv=Rinv1, K=K1, n_new=n_new1, activeZone=activeZone1)
+        RB.intersect_surface_and_reflect(S2, Rinv=Rinv2, K=K2, activeZone=activeZone2)
+        RB.intersect_surface_and_reflect(S1, Rinv=Rinv1, K=K1,  activeZone=activeZone1)
     
 
 
