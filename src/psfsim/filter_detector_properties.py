@@ -541,3 +541,38 @@ class FilterDetector:
         # print("Total calculation done in ", end_time - start_time, " seconds")
 
         return (Ex, Ey, Ez)
+
+    def transmitted_power(self, ll, theta):
+        """
+        Computes the transmitted power fraction through the AR coating.
+
+        Parameters
+        ----------
+        ll : float
+            Vacuum wavelength (in microns).
+        theta : np.ndarray of float
+            The angles of incidence
+
+        Returns
+        -------
+        power_S, power_P : np.ndarray
+            The transmitted power fractions in each polarization at the indicated incidence
+            angles.
+
+        """
+
+        # refraction information
+        alpha = np.sin(theta)
+        n = n_mercadtel(ll)
+        costheta_inc = np.cos(theta)
+        costheta_tr = np.sqrt(1.0 - alpha**2 / n**2)
+
+        # Flux scales with Ex^* Hy - Ey^* * Hx
+        #
+        # TE: flux ~ |Ex|^2 Re {cos theta * n}
+        # TM: flux ~ |Hx|^2 Re {cos theta / n}
+        cm = self.transmission(ll, np.zeros_like(theta), alpha)
+        power_S = np.abs(cm["TE"]) ** 2 * np.real(costheta_tr * n) / costheta_inc
+        power_P = np.abs(cm["TM"]) ** 2 * np.real(costheta_tr / n) / costheta_inc
+
+        return power_S, power_P

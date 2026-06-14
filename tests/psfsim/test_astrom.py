@@ -16,7 +16,7 @@ def test_mapping():
         xfpa, yfpa = wct._from_angle_to_fpa(row[2], row[3], wavelength=0.48)
         assert np.abs(xfpa - row[0]) < 2.0
         assert np.abs(yfpa - row[1]) < 2.0
-        xfpa2, yfpa2 = wct.from_angle_to_fpa(row[2], row[3])
+        xfpa2, yfpa2 = wct.from_angle_to_fpa(row[2], row[3], idealgeom=True)
         assert np.hypot(xfpa2 - xfpa, yfpa2 - yfpa) < 0.2
 
         xan, yan = wct._from_fpa_to_angle((row[0], row[1]), wavelength=0.48)
@@ -58,7 +58,7 @@ def test_mapping_0055():
     ]
 
     for point in points:
-        xan, yan = wct.from_fpa_to_angle((point[0], point[1]), ray_trace=True, use_filter="Y")
+        xan, yan = wct.from_fpa_to_angle((point[0], point[1]), ray_trace=True, use_filter="Y", idealgeom=True)
         err = np.hypot(xan - point[2], yan - point[3])
         print(point, xan, yan, err)
         assert err < 4.0e-5
