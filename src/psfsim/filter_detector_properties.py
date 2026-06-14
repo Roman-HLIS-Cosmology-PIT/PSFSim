@@ -198,7 +198,7 @@ def n_ice(wavelength):
     # amorphous ice deposited at 90 K
     # This is a visible paper, so the formula doesn't include the drop as you approach the water
     # bands in the IR. We may update this later.
-    return np.sqrt(1 + 0.280 / (1 - (0.071 / wavelength)**2) +  0.291 / (1 - (0.134 / wavelength)**2)) + 0j
+    return np.sqrt(1 + 0.280 / (1 - (0.071 / wavelength) ** 2) + 0.291 / (1 - (0.134 / wavelength) ** 2)) + 0j
 
 
 ### end materials
