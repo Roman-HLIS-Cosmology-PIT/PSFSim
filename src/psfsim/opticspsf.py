@@ -1,5 +1,6 @@
 """Optics objects."""
 
+import warnings
 from importlib.resources import files
 
 import numpy as np
@@ -7,6 +8,7 @@ import pandas as pd
 from astropy.io import fits
 
 from . import wfi_data, zernike
+from .perturbations import cycle10_perturbations
 from .romantrace import RomanRayBundle
 from .wfi_coordinate_transformations import from_fpa_to_angle, from_sca_to_fpa
 
@@ -161,6 +163,10 @@ class GeometricOptics:
         Whether to use ray tracing.
     pixelsampling : float, optional
         Desired FFT-based output pixel sampling in microns.
+    cycle : int, optional
+        Which cycle to use for the Zernike modes.
+    mjd : float, optional
+        The MJD to use for the optical model.
 
     Attributes
     ----------
@@ -184,6 +190,8 @@ class GeometricOptics:
         The wavefront map in microns. Shape (`ulen`, `ulen`).
     rb : psfsim.romantrace.RayBundle
         The ray trace object.
+    a_lanczos : int, optional
+        The order of Lanczos kernel apodization to use for the high-resolution pupil.
 
     Methods
     -------
@@ -214,6 +222,9 @@ class GeometricOptics:
         ulen=2048,
         ray_trace=True,
         pixelsampling=1.00,
+        a_lanczos=3,
+        cycle=9,
+        mjd=None,
     ):
         # sca position in mm
         # wavelength in micrometers
@@ -235,6 +246,8 @@ class GeometricOptics:
         # Set up u,v array for computations of Zernicke Polynomials
         self.ulen = ulen
 
+        self.a_lanczos = a_lanczos
+
         # Go with some version of centered sampling if not using ray trace
         if not ray_trace:
             self.umin = (-0.5) * wavelength / self.dsX
@@ -252,6 +265,13 @@ class GeometricOptics:
 
         self.use_filter = use_filter
 
+        # load perturbation data
+        self.cycle = cycle
+        self.mjd = mjd
+        self.perturbations = None
+        if cycle == 10:
+            self.perturbations = cycle10_perturbations(use_filter)
+
         # Compute Distortion Matrix and dterminant
         self.distortionMatrix = self.compute_distortion_matrix(method="raytrace")
         self.determinant = self.compute_determinant()
@@ -265,6 +285,9 @@ class GeometricOptics:
         self.vcen = self.uvcoefs[1][0] + (self.uvcoefs[1][1] + self.uvcoefs[1][2]) * (self.ulen - 1.0) / 2.0
         self.du = (self.uvcoefs[0][1] + self.uvcoefs[1][2]) / 2.0
 
+        self.urhoPolar = np.sqrt((self.u_array() - self.ucen) ** 2 + (self.v_array() - self.vcen) ** 2)
+        self.uthetaPolar = np.arctan2(self.v_array() - self.vcen, -(self.u_array() - self.ucen))
+
         # Load pupil mask from raytrace - more accurate
         # self.uArray = self.pupilMaskU[:, :, 0]
         # self.vArray = self.pupilMaskU[:, :, 1]
@@ -275,7 +298,7 @@ class GeometricOptics:
         # self.ucen = 0.5 * (self.umin + self.umax)
         # self.vcen = 0.5 * (self.vmin + self.vmax)
         # Get path difference map
-        self.path_difference = self.path_diff()
+        self.path_difference = self.path_diff(use_ray_trace=ray_trace)
 
         # self.integrand = self.pupilMask*self.determinant\
         # *expm(2*np.pi/self.wavelength*1j*self.pathDifference)
@@ -345,7 +368,13 @@ class GeometricOptics:
             mat *= np.pi / 180
         elif method == "raytrace":
             raytrace = RomanRayBundle(
-                self.xan, self.yan, 7, self.use_filter, wl=self.wavelength * 0.001, hasE=True
+                self.xan,
+                self.yan,
+                7,
+                self.use_filter,
+                wl=self.wavelength * 0.001,
+                hasE=True,
+                a_lanczos=self.a_lanczos,
             )
             mat = compute_jacobian(
                 raytrace.u,
@@ -394,32 +423,88 @@ class GeometricOptics:
         """
 
         jacobian = np.linalg.inv(-self.pupilLength * self.distortionMatrix)
-        self.rb = rb = RomanRayBundle(
-            self.xan,
-            self.yan,
-            self.pupilSampling,
-            self.use_filter,
-            width=self.samplingwidth,
-            wl=self.wavelength * 0.001,
-            hasE=True,
-            jacobian=jacobian,
-        )
+
         if use_ray_trace:
-            mask = rb.open
-            self.pupil_mask_u = rb.u
-            self.pupil_mask_s = rb.s
-            self.pupil_mask_xin = rb.xyi
-            self.pupil_mask_xout = rb.x_out
+            # First pass traces with a bounding pupil size to
+            # determine actual pupil extent. Low res ray trace.
+            rb_initial = RomanRayBundle(
+                self.xan,
+                self.yan,
+                128,  # lower res to speed up initial pass
+                self.use_filter,
+                width=3000.0,
+                wl=self.wavelength * 0.001,
+                hasE=True,
+                jacobian=jacobian,
+                a_lanczos=self.a_lanczos,
+                errs=self.perturbations,
+            )
+
+            # Find bounding box of open pupil
+            open_indices = np.where(rb_initial.open)
+            if len(open_indices[0]) > 0:
+                y_min, y_max = open_indices[0].min(), open_indices[0].max()
+                x_min, x_max = open_indices[1].min(), open_indices[1].max()
+                # Add a small margin
+                margin = 10
+                y_min = max(0, y_min - margin)
+                y_max = min(127, y_max + margin)
+                x_min = max(0, x_min - margin)
+                x_max = min(127, x_max + margin)
+
+                # Calculate bounding width in mm
+                pupil_width_pixels = max(x_max - x_min, y_max - y_min)
+                bounded_width = 3000.0 * pupil_width_pixels / 128.0
+                print(f"Bounding pupil width determined from initial ray trace: {bounded_width:.2f} mm")
+            else:
+                bounded_width = self.samplingwidth
+
+            # Scale pupilSampling proportionally to maintain same physical resolution.
+            # After integer rounding, adjust width so width/pixels exactly matches the
+            # original samplingwidth/pupilSampling ratio.
+            width_ratio = bounded_width / self.samplingwidth
+            scaled_pupilSampling = max(1, int(np.round(self.pupilSampling * width_ratio)))
+            target_parity = self.ulen % 2
+            if scaled_pupilSampling % 2 != target_parity:
+                scaled_pupilSampling += 1
+            bounded_width = self.samplingwidth * scaled_pupilSampling / self.pupilSampling
+
+            # Second pass: trace at full resolution with bounded width
+            self.rb = RomanRayBundle(
+                self.xan,
+                self.yan,
+                scaled_pupilSampling,
+                self.use_filter,
+                width=bounded_width,
+                wl=self.wavelength * 0.001,
+                hasE=True,
+                jacobian=jacobian,
+                errs=self.perturbations,
+            )
+
+            self.rb = self.rb.pad(self.ulen)
+            mask = self.rb.open
+            self.pupil_mask_u = self.rb.u
+            self.pupil_mask_s = self.rb.s
+            self.pupil_mask_xin = self.rb.xyi
+
         else:
             dirName = "./stpsf-data/WFI/pupils/"
             pupilMaskString = f"SCA{self.scanum}_full_mask.fits.gz"
             file = fits.open(dirName + pupilMaskString)
             mask = file[0].data
+
         return mask
 
-    def path_diff(self):
+    def path_diff(self, use_ray_trace=True):
         """
-        Path difference map computed from Zernike coefficients from Cycle 9 data.
+        Path difference map. The behavior depends on the selected cycle.
+
+
+        The method is:
+
+        - in Cycle 9, looks up the Zernike modes
+        - in Cycle 10, uses the perturbation model
 
         Returns
         -------
@@ -429,8 +514,19 @@ class GeometricOptics:
 
         """
 
-        self.urhoPolar = np.sqrt((self.u_array() - self.ucen) ** 2 + (self.v_array() - self.vcen) ** 2)
-        self.uthetaPolar = np.arctan2(self.v_array() - self.vcen, self.u_array() - self.ucen)
+        # Cycle 10
+        if self.cycle == 10:
+            # I don't expect people will use this, but it prevents an error.
+            if not use_ray_trace:
+                warnings.warn("using Cycle 10 without ray trace!")
+                return np.zeros(np.shape(self.u_array))
+
+            path_diff = self.rb.s - np.sum(self.rb.s * self.rb.open) / np.sum(self.rb.open)
+            return path_diff * 1000.0  # convert to microns
+
+        # Below here, we must be in Cycle 9
+        if self.cycle != 9:
+            raise ValueError("Cycle {self.cycle:d} not defined.")
 
         infile = files("psfsim.data").joinpath("wim_zernikes_cycle9.csv.gz")  # reads data directory
         mydata = pd.read_csv(infile, sep=",", header=0, compression="gzip")
@@ -451,7 +547,8 @@ class GeometricOptics:
             zernCoeff = altgriddata(points, zernCoeffsToInterpolate, (self.scax, self.scay))
             nZern, mZern = zernike.noll_to_zernike(i + 1)
             # print(">>>", zernike.zernike(nZern, mZern, self.urhoPolar, self.uthetaPolar))
-            path_diff += zernCoeff * zernike.zernike(
+            path_diff -= zernCoeff * zernike.zernike(
                 nZern, mZern, 2 * self.focalLength * self.urhoPolar, self.uthetaPolar
             )
+            # - sign since OPD in the file has a sign difference
         return path_diff

@@ -1,14 +1,20 @@
-.. image:: https://codecov.io/gh/nihardalal/PSFSim/graph/badge.svg?token=O76KO3TQA2 
- :target: https://codecov.io/gh/nihardalal/PSFSim
+.. image:: https://codecov.io/gh/Roman-HLIS-Cosmology-PIT/PSFSim/graph/badge.svg?token=kI7xCYckoa :target: https://codecov.io/gh/Roman-HLIS-Cosmology-PIT/PSFSim
 
 PSFSim
 ######
 
-Repository for simulations for testing point spread function measurements for the Roman Space Telescope. In development. 
+Repository for simulations for testing point spread function measurements for the Roman Space Telescope. In development. Preliminary documentation can be found `here`_ via ReadTheDocs.
+
+.. _here: https://psfsim.readthedocs.io/en/latest/index.html
 
 Added features include position dependent pupil mask, detector effects, Zernike path differences, and more!
 
 Most code lives in ``PSFObject.py``, but it may also be useful to look at ``opticsPSF.py`` and ``filter_detector_properties.py``.
+
+Additional information:
+
+- `Model description <docs/model.rst>`_.
+- `Coordinates in PSFSim <docs/coordinates.rst>`_.
 
 Written by Nihar Dalal, Charuhas Shiveshwarkar, and Chris Hirata
 

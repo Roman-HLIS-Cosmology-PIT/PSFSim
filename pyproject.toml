@@ -31,8 +31,8 @@ dev = { file = "requirements-dev.txt" }
 
 [build-system]
 requires = [
-    "setuptools>=62", # Used to build and package the Python project
-    "setuptools_scm>=6.2", # Gets release version from git. Makes it available programmatically
+    "setuptools>=82.0.1", # Used to build and package the Python project
+    "setuptools_scm>=10.0.5", # Gets release version from git. Makes it available programmatically
 ]
 build-backend = "setuptools.build_meta"
 
@@ -98,4 +98,9 @@ omit=["src/psfsim/_version.py"]
 
 
 [tool.setuptools.package-data]
-"psfsim.data" = ["wim_zernikes_cycle9.csv.gz"]
+"psfsim.data" = [
+    "cycle10_perturbations.csv",
+    "fpos.dat",
+    "mirror_Ag_C_corrected.csv",
+    "wim_zernikes_cycle9.csv.gz",
+]

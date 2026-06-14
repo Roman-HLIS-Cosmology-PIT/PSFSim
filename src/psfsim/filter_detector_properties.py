@@ -1,9 +1,10 @@
 """Functions to handle the multi-layer AR coating and propagation in detector material."""
 
-import time
 
 import numpy as np
 from numpy import newaxis as na
+
+from .polarisation_decomposition import local_to_fpa_rotation
 
 ### begin materials
 
@@ -177,200 +178,28 @@ def n_mercadtel(wavelength, T=89.0, x=0.445, force_old=False, force_short=False)
     return n
 
 
+def n_ice(wavelength):
+    """
+    Ice index of refraction.
+
+    Parameters
+    ----------
+    wavelength : float
+        Vacuum wavelength in microns.
+
+    Returns
+    -------
+    complex
+        The complex index of refraction of ice.
+
+    """
+
+    # Need to add code to compute the index of refraction of ice; for now just return
+    # a real-valued placeholder encoded as a complex number to match the API.
+    return 1.3 + 0j
+
+
 ### end materials
-
-
-def local_to_fpa_rotation(ux, uy, sgn):
-    """
-    Local --> FPA rotation for electric field.
-
-    This constructs an array of 3x3 rotation matrices from {incident ray in yz-plane}
-    --> {focal plane coordinates}. The z-axis is perpendicular to the detector surface
-    in both cases.
-
-    By construction, this function has a discontinuity at u=0. It defaults to 0
-    for unphysical rays (ux, uy outside the unit circule).
-
-    Parameters
-    ----------
-    ux, uy : np.ndarray of float
-         Orthographic projection of ray directions (each component). Should
-         be the same shape.
-    sgn : float
-         Whether to flip z-direction for diagonal rays; should be +1 or -1.
-
-    Returns
-    -------
-    RT : np.ndarray of float
-         Shape is shape of ux + (3, 3). Each entry ends in a rotation matrix.
-
-    """
-
-    # print("Computing local to FPA rotation.......")
-    # start_time = time.time()
-    u = np.sqrt((ux**2) + (uy**2))
-    mask = u <= 1
-    # mask = np.abs(ux) + np.abs(uy) <= 1
-    try:
-        shape = ux.shape
-    except AttributeError:
-        shape = (1, 1)
-    RT = np.zeros(shape + (3, 3), dtype=np.float64)
-
-    # RT[mask & (u == 0)] = np.identity(3)
-    # RT[mask & (u != 0), 0, 0] = uy[mask & (u != 0)] * sgn / u[mask & (u != 0)]
-    # RT[mask & (u != 0), 0, 1] = ux[mask & (u != 0)] / u[mask & (u != 0)]
-    # RT[mask & (u != 0), 1, 0] = -(ux[mask & (u != 0)] * sgn / u[mask & (u != 0)])
-    # RT[mask & (u != 0), 1, 1] = uy[mask & (u != 0)] / u[mask & (u != 0)]
-    # RT[mask & (u != 0), 2, 2] = sgn
-
-    # alternate, somewhat streamlined version of code
-    psi = np.arctan2(uy[mask], ux[mask])
-    cospsi = np.cos(psi)
-    sinpsi = np.sin(psi)
-    RT[mask, 0, 0] = sgn * sinpsi
-    RT[mask, 0, 1] = cospsi
-    RT[mask, 1, 0] = -sgn * cospsi
-    RT[mask, 1, 1] = sinpsi
-    RT[mask, 2, 2] = sgn
-
-    # end_time = time.time()
-    # print(f"Finished computing local to FPA rotation in {end_time-start_time:.3f}")
-
-    return RT
-
-
-def polarisation_mode_decomposition(ux, uy, Ex, Ey, Ez, sgn):
-    """
-    Decomposes incident electric field (specified by components along FPA axes) into TE and TM modes.
-
-    The convention is that the "TE" (S) direction is given by
-    {propagation of ray} cross {original z axis} and the "TM" (P) direction is in the plane of incidence,
-    pointed toward sgn * {original z axis}.
-
-    Parameters
-    ----------
-    ux, uy : np.ndarray of float
-        The orthographic projection of directions of propagation, each is an array.
-    Ex, Ey, Ez : np.ndarray of complex
-        The incident electric field. Same shape as `ux` and `uy`.
-    sgn : float
-        Whether the z-direction of the initial coordinate system should be the same (+1) or
-        opposite (-1) the AR coating coordinate system.
-
-    Returns
-    -------
-    dict of np.ndarray of complex
-        The keys are "TE" and "TM", and each have the same shape as `ux` and `uy`.
-
-    See Also
-    --------
-    local_to_fpa_rotation
-        This function is used for the convention when (ux, uy) == (0, 0).
-
-    """
-
-    u = np.sqrt((ux**2) + (uy**2))
-    try:
-        shape = ux.shape
-    except AttributeError:
-        shape = (1, 1)
-    mask = u <= 1
-    # mask = np.abs(ux) + np.abs(uy) <= 1
-
-    # get rotation matrix ()
-    RT = local_to_fpa_rotation(ux, uy, sgn)
-    wmask = np.sqrt(1 - u[mask] ** 2)
-
-    A_TE = np.zeros(shape, dtype=np.complex128)
-    A_TM = np.zeros(shape, dtype=np.complex128)
-
-    # A_TE[mask & (u == 0)] = Ex[mask & (u == 0)]
-    # A_TM[mask & (u == 0)] = -Ey[mask & (u == 0)]
-
-    ee1 = np.zeros_like(ux, dtype=np.complex128)
-    ee2 = np.zeros_like(ux, dtype=np.complex128)
-
-    ek1 = np.zeros_like(ux, dtype=np.complex128)
-    ek2 = np.zeros_like(ux, dtype=np.complex128)
-    ek3 = np.zeros_like(ux, dtype=np.complex128)
-
-    # ek1[mask & (u != 0)] = -(ux[mask & (u != 0)] / u[mask & (u != 0)]) * np.sqrt(
-    #     1 - (u[mask & (u != 0)] ** 2)
-    # )
-    # ek2[mask & (u != 0)] = -(uy[mask & (u != 0)] / u[mask & (u != 0)]) * np.sqrt(
-    #     1 - (u[mask & (u != 0)] ** 2)
-    # )
-    # ek3[mask & (u != 0)] = u[mask & (u != 0)] * sgn
-
-    ee1[mask] = RT[mask, 1, 1]
-    ee2[mask] = -RT[mask, 0, 1]
-
-    ek1[mask] = -RT[mask, 0, 1] * wmask
-    ek2[mask] = -RT[mask, 1, 1] * wmask
-    ek3[mask] = u[mask] * sgn
-
-    # A_TE[mask & (u != 0)] = (Ex[mask & (u != 0)] * (uy[mask & (u != 0)] / u[mask & (u != 0)])) - (
-    #     Ey[mask & (u != 0)] * (ux[mask & (u != 0)] / u[mask & (u != 0)])
-    # )
-    # A_TM[mask & (u != 0)] = (
-    #     (ek1[mask & (u != 0)] * Ex[mask & (u != 0)])
-    #     + (ek2[mask & (u != 0)] * Ey[mask & (u != 0)])
-    #     + (ek3[mask & (u != 0)] * Ez[mask & (u != 0)])
-    # )
-
-    A_TE[:, :] = Ex * ee1 + Ey * ee2
-    A_TM[:, :] = Ex * ek1 + Ey * ek2 + Ez * ek3
-
-    return {"TE": A_TE, "TM": A_TM}
-
-
-def unpolarised_mode_decomposition(ux, uy, E0=1.0e10):
-    """
-    Decomposition for unpolarized light.
-
-    Parameters
-    ----------
-    ux, uy : float
-        Orthographic coordinates.
-    E0 : float, optional
-        Amplitude.
-
-    Returns
-    -------
-    dict of np.ndarray of complex
-        The keys are "TE" and "TM", and each have the same shape as `ux` and `uy`.
-
-    Notes
-    -----
-    **Warning** : This generates equal amplitudes but if you just use the field
-    values there will be unphysical interference. Need to figure out what to do about this.
-
-    """
-
-    print("Computing polarisation mode decomposition for unpolarised incident E field.....")
-    start_time = time.time()
-
-    # Function to obtain TE and TM mode amplitudes for unpolarised incident wave with magnitude of
-    # electric field E0.
-
-    u = np.sqrt((ux**2) + (uy**2))
-    mask = u <= 1
-    # mask = np.abs(ux) + np.abs(uy) <= 1.0
-    try:
-        shape = ux.shape
-    except AttributeError:
-        shape = (1, 1)
-    # shape = ux.shape
-    A_TE = np.zeros(shape, dtype=np.complex128)
-    A_TM = np.zeros(shape, dtype=np.complex128)
-
-    A_TE[mask] = (1.0 / np.sqrt(2)) * E0
-    A_TM[mask] = -(1.0 / np.sqrt(2)) * E0
-
-    end_time = time.time()
-    print(f"Finished computing polarisation mode decomposition in {end_time-start_time:.3f}")
-    return {"TE": A_TE, "TM": A_TM}
 
 
 class FilterDetector:
@@ -404,19 +233,34 @@ class FilterDetector:
     """
 
     def __init__(self, n, t, sgn):
-        self.n = n
+        self.n = list(n)
         self.nlayer = len(self.n)
 
         self.e = [self.n[j] ** 2 for j in range(self.nlayer)]
         self.mu = [1.0 for j in range(self.nlayer)]
         self.muHgCdTe = 1.0  # assume non-magnetic substrate
 
-        self.t = t
+        self.t = list(t)
         self.sgn = sgn
+        self.ice_layer = False
+        self.t_ice = None
+
+    def add_ice_layer(self, t_ice):
+        """
+        Add an ice layer to the filter.
+
+        Parameters
+        ----------
+        t_ice : float
+            The thickness of the ice layer in microns.
+
+        """
+        self.ice_layer = True
+        self.t_ice = t_ice
 
     def characteristic_matrix(self, ll, ux, uy):
         """
-        Characteristic matrix calculation.
+        Characteristic matrix calculation
 
         Parameters
         ----------
@@ -432,20 +276,34 @@ class FilterDetector:
             shape(`ux`) + (2, 2); that is, each cell has a 2x2 characteristic matrix.
 
         """
-
-        # print("Calculating characteristic matrices......")
-        # start_time = time.time()
-
         #   returns characteristic matrix of the interference filter for (vacuum) wavelength ll and
         #   angle of incidence given by sin_theta = (ux**2 + uy**2)**0.5
 
         #    Note that this function returns a pair of 2x2 matrices which are respectively the chara
         #    cteristic matrices for the TE and TM modes of the incident wave
 
+        if self.ice_layer:
+            n0 = n_ice(ll)
+            es = [n0**2] + self.e
+            ns = [n0] + self.n
+            ts = [self.t_ice] + self.t
+            mus = [1] + self.mu
+            nlayer = 1 + self.nlayer
+
+        else:
+            es = self.e
+            ns = self.n
+            ts = self.t
+            mus = self.mu
+            nlayer = self.nlayer
+
+        assert nlayer == len(es)
+
         try:
             shape = ux.shape
         except AttributeError:
             shape = (1, 1)
+
         mask = (ux**2 + uy**2) <= 1.0
         # mask = np.abs(ux) + np.abs(uy) <= 1.0
         u = np.sqrt((ux**2) + (uy**2))
@@ -453,9 +311,9 @@ class FilterDetector:
         # Get wave numbers
         k0 = 2 * np.pi / ll
         kz = []
-        for j in range(self.nlayer):
+        for j in range(nlayer):
             kzj = np.zeros_like(ux, dtype=np.complex128)
-            kzj[mask] = k0 * np.sqrt(self.n[j] ** 2 - u[mask] ** 2)
+            kzj[mask] = k0 * np.sqrt(ns[j] ** 2 - u[mask] ** 2)
             kz.append(kzj)
 
         # Initialize characteristic matrices
@@ -464,29 +322,26 @@ class FilterDetector:
         M_TE_net[mask, 1, 1] = 1.0
         M_TM_net = np.copy(M_TE_net)
 
-        for j in range(self.nlayer):
+        for j in range(nlayer):
             # Characteristic matrix of layer j for the TE wave
             M_TE_j = np.zeros(shape + (2, 2), dtype=np.complex128)
 
-            M_TE_j[mask, 0, 0] = np.cos(kz[j][mask] * self.t[j])
-            M_TE_j[mask, 1, 1] = np.cos(kz[j][mask] * self.t[j])
-            M_TE_j[mask, 0, 1] = -(k0 * self.mu[j] / kz[j][mask]) * 1j * np.sin(kz[j][mask] * self.t[j])
-            M_TE_j[mask, 1, 0] = -(kz[j][mask] / k0 / self.mu[j]) * 1j * np.sin(kz[j][mask] * self.t[j])
+            M_TE_j[mask, 0, 0] = np.cos(kz[j][mask] * ts[j])
+            M_TE_j[mask, 1, 1] = np.cos(kz[j][mask] * ts[j])
+            M_TE_j[mask, 0, 1] = -(k0 * mus[j] / kz[j][mask]) * 1j * np.sin(kz[j][mask] * ts[j])
+            M_TE_j[mask, 1, 0] = -(kz[j][mask] / k0 / mus[j]) * 1j * np.sin(kz[j][mask] * ts[j])
 
             # Characteristic matrix of layer j for TM wave
             M_TM_j = np.zeros(shape + (2, 2), dtype=np.complex128)
 
-            M_TM_j[mask, 0, 0] = np.cos(kz[j][mask] * self.t[j])
-            M_TM_j[mask, 1, 1] = np.cos(kz[j][mask] * self.t[j])
-            M_TM_j[mask, 0, 1] = -(k0 * self.e[j] / kz[j][mask]) * 1j * np.sin(kz[j][mask] * self.t[j])
-            M_TM_j[mask, 1, 0] = -(kz[j][mask] / k0 / self.e[j]) * 1j * np.sin(kz[j][mask] * self.t[j])
+            M_TM_j[mask, 0, 0] = np.cos(kz[j][mask] * ts[j])
+            M_TM_j[mask, 1, 1] = np.cos(kz[j][mask] * ts[j])
+            M_TM_j[mask, 0, 1] = -(k0 * es[j] / kz[j][mask]) * 1j * np.sin(kz[j][mask] * ts[j])
+            M_TM_j[mask, 1, 0] = -(kz[j][mask] / k0 / es[j]) * 1j * np.sin(kz[j][mask] * ts[j])
 
             # multiply
             M_TE_net = np.matmul(M_TE_net, M_TE_j)
             M_TM_net = np.matmul(M_TM_net, M_TM_j)
-
-        # end_time = time.time()
-        # print(f"Finished computing characteristic matrices in {end_time-start_time:.3f}")
 
         return {"TE": M_TE_net, "TM": M_TM_net}
 
@@ -634,7 +489,7 @@ class FilterDetector:
             mask & (kz.imag < 0.0)
         ]  # choose the root with positive imaginary part
 
-        T_coeff = self.transmission(ll, ux, uy)
+        T_coeff = self.transmission(ll, ux, uy, use_HgCdTe=use_nHgCdTe)
         Transmission_TE = T_coeff["TE"]
         Transmission_TM = T_coeff["TM"]
 
@@ -686,3 +541,38 @@ class FilterDetector:
         # print("Total calculation done in ", end_time - start_time, " seconds")
 
         return (Ex, Ey, Ez)
+
+    def transmitted_power(self, ll, theta):
+        """
+        Computes the transmitted power fraction through the AR coating.
+
+        Parameters
+        ----------
+        ll : float
+            Vacuum wavelength (in microns).
+        theta : np.ndarray of float
+            The angles of incidence
+
+        Returns
+        -------
+        power_S, power_P : np.ndarray
+            The transmitted power fractions in each polarization at the indicated incidence
+            angles.
+
+        """
+
+        # refraction information
+        alpha = np.sin(theta)
+        n = n_mercadtel(ll)
+        costheta_inc = np.cos(theta)
+        costheta_tr = np.sqrt(1.0 - alpha**2 / n**2)
+
+        # Flux scales with Ex^* Hy - Ey^* * Hx
+        #
+        # TE: flux ~ |Ex|^2 Re {cos theta * n}
+        # TM: flux ~ |Hx|^2 Re {cos theta / n}
+        cm = self.transmission(ll, np.zeros_like(theta), alpha)
+        power_S = np.abs(cm["TE"]) ** 2 * np.real(costheta_tr * n) / costheta_inc
+        power_P = np.abs(cm["TM"]) ** 2 * np.real(costheta_tr / n) / costheta_inc
+
+        return power_S, power_P
