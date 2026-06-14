@@ -194,9 +194,11 @@ def n_ice(wavelength):
 
     """
 
-    # Need to add code to compute the index of refraction of ice; for now just return
-    # a real-valued placeholder encoded as a complex number to match the API.
-    return 1.3 + 0j
+    # Kofman et al, ApJ 875, 131 (2019)
+    # amorphous ice deposited at 90 K
+    # This is a visible paper, so the formula doesn't include the drop as you approach the water
+    # bands in the IR. We may update this later.
+    return np.sqrt(1 + 0.280 / (1 - (0.071 / wavelength)**2) +  0.291 / (1 - (0.134 / wavelength)**2)) + 0j
 
 
 ### end materials
