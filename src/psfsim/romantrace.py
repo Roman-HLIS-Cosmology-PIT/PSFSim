@@ -944,6 +944,7 @@ def _RomanRayBundle(
     idealmirror=False,
     outsca=None,
     errs=None,
+    savexy=False,
 ):
     """
     Carries out trace through RST optics.
@@ -990,6 +991,8 @@ def _RomanRayBundle(
           Warning: this can be big!
 
         - arr: np.ndarray, optional: 1D array of amplitudes of each basis mode.
+    savexy : bool, optional
+        Whether to save the final xy coordinates of the rays on the FPA.
 
     Returns
     -------
@@ -1009,6 +1012,8 @@ def _RomanRayBundle(
         If ``errs["grad"]`` is True, then also provides:
             RB.grad : shape (N,N,basis_set.N), derivative of s with respect to each surface error
             parameter.
+        If ''savexy'' is True, then also provides:
+            RB.xyFPA : shape (N,N,2), the x and y coordinates of the rays on the FPA in mm.
 
     """
 
@@ -1416,6 +1421,8 @@ def _RomanRayBundle(
         )
 
     xyFPA, _, _ = RB.intersect_surface(TrFPA, Rinv=0.0, K=0.0, update=True)
+    if savexy:
+        RB.xyFPA = xyFPA
     RB.u = np.einsum("ij,abj->abi", np.linalg.inv(TrFPA), RB.p)[:, :, 1:3]
     if hasE:
         RB.E = np.einsum("ij,abkj->abki", np.linalg.inv(TrFPA), RB.E)
@@ -1467,6 +1474,7 @@ def RomanRayBundle(
     outsca=None,
     errs=None,
     ghostpath=False,
+    savexy=False,
 ):
     """
     Carries out trace through RST optics.
@@ -1512,6 +1520,8 @@ def RomanRayBundle(
         - arr: np.ndarray, optional: 1D array of amplitudes of each basis mode.
     ghostpath : bool, optional
         Whether to include ghost from filter reflections between S1/S2. Default is False.
+    savexy : bool, optional
+        Whether to save the final xy coordinates of the rays on the FPA.
 
     Returns
     -------
@@ -1532,6 +1542,8 @@ def RomanRayBundle(
         If ``errs["grad"]`` is True, then also provides:
             RB.grad : shape (N,N,basis_set.N), derivative of s with respect to each surface error
             parameter.
+        If ''savexy'' is True, then also provides:
+            RB.xyFPA : shape (N,N,2), the x and y coordinates of the rays on the FPA in mm.
 
     See Also
     --------
@@ -1565,6 +1577,7 @@ def RomanRayBundle(
         outsca=outsca,
         errs=errs,
         ghostpath=False,
+        savexy=False,
     )
     # Now figure out which pixels we need to increase the resolution.
     r = 40.0 / width * N  # radius of search in pixels
@@ -1592,6 +1605,7 @@ def RomanRayBundle(
         ovsamp=ovsamp,
         idealmirror=True,
         ghostpath=ghostpath,
+        savexy=savexy,
     )
 
     new_values = _apply_lanczos_reweighting(
