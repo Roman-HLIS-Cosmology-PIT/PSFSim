@@ -1346,9 +1346,7 @@ def _RomanRayBundle(
             ],
         )
 
-
-
-    # START ELLE 
+    # START ELLE
     # so we'll start by putting things here. if successful, this will replace lines 1235-1266
     # aka replace first comment about S1 through final intersect/refract through s2
 
@@ -1363,10 +1361,10 @@ def _RomanRayBundle(
         bde=29.38268469198068,
         cde=173.6554980927907,
     )
-    Rinv1=-1.0 / 1500.0
-    K1=0.0
-    n_new1=n_Infrasil301(wlref)
-    activeZone1=[{"CIR": 52.65}]
+    Rinv1 = -1.0 / 1500.0
+    K1 = 0.0
+    n_new1 = n_Infrasil301(wlref)
+    activeZone1 = [{"CIR": 52.65}]
 
     # DEFINE/GET STUFF FOR S2
     S2 = build_transform_matrix(
@@ -1378,10 +1376,9 @@ def _RomanRayBundle(
         cde=173.6554980927907,
     )
     Rinv2 = -1.0 / 1499.31453814
-    K2=0.0
-    n_new2=1.0
-    activeZone2=[{"CIR": 52.65}]
- 
+    K2 = 0.0
+    n_new2 = 1.0
+    activeZone2 = [{"CIR": 52.65}]
 
     # now for int/refract/reflect including ghost
     # step 1... see photo
@@ -1391,15 +1388,12 @@ def _RomanRayBundle(
     # ghost time
     if ghostpath:
         RB.intersect_surface_and_reflect(S2, Rinv=Rinv2, K=K2, activeZone=activeZone2)
-        RB.intersect_surface_and_reflect(S1, Rinv=Rinv1, K=K1,  activeZone=activeZone1)
-    
-
+        RB.intersect_surface_and_reflect(S1, Rinv=Rinv1, K=K1, activeZone=activeZone1)
 
     # END ELLE. down here is the refract through S2!
     _, _, L = RB.intersect_surface(S2, Rinv=Rinv2, K=0.0, update=False)
     RB.s += L * (n_Infrasil301(wl) - n_Infrasil301(wlref))
     RB.intersect_surface_and_refract(S2, Rinv=Rinv2, K=K2, n_new=n_new2, activeZone=activeZone2)
-
 
     # FPA
     TrFPA = build_transform_matrix(
@@ -1456,7 +1450,9 @@ def _RomanRayBundle(
 
     return RB
 
+
 # ELLE DOING STUFF HERE TOO
+
 
 def RomanRayBundle(
     xan,
