@@ -1383,12 +1383,13 @@ def _RomanRayBundle(
     # now for int/refract/reflect including ghost
     # step 1... see photo
     # int/refract through S1
-    RB.intersect_surface_and_refract(S1, Rinv=Rinv1, K=K1, n_new=n_new1, activeZone=activeZone1)
+    gd1 = {"grad": RB.grad, "arr": arr, "surface": "S1"} if grad else None
+    RB.intersect_surface_and_refract(S1, Rinv=Rinv1, K=K1, n_new=n_new1, activeZone=activeZone1, gd=gd1)
 
     # ghost time
     if ghostpath:
         RB.intersect_surface_and_reflect(S2, Rinv=Rinv2, K=K2, activeZone=activeZone2)
-        RB.intersect_surface_and_reflect(S1, Rinv=Rinv1, K=K1, activeZone=activeZone1)
+        RB.intersect_surface_and_reflect(S1, Rinv=Rinv1, K=K1, activeZone=activeZone1, gd=gd1)
 
     # END ELLE. down here is the refract through S2!
     _, _, L = RB.intersect_surface(S2, Rinv=Rinv2, K=0.0, update=False)
@@ -1572,8 +1573,8 @@ def RomanRayBundle(
         idealmirror=idealmirror,
         outsca=outsca,
         errs=errs,
-        ghostpath=False,
-        savexy=False,
+        ghostpath=ghostpath,
+        savexy=savexy,
     )
     # Now figure out which pixels we need to increase the resolution.
     r = 40.0 / width * N  # radius of search in pixels
@@ -1601,7 +1602,7 @@ def RomanRayBundle(
         ovsamp=ovsamp,
         idealmirror=True,
         ghostpath=ghostpath,
-        savexy=savexy,
+        savexy=False,
     )
 
     new_values = _apply_lanczos_reweighting(
