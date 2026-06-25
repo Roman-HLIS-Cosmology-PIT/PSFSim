@@ -221,6 +221,76 @@ def build_transform_matrix(xde=0.0, yde=0.0, zde=0.0, ade=0.0, bde=0.0, cde=0.0,
     return R
 
 
+# Elle linear regression attempts
+
+
+# start with RB.xyFPA vs RB.u
+def xyFPA_from_u(RB, thres):
+    """
+    Performs a linear regression of xyFPA vs u for a given RayBundle object and open threshold;
+    returns a least squares coefficient array as a dictionary.
+
+    Arguments
+    ---------
+    RB: RayBundle object
+        ray bundle of choice
+    thres: int
+        open ray threshold (fraction of rays in bundle that hit detector)... between 0 and 1
+
+    Returns
+    --------
+    coeff: dict
+        coefficient array as a dictionary, where:
+            coeff["Slope"] is a (2, 2) matrix
+            coeff["Intercept"] is a (2,) vector
+
+    """
+    open_rays = np.where(RB.open > thres)
+    u = RB.u[:, :, :][open_rays]
+    xyFPA = RB.xyFPA[:, :, :][open_rays]
+    u_stacked = np.hstack([u, np.ones([u.shape[0], 1], u.dtype)])
+    M = np.linalg.lstsq(u_stacked, xyFPA, rcond=None)[0]
+    A = M[0:2, :]
+    b = M[2, :]
+    coeff = {}
+    coeff["Slope:"] = A
+    coeff["Intercept:"] = b
+    return coeff
+
+
+# next RB.u vs RB.xyi
+def u_from_xyi(RB, thres):
+    """
+    Performs a linear regression of u vs xyi for a given RayBundle object and open threshold;
+    returns a least squares coefficient array as a dictionary.
+
+    Arguments
+    ---------
+    RB: RayBundle object
+        ray bundle of choice
+    thres: int
+        open ray threshold (fraction of rays in bundle that hit detector)... between 0 and 1
+
+    Returns
+    --------
+    coeff: dict
+        coefficient array as a dictionary, where:
+            coeff["Slope"] is a (2, 2) matrix
+            coeff["Intercept"] is a (2,) vector
+    """
+    open_rays = np.where(RB.open > thres)
+    xyi = RB.xyi[:, :, :][open_rays]
+    u = RB.u[:, :, :][open_rays]
+    xyi_stacked = np.hstack([xyi, np.ones([u.shape[0], 1], u.dtype)])
+    M = np.linalg.lstsq(xyi_stacked, u, rcond=None)[0]
+    A = M[0:2, :]
+    b = M[2, :]
+    coeff = {}
+    coeff["Slope:"] = A
+    coeff["Intercept:"] = b
+    return coeff
+
+
 class RayBundle:
     """
     Class defining a ray bundle, constructed from a field position.
@@ -1576,6 +1646,7 @@ def RomanRayBundle(
         ghostpath=ghostpath,
         savexy=savexy,
     )
+
     # Now figure out which pixels we need to increase the resolution.
     r = 40.0 / width * N  # radius of search in pixels
     rceil = int(np.ceil(r))
