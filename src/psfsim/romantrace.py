@@ -253,8 +253,8 @@ def xyFPA_from_u(RB, thres):
     A = M[0:2, :]
     b = M[2, :]
     coeff = {}
-    coeff["Slope:"] = A
-    coeff["Intercept:"] = b
+    coeff["Slope"] = A
+    coeff["Intercept"] = b
     return coeff
 
 
@@ -286,8 +286,8 @@ def u_from_xyi(RB, thres):
     A = M[0:2, :]
     b = M[2, :]
     coeff = {}
-    coeff["Slope:"] = A
-    coeff["Intercept:"] = b
+    coeff["Slope"] = A
+    coeff["Intercept"] = b
     return coeff
 
 
@@ -354,6 +354,21 @@ class RayBundle:
         The electric field (optional, 4D: 2D for array, 1D for input pol, 1D for output pol).
         Shape is (`N1`, `N2`, 2, 2).
         None if not used.
+
+    Methods
+    -------
+    intersect_surface
+        Gets intersection of a ray bundle and a conic section surface.
+    mask
+        Masks incoming rays at a given surface.
+    intersect_surface_and_reflect
+        Propagates rays to a surface and performs a reflection.
+    intersect_surface_and_refract
+        Propagates rays to a surface and performs a refraction.
+    pad
+        Pads the ray bundle to a target size, centering the current data.
+    fit
+        Does a 2D linear fit to the bundle from a given field point.
 
     """
 
@@ -997,6 +1012,36 @@ class RayBundle:
 
         return padded_rb
 
+    def fit(self, mode):
+        """
+        Does a 2D linear fit to the bundle from a given field point.
+
+        Parameters
+        ----------
+        mode : str
+            Which type of fit to do. Options are "xyFPA_from_u" and "u_from_xyi".
+
+        Returns
+        -------
+        dict
+            Keys are ``"Slope"`` (np.ndarray, shape (2, 2)) and ``"Intercept"`` (np.ndarray, shape (2,)).
+            The fit is ``output ~ Slope @ input + Intercept``.
+
+        """
+
+        # xyFPA from u:
+        if mode.lower() == "xyfpa_from_u":
+            if not hasattr(self, "xyFPA"):
+                raise AttributeError("This mode requires xyFPA to be set. Use savexy=True.")
+            return xyFPA_from_u(self, 0.5)
+
+        # u from xyi:
+        if mode.lower() == "u_from_xyi":
+            return u_from_xyi(self, 0.5)
+
+        # fallback
+        raise ValueError("Unrecognized mode.")
+
 
 def _RomanRayBundle(
     xan,
@@ -1496,7 +1541,8 @@ def _RomanRayBundle(
     if hires is None:
         RB.x_out = np.mean(xyFPA[N // 2 - 1 : N // 2 + 1, N // 2 - 1 : N // 2 + 1, :], axis=(0, 1))
     else:
-        RB.x_out = np.mean(xyFPA, axis=(0, 1))
+        # this is robust against having no rays at all
+        RB.x_out = np.mean(xyFPA, axis=(0, 1)) if np.shape(xyFPA)[0] else np.zeros((2,))
     RB.s += np.sum(RB.u * (RB.x_out[None, None, :] - xyFPA), axis=-1)
 
     # now get which chip we want to project onto
@@ -1564,7 +1610,7 @@ def RomanRayBundle(
         If used, this will give a 2x2 distortion matrix, used so that the output exit pupil is
         on a square grid. Default is a square grid on the entrance pupil.
     ovsamp : int, optional
-        Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
+        Oversamples cells in the entrance pupil by this factor.
     a_lanczos : int, optional
         The "a" parameter for Lanczos interpolation; this controls the size of the kernel. Default is 3.
     idealgeom : bool, optional
@@ -1694,7 +1740,7 @@ def RomanRayBundle(
     return RB
 
 
-def demo(writefiles=False):
+def demo(writefiles=False, savexy=False):
     """
     Demo and test functions for romantrace.
 
@@ -1702,10 +1748,13 @@ def demo(writefiles=False):
     ----------
     writefiles : bool, optional
         Write the output files?
+    savexy : bool, optional
+        Save the final (x, y) in the returned RomanRayBundle object?
 
     Returns
     -------
-    None
+    RomanRayBundle
+        The ray bundle from this run.
 
     """
 
@@ -1774,7 +1823,9 @@ def demo(writefiles=False):
     )
 
     # pupils
-    RB = RomanRayBundle(-0.399, 0.208, 512, "W", wl=9.27e-4, hasE=True, idealgeom=True, idealmirror=True)
+    RB = RomanRayBundle(
+        -0.399, 0.208, 512, "W", wl=9.27e-4, hasE=True, idealgeom=True, idealmirror=True, savexy=savexy
+    )
     if writefiles:
         fits.PrimaryHDU(RB.open.astype(np.int8)).writeto("temp.fits", overwrite=True)
         fits.PrimaryHDU(np.where(RB.open, RB.s - np.median(RB.s), 0)).writeto("temp-s.fits", overwrite=True)
@@ -1855,3 +1906,5 @@ def demo(writefiles=False):
     )
     if writefiles:
         fits.PrimaryHDU(im).writeto("pupil_diagnostics.fits", overwrite=True)
+
+    return RB
