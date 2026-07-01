@@ -1,10 +1,37 @@
 import numpy as np
+import pytest
 from psfsim import romantrace
 
 
 def test_romantrace():
     """Test function for romantrace."""
-    romantrace.demo(writefiles=False)
+    rb = romantrace.demo(writefiles=False)
+    coefs = rb.fit("u_from_xyi")
+    print(coefs)
+
+    # scale matrix per pixel (1 pix = 0.01 mm, inverted)
+    m = -coefs["Slope"] * 648000.0 / np.pi * 0.01
+    assert 0.1055 < m[0, 0] < 0.1075
+    assert -0.0035 < m[0, 1] < -0.0015
+    assert -0.0035 < m[1, 0] < -0.0015
+    assert 0.102 < m[1, 1] < 0.104
+    assert -0.182 < coefs["Intercept"][0] < -0.180
+    assert -0.320 < coefs["Intercept"][1] < -0.317
+
+    # these shouldn't work
+    with pytest.raises(AttributeError):
+        coefs = rb.fit("xyfpa_from_u")
+    with pytest.raises(ValueError):
+        coefs = rb.fit("6,7")
+
+    # this should enable xyfpa_from_u
+    rb = romantrace.demo(writefiles=False, savexy=True)
+    coefs = rb.fit("xyfpa_from_u")
+    print(coefs)
+    assert np.all(np.abs(coefs["Slope"]) < 0.08)  # less than 80 microns from best focus
+    # where the rays land
+    assert -133.1 < coefs["Intercept"][0] < -132.8
+    assert -72.6 < coefs["Intercept"][1] < -72.4
 
 
 def test_lanczos_weight():
