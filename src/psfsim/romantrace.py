@@ -221,6 +221,76 @@ def build_transform_matrix(xde=0.0, yde=0.0, zde=0.0, ade=0.0, bde=0.0, cde=0.0,
     return R
 
 
+# Elle linear regression attempts
+
+
+# start with RB.xyFPA vs RB.u
+def xyFPA_from_u(RB, thres):
+    """
+    Performs a linear regression of xyFPA vs u for a given RayBundle object and open threshold;
+    returns a least squares coefficient array as a dictionary.
+
+    Arguments
+    ---------
+    RB: RayBundle object
+        ray bundle of choice
+    thres: int
+        open ray threshold (fraction of rays in bundle that hit detector)... between 0 and 1
+
+    Returns
+    --------
+    coeff: dict
+        coefficient array as a dictionary, where:
+            coeff["Slope"] is a (2, 2) matrix
+            coeff["Intercept"] is a (2,) vector
+
+    """
+    open_rays = np.where(RB.open > thres)
+    u = RB.u[:, :, :][open_rays]
+    xyFPA = RB.xyFPA[:, :, :][open_rays]
+    u_stacked = np.hstack([u, np.ones([u.shape[0], 1], u.dtype)])
+    M = np.linalg.lstsq(u_stacked, xyFPA, rcond=None)[0]
+    A = M[0:2, :]
+    b = M[2, :]
+    coeff = {}
+    coeff["Slope"] = A
+    coeff["Intercept"] = b
+    return coeff
+
+
+# next RB.u vs RB.xyi
+def u_from_xyi(RB, thres):
+    """
+    Performs a linear regression of u vs xyi for a given RayBundle object and open threshold;
+    returns a least squares coefficient array as a dictionary.
+
+    Arguments
+    ---------
+    RB: RayBundle object
+        ray bundle of choice
+    thres: int
+        open ray threshold (fraction of rays in bundle that hit detector)... between 0 and 1
+
+    Returns
+    --------
+    coeff: dict
+        coefficient array as a dictionary, where:
+            coeff["Slope"] is a (2, 2) matrix
+            coeff["Intercept"] is a (2,) vector
+    """
+    open_rays = np.where(RB.open > thres)
+    xyi = RB.xyi[:, :, :][open_rays]
+    u = RB.u[:, :, :][open_rays]
+    xyi_stacked = np.hstack([xyi, np.ones([u.shape[0], 1], u.dtype)])
+    M = np.linalg.lstsq(xyi_stacked, u, rcond=None)[0]
+    A = M[0:2, :]
+    b = M[2, :]
+    coeff = {}
+    coeff["Slope"] = A
+    coeff["Intercept"] = b
+    return coeff
+
+
 class RayBundle:
     """
     Class defining a ray bundle, constructed from a field position.
@@ -284,6 +354,21 @@ class RayBundle:
         The electric field (optional, 4D: 2D for array, 1D for input pol, 1D for output pol).
         Shape is (`N1`, `N2`, 2, 2).
         None if not used.
+
+    Methods
+    -------
+    intersect_surface
+        Gets intersection of a ray bundle and a conic section surface.
+    mask
+        Masks incoming rays at a given surface.
+    intersect_surface_and_reflect
+        Propagates rays to a surface and performs a reflection.
+    intersect_surface_and_refract
+        Propagates rays to a surface and performs a refraction.
+    pad
+        Pads the ray bundle to a target size, centering the current data.
+    fit
+        Does a 2D linear fit to the bundle from a given field point.
 
     """
 
@@ -927,6 +1012,36 @@ class RayBundle:
 
         return padded_rb
 
+    def fit(self, mode):
+        """
+        Does a 2D linear fit to the bundle from a given field point.
+
+        Parameters
+        ----------
+        mode : str
+            Which type of fit to do. Options are "xyFPA_from_u" and "u_from_xyi".
+
+        Returns
+        -------
+        dict
+            Keys are ``"Slope"`` (np.ndarray, shape (2, 2)) and ``"Intercept"`` (np.ndarray, shape (2,)).
+            The fit is ``output ~ Slope @ input + Intercept``.
+
+        """
+
+        # xyFPA from u:
+        if mode.lower() == "xyfpa_from_u":
+            if not hasattr(self, "xyFPA"):
+                raise AttributeError("This mode requires xyFPA to be set. Use savexy=True.")
+            return xyFPA_from_u(self, 0.5)
+
+        # u from xyi:
+        if mode.lower() == "u_from_xyi":
+            return u_from_xyi(self, 0.5)
+
+        # fallback
+        raise ValueError("Unrecognized mode.")
+
 
 def _RomanRayBundle(
     xan,
@@ -939,10 +1054,12 @@ def _RomanRayBundle(
     jacobian=None,
     hires=None,
     ovsamp=6,
+    ghostpath=False,
     idealgeom=False,
     idealmirror=False,
     outsca=None,
     errs=None,
+    savexy=False,
 ):
     """
     Carries out trace through RST optics.
@@ -969,6 +1086,8 @@ def _RomanRayBundle(
         ``hires[0]`` is a 1D array of y-values and ``hires[1]`` is a 1D array of x-values.
     ovsamp : int, optional
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
+    ghostpath : bool, optional
+        Whether to include ghost from filter reflections between S1/S2. Default is False.
     idealgeom : bool, optional
         Forces the design model rather than with the best-fit offsets.
     idealmirror : bool, optional
@@ -987,6 +1106,8 @@ def _RomanRayBundle(
           Warning: this can be big!
 
         - arr: np.ndarray, optional: 1D array of amplitudes of each basis mode.
+    savexy : bool, optional
+        Whether to save the final xy coordinates of the rays on the FPA.
 
     Returns
     -------
@@ -1006,6 +1127,8 @@ def _RomanRayBundle(
         If ``errs["grad"]`` is True, then also provides:
             RB.grad : shape (N,N,basis_set.N), derivative of s with respect to each surface error
             parameter.
+        If ''savexy'' is True, then also provides:
+            RB.xyFPA : shape (N,N,2), the x and y coordinates of the rays on the FPA in mm.
 
     """
 
@@ -1338,24 +1461,27 @@ def _RomanRayBundle(
             ],
         )
 
-    # Filter - Surface S1
-    RB.intersect_surface_and_refract(
-        build_transform_matrix(
-            xde=531.5125171153529,
-            yde=-920.606684502614,
-            zde=-539.1713886876893,
-            ade=102.76851389522,
-            bde=29.38268469198068,
-            cde=173.6554980927907,
-        ),
-        Rinv=-1.0 / 1500.0,
-        K=0.0,
-        n_new=n_Infrasil301(wlref),
-        activeZone=[{"CIR": 52.65}],
-        gd={"grad": RB.grad, "arr": arr, "surface": "S1"} if grad else None,
-    )
+    # START ELLE
+    # so we'll start by putting things here. if successful, this will replace lines 1235-1266
+    # aka replace first comment about S1 through final intersect/refract through s2
 
-    # Filter - Surface S2
+    # testing just putting transformation matrices/defs first then having refract/reflect after
+
+    # DEFINE/GET STUFF FOR S1
+    S1 = build_transform_matrix(
+        xde=531.5125171153529,
+        yde=-920.606684502614,
+        zde=-539.1713886876893,
+        ade=102.76851389522,
+        bde=29.38268469198068,
+        cde=173.6554980927907,
+    )
+    Rinv1 = -1.0 / 1500.0
+    K1 = 0.0
+    n_new1 = n_Infrasil301(wlref)
+    activeZone1 = [{"CIR": 52.65}]
+
+    # DEFINE/GET STUFF FOR S2
     S2 = build_transform_matrix(
         xde=536.4189215396419,
         yde=-929.1048262479633,
@@ -1365,12 +1491,25 @@ def _RomanRayBundle(
         cde=173.6554980927907,
     )
     Rinv2 = -1.0 / 1499.31453814
+    K2 = 0.0
+    n_new2 = 1.0
+    activeZone2 = [{"CIR": 52.65}]
+
+    # now for int/refract/reflect including ghost
+    # step 1... see photo
+    # int/refract through S1
+    gd1 = {"grad": RB.grad, "arr": arr, "surface": "S1"} if grad else None
+    RB.intersect_surface_and_refract(S1, Rinv=Rinv1, K=K1, n_new=n_new1, activeZone=activeZone1, gd=gd1)
+
+    # ghost time
+    if ghostpath:
+        RB.intersect_surface_and_reflect(S2, Rinv=Rinv2, K=K2, activeZone=activeZone2)
+        RB.intersect_surface_and_reflect(S1, Rinv=Rinv1, K=K1, activeZone=activeZone1, gd=gd1)
+
+    # END ELLE. down here is the refract through S2!
     _, _, L = RB.intersect_surface(S2, Rinv=Rinv2, K=0.0, update=False)
     RB.s += L * (n_Infrasil301(wl) - n_Infrasil301(wlref))
-    # comment - the ray trace follows the geometric path at wlref, but we include the wavelength dependence
-    # in the path length.
-    # This way, the DCR does not appear in the astrometry, rather it is a decentering of the PSF.
-    RB.intersect_surface_and_refract(S2, Rinv=Rinv2, K=0.0, n_new=1.0, activeZone=[{"CIR": 52.65}])
+    RB.intersect_surface_and_refract(S2, Rinv=Rinv2, K=K2, n_new=n_new2, activeZone=activeZone2)
 
     # FPA
     TrFPA = build_transform_matrix(
@@ -1392,6 +1531,8 @@ def _RomanRayBundle(
         )
 
     xyFPA, _, _ = RB.intersect_surface(TrFPA, Rinv=0.0, K=0.0, update=True)
+    if savexy:
+        RB.xyFPA = xyFPA
     RB.u = np.einsum("ij,abj->abi", np.linalg.inv(TrFPA), RB.p)[:, :, 1:3]
     if hasE:
         RB.E = np.einsum("ij,abkj->abki", np.linalg.inv(TrFPA), RB.E)
@@ -1400,7 +1541,8 @@ def _RomanRayBundle(
     if hires is None:
         RB.x_out = np.mean(xyFPA[N // 2 - 1 : N // 2 + 1, N // 2 - 1 : N // 2 + 1, :], axis=(0, 1))
     else:
-        RB.x_out = np.mean(xyFPA, axis=(0, 1))
+        # this is robust against having no rays at all
+        RB.x_out = np.mean(xyFPA, axis=(0, 1)) if np.shape(xyFPA)[0] else np.zeros((2,))
     RB.s += np.sum(RB.u * (RB.x_out[None, None, :] - xyFPA), axis=-1)
 
     # now get which chip we want to project onto
@@ -1426,6 +1568,9 @@ def _RomanRayBundle(
     return RB
 
 
+# ELLE DOING STUFF HERE TOO
+
+
 def RomanRayBundle(
     xan,
     yan,
@@ -1441,6 +1586,8 @@ def RomanRayBundle(
     idealmirror=False,
     outsca=None,
     errs=None,
+    ghostpath=False,
+    savexy=False,
 ):
     """
     Carries out trace through RST optics.
@@ -1463,7 +1610,7 @@ def RomanRayBundle(
         If used, this will give a 2x2 distortion matrix, used so that the output exit pupil is
         on a square grid. Default is a square grid on the entrance pupil.
     ovsamp : int, optional
-        Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
+        Oversamples cells in the entrance pupil by this factor.
     a_lanczos : int, optional
         The "a" parameter for Lanczos interpolation; this controls the size of the kernel. Default is 3.
     idealgeom : bool, optional
@@ -1484,6 +1631,10 @@ def RomanRayBundle(
           Warning: this can be big!
 
         - arr: np.ndarray, optional: 1D array of amplitudes of each basis mode.
+    ghostpath : bool, optional
+        Whether to include ghost from filter reflections between S1/S2. Default is False.
+    savexy : bool, optional
+        Whether to save the final xy coordinates of the rays on the FPA.
 
     Returns
     -------
@@ -1504,6 +1655,8 @@ def RomanRayBundle(
         If ``errs["grad"]`` is True, then also provides:
             RB.grad : shape (N,N,basis_set.N), derivative of s with respect to each surface error
             parameter.
+        If ''savexy'' is True, then also provides:
+            RB.xyFPA : shape (N,N,2), the x and y coordinates of the rays on the FPA in mm.
 
     See Also
     --------
@@ -1536,7 +1689,10 @@ def RomanRayBundle(
         idealmirror=idealmirror,
         outsca=outsca,
         errs=errs,
+        ghostpath=ghostpath,
+        savexy=savexy,
     )
+
     # Now figure out which pixels we need to increase the resolution.
     r = 40.0 / width * N  # radius of search in pixels
     rceil = int(np.ceil(r))
@@ -1562,6 +1718,8 @@ def RomanRayBundle(
         hires=bdycells,
         ovsamp=ovsamp,
         idealmirror=True,
+        ghostpath=ghostpath,
+        savexy=False,
     )
 
     new_values = _apply_lanczos_reweighting(
@@ -1582,7 +1740,7 @@ def RomanRayBundle(
     return RB
 
 
-def demo(writefiles=False):
+def demo(writefiles=False, savexy=False):
     """
     Demo and test functions for romantrace.
 
@@ -1590,10 +1748,13 @@ def demo(writefiles=False):
     ----------
     writefiles : bool, optional
         Write the output files?
+    savexy : bool, optional
+        Save the final (x, y) in the returned RomanRayBundle object?
 
     Returns
     -------
-    None
+    RomanRayBundle
+        The ray bundle from this run.
 
     """
 
@@ -1662,7 +1823,9 @@ def demo(writefiles=False):
     )
 
     # pupils
-    RB = RomanRayBundle(-0.399, 0.208, 512, "W", wl=9.27e-4, hasE=True, idealgeom=True, idealmirror=True)
+    RB = RomanRayBundle(
+        -0.399, 0.208, 512, "W", wl=9.27e-4, hasE=True, idealgeom=True, idealmirror=True, savexy=savexy
+    )
     if writefiles:
         fits.PrimaryHDU(RB.open.astype(np.int8)).writeto("temp.fits", overwrite=True)
         fits.PrimaryHDU(np.where(RB.open, RB.s - np.median(RB.s), 0)).writeto("temp-s.fits", overwrite=True)
@@ -1743,3 +1906,5 @@ def demo(writefiles=False):
     )
     if writefiles:
         fits.PrimaryHDU(im).writeto("pupil_diagnostics.fits", overwrite=True)
+
+    return RB
