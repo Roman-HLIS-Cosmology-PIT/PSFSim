@@ -270,7 +270,7 @@ class GeometricOptics:
         self.mjd = mjd
         self.perturbations = None
         if cycle == 10:
-            self.perturbations = cycle10_perturbations(use_filter)
+            self.perturbations = {"arr": cycle10_perturbations(use_filter)}
 
         # Compute Distortion Matrix and dterminant
         self.distortionMatrix = self.compute_distortion_matrix(method="raytrace")

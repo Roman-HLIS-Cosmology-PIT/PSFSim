@@ -221,9 +221,6 @@ def build_transform_matrix(xde=0.0, yde=0.0, zde=0.0, ade=0.0, bde=0.0, cde=0.0,
     return R
 
 
-# Elle linear regression attempts
-
-
 # start with RB.xyFPA vs RB.u
 def xyFPA_from_u(RB, thres):
     """
@@ -762,7 +759,7 @@ class RayBundle:
                 if "grad" in gd:
                     gd["grad"][:, :, b.start + j] += 2 * mu_ * modes[:, :, j]
                 if "arr" in gd and gd["arr"] is not None:
-                    self.s += 2 * mu_ * modes[:, :, j] * gd["arr"][j]
+                    self.s += 2 * mu_ * modes[:, :, j] * gd["arr"][b.start + j]
             del modes  # save some space
 
         # flip direction
@@ -886,9 +883,9 @@ class RayBundle:
             modes = b.basis(xy[:, :, 0], xy[:, :, 1])
             for j in range(b.N):
                 if "grad" in gd:
-                    gd["grad"][:, :, b.start + j] += dncostheta * modes[:, :, j]
+                    gd["grad"][:, :, b.start + j] += dncostheta * modes[:, :, j] * 8.0 * fratio_scale**2
                 if "arr" in gd and gd["arr"] is not None:
-                    self.s += dncostheta * modes[:, :, j] * 8.0 * fratio_scale**2 * gd["arr"][j]
+                    self.s += dncostheta * modes[:, :, j] * 8.0 * fratio_scale**2 * gd["arr"][b.start + j]
             del modes  # save some space
 
         # new direction
@@ -1164,6 +1161,8 @@ def _RomanRayBundle(
         ovsamp=ovsamp,
         idealgeom=idealgeom,
     )
+    if errs is not None and not isinstance(errs, dict):
+        raise ValueError("errs must be a dictionary or None")
     grad = errs["grad"] if errs is not None and "grad" in errs else False
     RB.grad = np.zeros(np.shape(RB.s) + (basis_set.N,)) if grad else None
 
@@ -1461,9 +1460,8 @@ def _RomanRayBundle(
             ],
         )
 
-    # START ELLE
-    # so we'll start by putting things here. if successful, this will replace lines 1235-1266
-    # aka replace first comment about S1 through final intersect/refract through s2
+    # START ELLE (filter ghost development)
+    # replace first comment about S1 through final intersect/refract through s2
 
     # testing just putting transformation matrices/defs first then having refract/reflect after
 
@@ -1563,12 +1561,9 @@ def _RomanRayBundle(
                 if RB.grad is not None:
                     RB.grad[:, :, b.start + j] += dz[j] * w
                 if arr is not None:
-                    RB.s += arr[j] * dz[j] * w
+                    RB.s += arr[b.start + j] * dz[j] * w
 
     return RB
-
-
-# ELLE DOING STUFF HERE TOO
 
 
 def RomanRayBundle(
