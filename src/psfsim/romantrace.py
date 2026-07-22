@@ -756,7 +756,7 @@ class RayBundle:
             b = basis_set.basis[gd["surface"]]
             modes = b.basis(xy[:, :, 0], xy[:, :, 1])
             for j in range(b.N):
-                if "grad" in gd:
+                if "grad" in gd and gd["grad"] is not None:
                     gd["grad"][:, :, b.start + j] += 2 * mu_ * modes[:, :, j]
                 if "arr" in gd and gd["arr"] is not None:
                     self.s += 2 * mu_ * modes[:, :, j] * gd["arr"][b.start + j]
@@ -882,7 +882,7 @@ class RayBundle:
             b = basis_set.basis[gd["surface"]]
             modes = b.basis(xy[:, :, 0], xy[:, :, 1])
             for j in range(b.N):
-                if "grad" in gd:
+                if "grad" in gd and gd["grad"] is not None:
                     gd["grad"][:, :, b.start + j] += dncostheta * modes[:, :, j] * 8.0 * fratio_scale**2
                 if "arr" in gd and gd["arr"] is not None:
                     self.s += dncostheta * modes[:, :, j] * 8.0 * fratio_scale**2 * gd["arr"][b.start + j]
