@@ -34,6 +34,24 @@ def test_romantrace():
     assert -72.6 < coefs["Intercept"][1] < -72.4
 
 
+def test_romantrace_exceptions():
+    """Test that exceptions are raised correctly."""
+
+    # This was failing silently before --- now making sure it works.
+    with pytest.raises(ValueError):
+        romantrace.RomanRayBundle(
+            xan=0.0,
+            yan=0.0,
+            N=128,
+            usefilter="W",
+            wl=1.29e-3,
+            width=2500.0,
+            ovsamp=3,
+            a_lanczos=2,
+            errs=np.zeros(130),
+        )
+
+
 def test_lanczos_weight():
     """Test the Lanczos interpolation weight calculation function."""
     # Test at origin

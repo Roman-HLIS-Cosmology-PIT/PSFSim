@@ -413,12 +413,21 @@ class RomanBasisSet:
         self.N = np.sum([self.basis[j].N for j in self.basis])
 
 
-basis_set = RomanBasisSet(
+basis_set_default = RomanBasisSet(
     {
         "M1": {"ORDER": 6, "SKIP": 2},
         "M3": {"ORDERX": 5, "ORDERY": 4, "SKIP": 3},
         "FPA": {"ORDER": 1},
         "S1": {"ORDER": 6, "SKIP": 1},
+    }
+)
+
+basis_set_cy10 = RomanBasisSet(
+    {
+        "M1": {"ORDER": 6, "SKIP": 2},
+        "M3": {"ORDERX": 5, "ORDERY": 4, "SKIP": 3},
+        "FPA": {"ORDER": 1},
+        "S1": {"ORDER": 6, "SKIP": 2},
     }
 )
 

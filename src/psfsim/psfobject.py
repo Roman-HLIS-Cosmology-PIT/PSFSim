@@ -84,7 +84,14 @@ class PSFObject:
         Which cycle to use for the Zernike modes.
     mjd : float, optional
         The MJD to use for the optical model.
+    perturbations : dict, optional
+        If provided, replaces the default perturbations in the cycle model. Should contain the keys:
 
+        - ``arr``: np.ndarray
+
+        - ``basis``: psfsim.basis.RomanBasisSet
+
+          The number of basis modes, ``basis.N``, must equal the number of entries in ``arr``.
 
     Attributes
     ----------
@@ -125,6 +132,7 @@ class PSFObject:
         interference_filter=None,
         cycle=9,
         mjd=None,
+        perturbations=None,
     ):
         self.wavelength = wavelength
         self.npix_boundary = npix_boundary
@@ -168,6 +176,7 @@ class PSFObject:
             a_lanczos=a_lanczos,
             cycle=cycle,
             mjd=mjd,
+            perturbations=perturbations,
         )
         self.ux, self.uy = (
             self.optics.u_array(),

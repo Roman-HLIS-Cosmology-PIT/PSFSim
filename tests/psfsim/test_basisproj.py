@@ -1,19 +1,24 @@
 """Test for basis function-based surface errors."""
 
 import numpy as np
+import pytest
 from astropy.io import fits
 from psfsim.aberration_models import (
     aberration_transfer_matrix,
     aberration_transfer_matrix_svd,
     display_aberration_gradients,
 )
+from psfsim.basis import RomanBasisSet
+from psfsim.basis import basis_set_default as basis_set
 from psfsim.romantrace import RomanRayBundle
 
 
 def test_grad(tmp_path):
     """Gradient test."""
 
-    RB = RomanRayBundle(-0.399, 0.208, 128, "W", wl=9.27e-4, hasE=True, errs={"grad": True})
+    RB = RomanRayBundle(
+        -0.399, 0.208, 128, "W", wl=9.27e-4, hasE=True, errs={"grad": True, "basis": basis_set}
+    )
     assert np.shape(RB.grad)[:2] == (128, 128)
 
     # check the aberration transfer matrices
@@ -42,6 +47,22 @@ def test_grad(tmp_path):
         str(tmp_path) + "/transfer_svd.fits", overwrite=True
     )
     assert np.allclose(t.reshape((-1, np.shape(Vh)[-1])), U @ np.diag(S) @ Vh)
+
+    # ... and that they complain if too many dofs
+    with pytest.raises(ValueError):
+        aberration_transfer_matrix_svd(
+            use_filter="W",
+            nn=64,
+            n_zernike=4,
+            basis=RomanBasisSet(
+                {
+                    "M1": {"ORDER": 6, "SKIP": 2},
+                    "M3": {"ORDERX": 5, "ORDERY": 4, "SKIP": 3},
+                    "FPA": {"ORDER": 7},
+                    "S1": {"ORDER": 6, "SKIP": 2},
+                }
+            ),
+        )
 
     # Now check that the pictures are right
     display_aberration_gradients(str(tmp_path) + "/grad.fits")
