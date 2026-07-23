@@ -23,6 +23,6 @@ def test_ghost():
     print(coef)
 
     # test (u, v) from ray at center of the entrance
-    assert np.all(np.abs(coef["Intercept"] - np.array([ 0.11465909, -0.22080707])) < 1.0e-3)
+    assert np.all(np.abs(coef["Intercept"] - np.array([0.11465909, -0.22080707])) < 1.0e-3)
     # now the slope: distortion should be < 2%
     assert np.all(np.abs(1.9e4 * coef["Slope"] + np.identity(2)) < 0.02)

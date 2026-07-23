@@ -548,8 +548,10 @@ class GeometricOptics:
             zernCoeff = altgriddata(points, zernCoeffsToInterpolate, (self.scax, self.scay))
             nZern, mZern = zernike.noll_to_zernike(i + 1)
             # print(">>>", zernike.zernike(nZern, mZern, self.urhoPolar, self.uthetaPolar))
-            path_diff -= zernCoeff * self.wavelength * zernike.zernike(
-                nZern, mZern, 2 * self.focalLength * self.urhoPolar, self.uthetaPolar
+            path_diff -= (
+                zernCoeff
+                * self.wavelength
+                * zernike.zernike(nZern, mZern, 2 * self.focalLength * self.urhoPolar, self.uthetaPolar)
             )
             # - sign since OPD in the file has a sign difference
             # need the conversion to microns --- thanks Claude!
