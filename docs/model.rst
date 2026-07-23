@@ -63,6 +63,36 @@ The scripts that computed these are in the folders (note these scripts are not r
 
   - `convert_cycle10.py <../scripts/cycle10/convert_cycle10.py>`_ : Generates the best-fit surface perturbations. (The resulting files are in ``src/psfsim/data/cycle10_perturbations.csv``; that is a csv file where each column represents a filter band, and the rows represent each of the surface perturbation modes; there are 130 in total for Cycle 10.)
 
+Cycles >=10 have built-in perturbations. In several functions, including the constructors for the 
+classes ``psfsim.opticspsf.GeometricOptics`` and ``psfsim.psfobject.PSFObject``, and the 
+``compute_poly_psf`` method of ``psfsim.polychrom.PolychromaticPSF``, the time dependence is specified 
+by the optional ``mjd`` keyword (in the future, this will look up time-dependent parameters). You can 
+also override the model by using the ``perturbations`` keyword:
+
+.. code-block:: python
+
+    # code to turn off the basis function perturbations
+
+    from psfsim.basis import basis_set_cy10  # need to specify the basis set
+    from psfsim.psfobject import PSFObject
+
+    obj_nopert = PSFObject(
+        4,  # the SCA
+        20.15,  # x (in mm)
+        5.12,  # y (in mm)
+        wavelength=1.35,  # in microns
+        postage_stamp_size=31,  # native pixels
+        ovsamp=6,  # oversampling of the native pixels
+        use_filter="J",
+        npix_boundary=1,
+        cycle=10,  # the model cycle number
+        perturbations={
+            "arr": np.zeros(basis_set_cy10.N),  # this makes a vector of zeros
+            "basis": basis_set_cy10,  # the basis set to use
+        },
+    )     
+
+
 Surface coatings
 ################
 

@@ -80,9 +80,6 @@ def test_geometricoptics10():
     print(np.count_nonzero(g.pupil_mask > 0))
     assert np.shape(x) == (2048, 2048)
     iqr = np.nanpercentile(x, 75) - np.nanpercentile(x, 25)
-    from astropy.io import fits
-
-    fits.PrimaryHDU(x).writeto("pd.fits", overwrite=True)
     assert iqr > 0.03
     assert iqr < 0.20  # includes tip-tilt
 
