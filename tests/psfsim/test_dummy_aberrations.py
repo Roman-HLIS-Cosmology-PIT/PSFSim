@@ -4,7 +4,7 @@ from urllib.request import urlretrieve
 
 import numpy as np
 from psfsim.aberration_models import extract_basis_coefs
-from psfsim.basis import basis_set
+from psfsim.basis import basis_set_default as basis_set
 
 
 def test_extraction(tmp_path):

@@ -2,7 +2,6 @@ import numpy as np
 import scipy
 from astropy.io import fits
 
-from .basis import basis_set
 from .mirror_properties import reflect_RB_model
 from .offsets import fbias_offset, fpa_offset, sm_offset
 from .wfi_data import scapos
@@ -704,7 +703,10 @@ class RayBundle:
             `CIR``, ``REX``, ``REY``, ``ADX``, ``ADY``, and ``ARO``.
         gd : dict, optional
             A dictionary of parameters for gradient computation. Should have keys:
-            ``grad``: where to write the gradient map; and ``surface``: which surface (e.g., ``M1``).
+
+            - ``grad``: where to write the gradient map;
+            - ``surface``: which surface (e.g., ``M1``);
+            - ``basis_set``: the RomanBasisSet mapping.
 
         Returns
         -------
@@ -752,8 +754,8 @@ class RayBundle:
         theta_inc = np.where(mu_ < 1, np.arccos(mu_), 0)  # in radians
 
         # gradient with respect to surface error
-        if gd is not None and gd["surface"] in basis_set.basis:
-            b = basis_set.basis[gd["surface"]]
+        if gd is not None and gd["surface"] in gd["basis_set"].basis:
+            b = gd["basis_set"].basis[gd["surface"]]
             modes = b.basis(xy[:, :, 0], xy[:, :, 1])
             for j in range(b.N):
                 if "grad" in gd and gd["grad"] is not None:
@@ -829,7 +831,10 @@ class RayBundle:
             `CIR``, ``REX``, ``REY``, ``ADX``, ``ADY``, and ``ARO``.
         gd : dict, optional
             A dictionary of parameters for gradient computation. Should have keys:
-            ``grad``: where to write the gradient map; and ``surface``: which surface (e.g., ``M1``).
+
+            - ``grad``: where to write the gradient map;
+            - ``surface``: which surface (e.g., ``M1``);
+            - ``basis_set``: the RomanBasisSet mapping.
 
         Returns
         -------
@@ -877,9 +882,9 @@ class RayBundle:
         theta_inc = np.where(mu_ < 1, np.arccos(mu_), 0)  # in radians
 
         # gradient with respect to surface error
-        if gd is not None and gd["surface"] in basis_set.basis:
+        if gd is not None and gd["surface"] in gd["basis_set"].basis:
             dncostheta = self.n_loc * mu_ - np.sqrt(n_new**2 - self.n_loc**2 * np.sin(theta_inc) ** 2)
-            b = basis_set.basis[gd["surface"]]
+            b = gd["basis_set"].basis[gd["surface"]]
             modes = b.basis(xy[:, :, 0], xy[:, :, 1])
             for j in range(b.N):
                 if "grad" in gd and gd["grad"] is not None:
@@ -1122,7 +1127,7 @@ def _RomanRayBundle(
            (last axis 0th component should be 0)
 
         If ``errs["grad"]`` is True, then also provides:
-            RB.grad : shape (N,N,basis_set.N), derivative of s with respect to each surface error
+            RB.grad : shape (N,N,errs["basis"].N), derivative of s with respect to each surface error
             parameter.
         If ''savexy'' is True, then also provides:
             RB.xyFPA : shape (N,N,2), the x and y coordinates of the rays on the FPA in mm.
@@ -1164,7 +1169,7 @@ def _RomanRayBundle(
     if errs is not None and not isinstance(errs, dict):
         raise ValueError("errs must be a dictionary or None")
     grad = errs["grad"] if errs is not None and "grad" in errs else False
-    RB.grad = np.zeros(np.shape(RB.s) + (basis_set.N,)) if grad else None
+    RB.grad = np.zeros(np.shape(RB.s) + (errs["basis"].N,)) if grad else None
 
     # set up the array of coefficients if we need it
     arr = None
@@ -1305,7 +1310,7 @@ def _RomanRayBundle(
         K=-0.9728630311,
         activeZone=[{"CIR": 1184.02, "OBS": 321.31}],
         rCoefs=_reflect_RB_model,
-        gd={"grad": RB.grad, "arr": arr, "surface": "M1"} if grad else None,
+        gd={"grad": RB.grad, "arr": arr, "surface": "M1", "basis_set": errs["basis"]} if grad else None,
     )
 
     # Secondary mirror
@@ -1316,7 +1321,7 @@ def _RomanRayBundle(
         K=-1.6338521231,
         activeZone=[{"CIR": 266.255}],
         rCoefs=_reflect_RB_model,
-        gd={"grad": RB.grad, "arr": arr, "surface": "M2"} if grad else None,
+        gd={"grad": RB.grad, "arr": arr, "surface": "M2", "basis_set": errs["basis"]} if grad else None,
     )
 
     # PM hole
@@ -1349,7 +1354,7 @@ def _RomanRayBundle(
             {"CIR": 16.98, "ADX": -134.13, "ADY": -106.6},
         ],
         rCoefs=_reflect_RB_model,
-        gd={"grad": RB.grad, "arr": arr, "surface": "FM1"} if grad else None,
+        gd={"grad": RB.grad, "arr": arr, "surface": "FM1", "basis_set": errs["basis"]} if grad else None,
     )
 
     # Entrance aperture plate
@@ -1389,7 +1394,7 @@ def _RomanRayBundle(
             {"REX": 216.955, "REY": 142.135, "ADY": 49.865},
         ],
         rCoefs=_reflect_RB_model,
-        gd={"grad": RB.grad, "arr": arr, "surface": "FM2"} if grad else None,
+        gd={"grad": RB.grad, "arr": arr, "surface": "FM2", "basis_set": errs["basis"]} if grad else None,
     )
 
     # Tertiary mirror
@@ -1414,7 +1419,7 @@ def _RomanRayBundle(
             {"REX": 256.189698, "REY": 31.9859, "ADY": 444.7891},
         ],
         rCoefs=_reflect_RB_model,
-        gd={"grad": RB.grad, "arr": arr, "surface": "M3"} if grad else None,
+        gd={"grad": RB.grad, "arr": arr, "surface": "M3", "basis_set": errs["basis"]} if grad else None,
     )
 
     # Exit pupil mask
@@ -1496,7 +1501,7 @@ def _RomanRayBundle(
     # now for int/refract/reflect including ghost
     # step 1... see photo
     # int/refract through S1
-    gd1 = {"grad": RB.grad, "arr": arr, "surface": "S1"} if grad else None
+    gd1 = {"grad": RB.grad, "arr": arr, "surface": "S1", "basis_set": errs["basis"]} if grad else None
     RB.intersect_surface_and_refract(S1, Rinv=Rinv1, K=K1, n_new=n_new1, activeZone=activeZone1, gd=gd1)
 
     # ghost time
@@ -1552,8 +1557,8 @@ def _RomanRayBundle(
     # get gradients with respect to the displacement of each SCA
     if grad:
         key = f"WFI{outsca:02d}"
-        if key in basis_set.basis:
-            b = basis_set.basis[key]
+        if key in errs["basis"].basis:
+            b = errs["basis"].basis[key]
             dx_from_ctr = RB.x_out - scapos[outsca - 1]
             dz = b.basis(dx_from_ctr[0], dx_from_ctr[1]) * 8.0 * fratio_scale**2
             w = np.sqrt(1.0 - RB.u[:, :, 0] ** 2 - RB.u[:, :, 1] ** 2)
@@ -1648,7 +1653,7 @@ def RomanRayBundle(
            (last axis 0th component should be 0)
 
         If ``errs["grad"]`` is True, then also provides:
-            RB.grad : shape (N,N,basis_set.N), derivative of s with respect to each surface error
+            RB.grad : shape (N,N,errs["basis"].N), derivative of s with respect to each surface error
             parameter.
         If ''savexy'' is True, then also provides:
             RB.xyFPA : shape (N,N,2), the x and y coordinates of the rays on the FPA in mm.

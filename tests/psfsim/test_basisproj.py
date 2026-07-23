@@ -7,13 +7,16 @@ from psfsim.aberration_models import (
     aberration_transfer_matrix_svd,
     display_aberration_gradients,
 )
+from psfsim.basis import basis_set_default as basis_set
 from psfsim.romantrace import RomanRayBundle
 
 
 def test_grad(tmp_path):
     """Gradient test."""
 
-    RB = RomanRayBundle(-0.399, 0.208, 128, "W", wl=9.27e-4, hasE=True, errs={"grad": True})
+    RB = RomanRayBundle(
+        -0.399, 0.208, 128, "W", wl=9.27e-4, hasE=True, errs={"grad": True, "basis": basis_set}
+    )
     assert np.shape(RB.grad)[:2] == (128, 128)
 
     # check the aberration transfer matrices

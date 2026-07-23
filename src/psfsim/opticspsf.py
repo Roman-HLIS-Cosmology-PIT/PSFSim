@@ -8,6 +8,7 @@ import pandas as pd
 from astropy.io import fits
 
 from . import wfi_data, zernike
+from .basis import basis_set_cy10
 from .perturbations import cycle10_perturbations
 from .romantrace import RomanRayBundle
 from .wfi_coordinate_transformations import from_fpa_to_angle, from_sca_to_fpa
@@ -270,7 +271,7 @@ class GeometricOptics:
         self.mjd = mjd
         self.perturbations = None
         if cycle == 10:
-            self.perturbations = {"arr": cycle10_perturbations(use_filter)}
+            self.perturbations = {"arr": cycle10_perturbations(use_filter), "basis": basis_set_cy10}
 
         # Compute Distortion Matrix and dterminant
         self.distortionMatrix = self.compute_distortion_matrix(method="raytrace")
@@ -547,8 +548,9 @@ class GeometricOptics:
             zernCoeff = altgriddata(points, zernCoeffsToInterpolate, (self.scax, self.scay))
             nZern, mZern = zernike.noll_to_zernike(i + 1)
             # print(">>>", zernike.zernike(nZern, mZern, self.urhoPolar, self.uthetaPolar))
-            path_diff -= zernCoeff * zernike.zernike(
+            path_diff -= zernCoeff * self.wavelength * zernike.zernike(
                 nZern, mZern, 2 * self.focalLength * self.urhoPolar, self.uthetaPolar
             )
             # - sign since OPD in the file has a sign difference
+            # need the conversion to microns --- thanks Claude!
         return path_diff
