@@ -109,6 +109,32 @@ def fit_linfunc(f):
     return coefs
 
 
+def _translate_fit_to_padded_index(coefs, x_offset, y_offset):
+    """
+    Translate linear index-space fit coefficients onto a padded grid.
+
+    Parameters
+    ----------
+    coefs : np.ndarray of float
+        Coefficients ``[a, b, c, rmserr]`` from :func:`fit_linfunc`, where
+        ``f = a + b*x + c*y`` on the source grid.
+    x_offset, y_offset : int
+        The x and y offsets where the source grid is embedded inside
+        the padded output grid.
+
+    Returns
+    -------
+    np.ndarray of float
+        Coefficients on the padded grid with the same ``[a, b, c, rmserr]``
+        convention.
+
+    """
+
+    padded = np.array(coefs, copy=True)
+    padded[0] = coefs[0] - coefs[1] * x_offset - coefs[2] * y_offset
+    return padded
+
+
 def compute_jacobian(u, dx=1.0, dy=1.0):
     """
     Computes the Jacobian for entrance --> exit pupil.
@@ -290,9 +316,12 @@ class GeometricOptics:
 
         # Obtain pupil Mask
         self.pupil_mask = self.load_pupil_mask(use_ray_trace=ray_trace)
-        u = np.where(self.pupil_mask > 0, self.pupil_mask_u[:, :, 0], np.nan)
-        v = np.where(self.pupil_mask > 0, self.pupil_mask_u[:, :, 1], np.nan)
-        self.uvcoefs = [fit_linfunc(u), fit_linfunc(v)]
+        if hasattr(self, "_uvcoefs_from_unpadded"):
+            self.uvcoefs = self._uvcoefs_from_unpadded
+        else:
+            u = np.where(self.pupil_mask > 0, self.pupil_mask_u[:, :, 0], np.nan)
+            v = np.where(self.pupil_mask > 0, self.pupil_mask_u[:, :, 1], np.nan)
+            self.uvcoefs = [fit_linfunc(u), fit_linfunc(v)]
         self.ucen = self.uvcoefs[0][0] + (self.uvcoefs[0][1] + self.uvcoefs[0][2]) * (self.ulen - 1.0) / 2.0
         self.vcen = self.uvcoefs[1][0] + (self.uvcoefs[1][1] + self.uvcoefs[1][2]) * (self.ulen - 1.0) / 2.0
         self.du = (self.uvcoefs[0][1] + self.uvcoefs[1][2]) / 2.0
@@ -493,6 +522,19 @@ class GeometricOptics:
                 jacobian=jacobian,
                 errs=self.perturbations,
             )
+
+            # Compute linear u,v index-space fits before padding so the center
+            # calibration is not sensitive to padded geometry.
+            mask_unpadded = self.rb.open > 0
+            u_unpadded = np.where(mask_unpadded, self.rb.u[:, :, 0], np.nan)
+            v_unpadded = np.where(mask_unpadded, self.rb.u[:, :, 1], np.nan)
+            uvcoefs_unpadded = [fit_linfunc(u_unpadded), fit_linfunc(v_unpadded)]
+
+            offset = (self.ulen - scaled_pupilSampling) // 2
+            self._uvcoefs_from_unpadded = [
+                _translate_fit_to_padded_index(uvcoefs_unpadded[0], offset, offset),
+                _translate_fit_to_padded_index(uvcoefs_unpadded[1], offset, offset),
+            ]
 
             self.rb = self.rb.pad(self.ulen)
             mask = self.rb.open
