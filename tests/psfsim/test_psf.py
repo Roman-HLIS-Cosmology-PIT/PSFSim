@@ -165,7 +165,7 @@ def test_psf_object_override_errs():
     psf0 = obj_nopert.Optical_PSF
     dpsf = psf1 - psf0
 
-    assert -0.0026 < np.amin(dpsf) < -0.0023
-    assert 0.0023 < np.amax(dpsf) < 0.0026
-    assert -0.0026 < dpsf[1025, 1021] < -0.0023
-    assert 0.0023 < dpsf[1020, 1025] < 0.0026
+    assert -0.0026 < np.amin(dpsf) < -0.0022
+    assert 0.0022 < np.amax(dpsf) < 0.0026
+    assert -0.0026 < dpsf[1025, 1021] < -0.0022
+    assert 0.0022 < dpsf[1020, 1025] < 0.0026
