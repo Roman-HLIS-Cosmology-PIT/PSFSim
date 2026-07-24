@@ -102,5 +102,7 @@ def test_psf_2x2bin():
     psf_bin = convolve2d(psf_hires, np.outer(_f, _f), mode="valid")[1::2, 1::2]
     print(np.shape(convolve2d(psf_hires, np.outer(_f, _f), mode="valid")), np.shape(psf_bin))
 
+    assert np.all(np.abs(psf_lores_crop - psf_bin) < 1.5e-5)
+    assert 0.0061 < np.amax(psf_lores_crop) < 0.0064
     # from astropy.io import fits
     # fits.PrimaryHDU(np.stack((psf_lores_crop, psf_bin, psf_lores_crop - psf_bin), axis=0)).writeto("a.fits", overwrite=True)
