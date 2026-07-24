@@ -228,7 +228,9 @@ class PSFObject:
             * np.exp(2 * np.pi / self.wavelength * 1j * self.optics.path_difference)
         )
 
-        x_minus = (-np.exp(-np.pi*1j/self.ulen)) ** np.array(range(self.ulen))  # used to translate ftt to image center
+        x_minus = (-np.exp(-np.pi * 1j / self.ulen)) ** np.array(
+            range(self.ulen)
+        )  # used to translate ftt to image center
         ph = np.outer(x_minus, x_minus)  # phase required to translate fft to center
 
         self.prefactor = prefactor * ph
