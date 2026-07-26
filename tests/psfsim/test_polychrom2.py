@@ -2,6 +2,7 @@
 
 import numpy as np
 import psfsim.polychrom
+from scipy.signal import convolve2d
 
 
 def _h(cycle):
@@ -70,3 +71,39 @@ def test_diff():
 
     err = np.amax(np.abs(arr9 - arr10))
     assert err < 0.15 * np.amax(arr10)
+
+
+def test_psf_2x2bin():
+    """Test that 2x2 binning works."""
+
+    obj_hires = psfsim.polychrom.PolychromaticPSF(
+        4,
+        20.15,
+        5.12,
+        wavelengths=[1.7],
+    )
+
+    obj_lores = psfsim.polychrom.PolychromaticPSF(
+        4,
+        20.15,
+        5.12,
+        wavelengths=[1.7],
+    )
+
+    psf_hires = obj_hires.compute_poly_psf(
+        postage_stamp_size=25, ovsamp=12, use_filter="H", centerpix=False, cycle=10
+    )
+    psf_lores_crop = obj_lores.compute_poly_psf(
+        postage_stamp_size=25, ovsamp=6, use_filter="H", centerpix=False, cycle=10
+    )[1:-1, 1:-1]
+    print(np.shape(psf_hires), np.shape(psf_lores_crop))
+
+    _f = np.array([-0.125, 1.125, 1.125, -0.125])
+    psf_bin = convolve2d(psf_hires, np.outer(_f, _f), mode="valid")[1::2, 1::2]
+    print(np.shape(convolve2d(psf_hires, np.outer(_f, _f), mode="valid")), np.shape(psf_bin))
+
+    assert np.all(np.abs(psf_lores_crop - psf_bin) < 1.5e-5)
+    assert 0.0061 < np.amax(psf_lores_crop) < 0.0064
+    # from astropy.io import fits
+    # fits.PrimaryHDU(np.stack((psf_lores_crop, psf_bin, psf_lores_crop - psf_bin),
+    #  axis=0)).writeto("a.fits", overwrite=True)
