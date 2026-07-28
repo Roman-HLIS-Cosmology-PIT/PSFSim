@@ -143,6 +143,39 @@ def compute_jacobian(u, dx=1.0, dy=1.0):
     return jacobian
 
 
+def u_from_xyi(rb, thres=0.5):
+    """
+    Performs a linear regression of u vs xyi for a bundle object.
+    To be used as distortion matrix for raytrace objects with a ghost path.
+    Returns a coefficient array as a dictionary.
+
+    Arguments
+    ---------
+    rb: raytrace object
+        The bundle to perform fitting on.
+    thres: int, optional
+        Open ray threshold. Default is 0.5. Must be between 0-1.
+    Returns
+    --------
+    coeff: dict
+        Coefficient array as a dictionary, where:
+            coeff["Slope"] is a (2, 2) matrix.
+            coeff["Intercept"] is a (2,) vector.
+
+    """
+    open_rays = np.where(rb.open > thres)
+    xyi = rb.xyi[:, :, :][open_rays]
+    u = rb.u[:, :, :][open_rays]
+    xyi_stacked = np.hstack([xyi, np.ones([u.shape[0], 1], u.dtype)])
+    M = np.linalg.lstsq(xyi_stacked, u, rcond=None)[0]
+    A = M[0:2, :]
+    b = M[2, :]
+    coeff = {}
+    coeff["Slope:"] = A
+    coeff["Intercept:"] = b
+    return coeff
+
+
 class GeometricOptics:
     """
     Geometric optics object.
@@ -388,38 +421,6 @@ class GeometricOptics:
                 a_lanczos=self.a_lanczos,
             )
             if self.ghost:
-
-                def u_from_xyi(self, thres=0.5):
-                    """
-                    Performs a linear regression of u vs xyi for a raytrace object.
-                    Returns a coefficient array as a dictionary.
-
-                    Arguments
-                    ---------
-                    self: raytrace object
-                        The bundle to perform fitting on.
-                    thres: int, optional
-                        Open ray threshold. Default is 0.5. Must be between 0-1.
-                    Returns
-                    --------
-                    coeff: dict
-                        Coefficient array as a dictionary, where:
-                            coeff["Slope"] is a (2, 2) matrix.
-                            coeff["Intercept"] is a (2,) vector.
-
-                    """
-                    open_rays = np.where(self.open > thres)
-                    xyi = self.xyi[:, :, :][open_rays]
-                    u = self.u[:, :, :][open_rays]
-                    xyi_stacked = np.hstack([xyi, np.ones([u.shape[0], 1], u.dtype)])
-                    M = np.linalg.lstsq(xyi_stacked, u, rcond=None)[0]
-                    A = M[0:2, :]
-                    b = M[2, :]
-                    coeff = {}
-                    coeff["Slope:"] = A
-                    coeff["Intercept:"] = b
-                    return coeff
-
                 fit = u_from_xyi(raytrace)
                 mat = fit["Slope:"]
             else:
