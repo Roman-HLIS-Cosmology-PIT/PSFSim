@@ -168,7 +168,7 @@ class GeometricOptics:
     mjd : float, optional
         The MJD to use for the optical model.
     ghost : bool, optional
-        Whether to include the ghost path from refraction in the optical filter. 
+        Whether to include the ghost path from refraction in the optical filter.
         Default: False. Only can be true if ray_trace=True.
 
     Attributes
@@ -196,7 +196,7 @@ class GeometricOptics:
     a_lanczos : int, optional
         The order of Lanczos kernel apodization to use for the high-resolution pupil.
     ghost : bool
-        Whether to include the ghost path from refraction in the optical filter. 
+        Whether to include the ghost path from refraction in the optical filter.
         Default: False. Only can be true if ray_trace=True.
 
     Methods
@@ -231,7 +231,7 @@ class GeometricOptics:
         a_lanczos=3,
         cycle=9,
         mjd=None,
-        ghost=False
+        ghost=False,
     ):
         # sca position in mm
         # wavelength in micrometers
@@ -384,19 +384,51 @@ class GeometricOptics:
                 self.use_filter,
                 wl=self.wavelength * 0.001,
                 hasE=True,
-                # Elle note: I'm unsure of this. My idea was that this sets it to default
-                # Maybe doesn't need ghostpath here... but I would think it would affect distortion matrix?
-                # Also wondering if should have the lin reg fcns for distortion matrix as an option
-                # for if ghostpath=True in here?
                 ghostpath=self.ghost,
                 a_lanczos=self.a_lanczos,
             )
-            mat = compute_jacobian(
-                raytrace.u,
-                dx=raytrace.xyi[0, 1, 0] - raytrace.xyi[0, 0, 0],
-                dy=raytrace.xyi[0, 1, 0] - raytrace.xyi[0, 0, 0],
-            )[3, 3, :, :]
-            # mat has units of inverse mm
+            if self.ghost:
+
+                def u_from_xyi(self, thres=0.5):
+                    """
+                    Performs a linear regression of u vs xyi for a raytrace object.
+                    Returns a coefficient array as a dictionary.
+
+                    Arguments
+                    ---------
+                    self: raytrace object
+                        The bundle to perform fitting on.
+                    thres: int, optional
+                        Open ray threshold. Default is 0.5. Must be between 0-1.
+                    Returns
+                    --------
+                    coeff: dict
+                        Coefficient array as a dictionary, where:
+                            coeff["Slope"] is a (2, 2) matrix.
+                            coeff["Intercept"] is a (2,) vector.
+
+                    """
+                    open_rays = np.where(self.open > thres)
+                    xyi = self.xyi[:, :, :][open_rays]
+                    u = self.u[:, :, :][open_rays]
+                    xyi_stacked = np.hstack([xyi, np.ones([u.shape[0], 1], u.dtype)])
+                    M = np.linalg.lstsq(xyi_stacked, u, rcond=None)[0]
+                    A = M[0:2, :]
+                    b = M[2, :]
+                    coeff = {}
+                    coeff["Slope:"] = A
+                    coeff["Intercept:"] = b
+                    return coeff
+
+                fit = u_from_xyi(raytrace)
+                mat = fit["Slope:"]
+            else:
+                mat = compute_jacobian(
+                    raytrace.u,
+                    dx=raytrace.xyi[0, 1, 0] - raytrace.xyi[0, 0, 0],
+                    dy=raytrace.xyi[0, 1, 0] - raytrace.xyi[0, 0, 0],
+                )[3, 3, :, :]
+                # mat has units of inverse mm
         else:
             raise Exception("Invalid method for computing distortion matrix")
         return mat
