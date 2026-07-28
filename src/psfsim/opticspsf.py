@@ -167,6 +167,9 @@ class GeometricOptics:
         Which cycle to use for the Zernike modes.
     mjd : float, optional
         The MJD to use for the optical model.
+    ghost : bool, optional
+        Whether to include the ghost path from refraction in the optical filter. 
+        Default: False. Only can be true if ray_trace=True.
 
     Attributes
     ----------
@@ -192,6 +195,9 @@ class GeometricOptics:
         The ray trace object.
     a_lanczos : int, optional
         The order of Lanczos kernel apodization to use for the high-resolution pupil.
+    ghost : bool
+        Whether to include the ghost path from refraction in the optical filter. 
+        Default: False. Only can be true if ray_trace=True.
 
     Methods
     -------
@@ -225,6 +231,7 @@ class GeometricOptics:
         a_lanczos=3,
         cycle=9,
         mjd=None,
+        ghost=False
     ):
         # sca position in mm
         # wavelength in micrometers
@@ -234,6 +241,7 @@ class GeometricOptics:
         self.pupilLength = 2400 * 8  # in mm
         self.focalLength = 8  # m
         self.samplingwidth = (self.wavelength / self.dsX) * self.pupilLength  # in mm for raytrace
+        self.ghost = ghost
 
         self.scanum = scanum
         self.scax = scax
@@ -255,6 +263,8 @@ class GeometricOptics:
             self.uX = np.linspace(self.umin, self.umax, self.ulen)
             self.uY = np.linspace(self.umin, self.umax, self.ulen)
             self.uArray, self.vArray = np.meshgrid(self.uX, self.uY)
+            if self.ghost:
+                raise ValueError("ghost must be False")
 
         self.pupilSampling = self.ulen
 
@@ -378,7 +388,7 @@ class GeometricOptics:
                 # Maybe doesn't need ghostpath here... but I would think it would affect distortion matrix?
                 # Also wondering if should have the lin reg fcns for distortion matrix as an option
                 # for if ghostpath=True in here?
-                ghostpath=False,
+                ghostpath=self.ghost,
                 a_lanczos=self.a_lanczos,
             )
             mat = compute_jacobian(
@@ -443,7 +453,7 @@ class GeometricOptics:
                 jacobian=jacobian,
                 a_lanczos=self.a_lanczos,
                 errs=self.perturbations,
-                ghostpath=False,
+                ghostpath=self.ghost,
             )
 
             # Find bounding box of open pupil
@@ -486,7 +496,7 @@ class GeometricOptics:
                 hasE=True,
                 jacobian=jacobian,
                 errs=self.perturbations,
-                ghostpath=False,
+                ghostpath=self.ghost,
             )
 
             self.rb = self.rb.pad(self.ulen)
