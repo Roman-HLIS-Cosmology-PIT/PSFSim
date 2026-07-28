@@ -374,6 +374,11 @@ class GeometricOptics:
                 self.use_filter,
                 wl=self.wavelength * 0.001,
                 hasE=True,
+                # Elle note: I'm unsure of this. My idea was that this sets it to default
+                # Maybe doesn't need ghostpath here... but I would think it would affect distortion matrix?
+                # Also wondering if should have the lin reg fcns for distortion matrix as an option
+                # for if ghostpath=True in here?
+                ghostpath=False,
                 a_lanczos=self.a_lanczos,
             )
             mat = compute_jacobian(
@@ -438,6 +443,7 @@ class GeometricOptics:
                 jacobian=jacobian,
                 a_lanczos=self.a_lanczos,
                 errs=self.perturbations,
+                ghostpath=False,
             )
 
             # Find bounding box of open pupil
@@ -480,6 +486,7 @@ class GeometricOptics:
                 hasE=True,
                 jacobian=jacobian,
                 errs=self.perturbations,
+                ghostpath=False,
             )
 
             self.rb = self.rb.pad(self.ulen)
