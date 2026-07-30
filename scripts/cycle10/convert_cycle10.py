@@ -13,7 +13,7 @@ if you change the basis set.
 
 import numpy as np
 from psfsim.aberration_models import extract_basis_coefs
-from psfsim.basis import basis_set
+from psfsim.basis import basis_set_cy10 as basis_set
 
 # remind us of where things start
 for obj in basis_set.basis:
@@ -38,17 +38,18 @@ for i in range(nfilters):
     p = extract_basis_coefs(
         f"indata/WIM_F{wfi_filters[filter]:s}_zernikes_cycle10.csv",
         filter,
-        nn=64,
+        nn=128,
         pars_input=p,
         nmin=nmin,
         smin=0.05,
         c=c,
+        basis=basis_set,
     )
     print(p)
     data[:, i] = p
 
     nmin = basis_set.basis["S1"].start
-    c = 1
+    c = 3
 
 # save to a file, in *nanometers*
 header = ",".join(flts)

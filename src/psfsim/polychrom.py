@@ -94,8 +94,10 @@ class PolychromaticPSF:
         extra_aberrations=None,
         optical_psf_only=False,
         req_in_bandpass=True,
+        centerpix=True,
         cycle=9,
         mjd=None,
+        perturbations=None,
     ):
         """
         Compute the polychromatic PSF by integrating monochromatic PSFs across wavelength.
@@ -134,10 +136,20 @@ class PolychromaticPSF:
             Whether to only accept in-band light (turning this on will make things faster
             for some settings, but will miss detail in the PSF from out-of-band leakage).
             Recommend True for fast computation, False for best accuracy.
+        centerpix : bool, optional
+            Whether to center the PSF on a pixel.
         cycle : int, optional
             Which cycle to use for the Zernike modes.
         mjd : float, optional
             The MJD to use for the optical model.
+        perturbations : dict, optional
+            If provided, replaces the default perturbations in the cycle model. Should contain the keys:
+
+            - ``arr``: np.ndarray
+
+            - ``basis``: psfsim.basis.RomanBasisSet
+
+              The number of basis modes, ``basis.N``, must equal the number of entries in ``arr``.
 
         Returns
         -------
@@ -180,12 +192,13 @@ class PolychromaticPSF:
                 extra_aberrations=extra_aberrations,
                 cycle=cycle,
                 mjd=mjd,
+                perturbations=perturbations,
             )
             this_psf.get_optical_psf()
             if optical_psf_only:
                 return this_psf.Optical_PSF
 
-            this_psf.get_image_from_Intensity(centerpix=True, reflect=True, tophat=True)
+            this_psf.get_image_from_Intensity(centerpix=centerpix, reflect=True, tophat=True)
             return this_psf.detector_image
 
         if n_in_band == 1:

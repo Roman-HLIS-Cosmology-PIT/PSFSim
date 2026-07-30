@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+from psfsim.basis import basis_set_cy10
 from psfsim.psfobject import PSFObject
 
 
@@ -127,3 +128,44 @@ def test_psfobject_extra_aberrations():
     assert obj.E_FPA_h_polarized.shape == (obj.ulen, obj.ulen, 3)
     assert obj.Optical_PSF.shape == (obj.ulen, obj.ulen)
     assert not np.allclose(obj_base.Optical_PSF, obj.Optical_PSF)
+
+
+def test_psf_object_override_errs():
+    """Test function for PSF object overriding the default errors."""
+
+    obj_base = PSFObject(
+        4,
+        20.15,
+        5.12,
+        wavelength=1.35,
+        postage_stamp_size=31,
+        ovsamp=6,
+        use_filter="J",
+        npix_boundary=1,
+        cycle=10,
+    )
+
+    obj_nopert = PSFObject(
+        4,
+        20.15,
+        5.12,
+        wavelength=1.35,
+        postage_stamp_size=31,
+        ovsamp=6,
+        use_filter="J",
+        npix_boundary=1,
+        cycle=10,
+        perturbations={"arr": np.zeros(basis_set_cy10.N), "basis": basis_set_cy10},
+    )
+
+    obj_base.get_optical_psf()
+    obj_nopert.get_optical_psf()
+
+    psf1 = obj_base.Optical_PSF
+    psf0 = obj_nopert.Optical_PSF
+    dpsf = psf1 - psf0
+
+    assert -0.0026 < np.amin(dpsf) < -0.0022
+    assert 0.0022 < np.amax(dpsf) < 0.0026
+    assert -0.0026 < dpsf[1025, 1021] < -0.0022
+    assert 0.0022 < dpsf[1020, 1025] < 0.0026

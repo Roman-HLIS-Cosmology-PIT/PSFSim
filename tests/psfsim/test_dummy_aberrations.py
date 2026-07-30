@@ -4,7 +4,7 @@ from urllib.request import urlretrieve
 
 import numpy as np
 from psfsim.aberration_models import extract_basis_coefs
-from psfsim.basis import basis_set
+from psfsim.basis import basis_set_default as basis_set
 
 
 def test_extraction(tmp_path):
@@ -73,13 +73,15 @@ def test_extraction(tmp_path):
         nmin = basis_set.basis["S1"].start
         c = 1
 
-    assert 4 < np.count_nonzero(np.abs(data) > 2e-4) < 10
+    assert np.all(np.abs(data[:49, :]) < 1e-4)
+    assert np.all(np.abs(data[-27:, :]) < 1e-4)
+    assert np.count_nonzero(np.abs(data) > 1e-4) > 0
 
     # some checks on the data
     assert np.all(np.abs(data) < 1e-3)
     assert np.allclose(data[:nmin, 0], data[:nmin, 1])
 
     # these you might have to update if you change the model
-    assert 23 < 1.0e6 * data[0, 0] < 25
-    assert -2 < 1.0e6 * data[nmin, 0] < 1
-    assert -15 < 1.0e6 * data[nmin, 1] < -12
+    assert -25 < 1.0e6 * data[0, 0] < -23
+    assert -17 < 1.0e6 * data[nmin, 0] < -15
+    assert -1 < 1.0e6 * data[nmin, 1] < 1
