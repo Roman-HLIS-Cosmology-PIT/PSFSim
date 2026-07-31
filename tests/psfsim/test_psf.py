@@ -169,3 +169,54 @@ def test_psf_object_override_errs():
     assert 0.0022 < np.amax(dpsf) < 0.0026
     assert -0.0026 < dpsf[1025, 1021] < -0.0022
     assert 0.0022 < dpsf[1020, 1025] < 0.0026
+
+
+def test_psf_object_ghost():
+    """Test function for PSF object with a ghost."""
+
+    obj = PSFObject(
+        4,
+        20.15,
+        5.12,
+        wavelength=1.35,
+        postage_stamp_size=31,
+        ovsamp=8,
+        npix_boundary=1,
+        use_postage_stamp_size=None,
+        extra_aberrations=None,
+        cycle=10,
+        ghost=True,
+    )
+
+    assert obj.ghost is True
+
+    obj.get_optical_psf()
+    assert obj.E_FPA_h_polarized.shape == obj.E_FPA_v_polarized.shape
+    assert obj.E_FPA_h_polarized.shape == (obj.ulen, obj.ulen, 3)
+    assert obj.Optical_PSF.shape == (obj.ulen, obj.ulen)
+    assert np.isclose(np.sum(obj.Optical_PSF), 1.0, rtol=1e-12, atol=1e-12)
+    assert np.min(obj.Optical_PSF) >= -1e-10
+
+    obj.get_image_from_Intensity()
+    assert obj.detector_image.shape == (obj.postage_stamp_size * 8, obj.postage_stamp_size * 8)
+    assert np.all(obj.detector_image >= 0)
+
+
+def test_psf_object_ghost_errs():
+    """Test function for PSF object with a ghost and ray_trace=False."""
+
+    with pytest.raises(ValueError, match="Ghost path requires ray_trace=True"):
+        PSFObject(
+            4,
+            20.15,
+            5.12,
+            wavelength=1.35,
+            postage_stamp_size=31,
+            ovsamp=8,
+            npix_boundary=1,
+            use_postage_stamp_size=None,
+            extra_aberrations=None,
+            cycle=10,
+            ghost=True,
+            ray_trace=False,
+        )
