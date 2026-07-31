@@ -84,6 +84,9 @@ class PSFObject:
         Which cycle to use for the Zernike modes.
     mjd : float, optional
         The MJD to use for the optical model.
+    ghost : bool, optional
+        Whether to include the ghost path from refraction in the optical filter.
+        Default: False. Only can be true if ray_trace=True.
     perturbations : dict, optional
         If provided, replaces the default perturbations in the cycle model. Should contain the keys:
 
@@ -103,6 +106,10 @@ class PSFObject:
          The length of the FFTs.
     optics : psfsim.opticspsf.GeometricOptics
          The Geometric Optics object.
+    ghost : bool
+        Whether to include the ghost path from refraction in the optical filter.
+        Default: False. Only can be true if ray_trace=True.
+
 
     Methods
     -------
@@ -132,10 +139,15 @@ class PSFObject:
         interference_filter=None,
         cycle=9,
         mjd=None,
+        ghost=False,
         perturbations=None,
     ):
         self.wavelength = wavelength
+        self.ghost = ghost
         self.npix_boundary = npix_boundary
+
+        if (not ray_trace) and (self.ghost):
+            raise ValueError("ghost must be False")
 
         if interference_filter is None:
             # this is the default filter
@@ -176,6 +188,7 @@ class PSFObject:
             a_lanczos=a_lanczos,
             cycle=cycle,
             mjd=mjd,
+            ghost=ghost,
             perturbations=perturbations,
         )
         self.ux, self.uy = (
