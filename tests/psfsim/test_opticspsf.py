@@ -1,6 +1,7 @@
 """Test functions for opticspsf.py"""
 
 import numpy as np
+import pytest
 from psfsim.opticspsf import GeometricOptics, altgriddata
 
 
@@ -77,7 +78,8 @@ def test_geometricoptics10():
     assert omega < 0.0105
 
     x = np.where(g.pupil_mask > 0, g.path_difference, np.nan)
-    print(np.count_nonzero(g.pupil_mask > 0))
+    n_x = np.count_nonzero(g.pupil_mask > 0)
+    print(n_x)
     assert np.shape(x) == (2048, 2048)
     iqr = np.nanpercentile(x, 75) - np.nanpercentile(x, 25)
     assert iqr > 0.03
@@ -105,3 +107,46 @@ def test_geometricoptics10():
     iqr = np.nanpercentile(resid, 75) - np.nanpercentile(resid, 25)
     assert iqr > 0.03
     assert iqr < 0.10  # does not include
+
+    # Test ghost path
+    g_ghost = GeometricOptics(
+        4, 20.44, -20.44, wavelength=1.36, ulen=2048, ray_trace=True, pixelsampling=2.0, cycle=10, ghost=True
+    )
+    assert g_ghost.ghost is True
+
+    assert g_ghost.xan == g.xan and g_ghost.yan == g.yan
+    # Pupil locations
+    print(g_ghost.samplingwidth)
+    print(g_ghost.ucen, g_ghost.vcen)
+    assert np.abs(13056 - g_ghost.samplingwidth) < 5.0
+    assert np.hypot(-0.12413403996321462 - g_ghost.ucen, -0.17128826467513136 - g_ghost.vcen) < 0.01
+
+    omega_ghost = g_ghost.du**2 * np.sum(g_ghost.pupil_mask)
+    assert np.abs(g_ghost.du * 2.0 * 2048 / 1.36 + 1.0) < 0.002
+    assert omega_ghost > 0.0092
+    assert omega_ghost < 0.0105
+    assert omega_ghost > omega
+
+    x_ghost = np.where(g_ghost.pupil_mask > 0, g_ghost.path_difference, np.nan)
+    n_x_ghost = np.count_nonzero(g_ghost.pupil_mask > 0)
+    print(n_x_ghost)
+    assert n_x_ghost > n_x
+    assert np.shape(x_ghost) == (2048, 2048)
+    iqr_ghost = np.nanpercentile(x_ghost, 75) - np.nanpercentile(x_ghost, 25)
+    print(iqr_ghost)
+    assert iqr_ghost > 1
+    assert iqr_ghost < 10
+
+    # Make sure a value error is raised if I pass ghost=True and raytrace=False
+    with pytest.raises(ValueError):
+        g_ghost = GeometricOptics(
+            4,
+            20.44,
+            -20.44,
+            wavelength=1.36,
+            ulen=2048,
+            ray_trace=False,
+            pixelsampling=2.0,
+            cycle=10,
+            ghost=True,
+        )
