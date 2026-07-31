@@ -147,7 +147,7 @@ class PSFObject:
         self.npix_boundary = npix_boundary
 
         if (not ray_trace) and (self.ghost):
-            raise ValueError("ghost must be False")
+            raise ValueError("Ghost path requires ray_trace=True")
 
         if interference_filter is None:
             # this is the default filter
