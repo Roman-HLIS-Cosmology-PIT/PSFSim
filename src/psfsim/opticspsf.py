@@ -307,7 +307,7 @@ class GeometricOptics:
             self.uY = np.linspace(self.umin, self.umax, self.ulen)
             self.uArray, self.vArray = np.meshgrid(self.uX, self.uY)
             if self.ghost:
-                raise ValueError("ghost must be False")
+                raise ValueError("ghost must be False if raytrace is False.")
 
         self.pupilSampling = self.ulen
 
