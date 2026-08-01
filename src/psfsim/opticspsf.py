@@ -298,7 +298,7 @@ class GeometricOptics:
         self.du = (self.uvcoefs[0][1] + self.uvcoefs[1][2]) / 2.0
 
         self.urhoPolar = np.sqrt((self.u_array() - self.ucen) ** 2 + (self.v_array() - self.vcen) ** 2)
-        self.uthetaPolar = np.arctan2(self.v_array() - self.vcen, -(self.u_array() - self.ucen))
+        self.uthetaPolar = np.arctan2(self.v_array() - self.vcen, self.u_array() - self.ucen)
 
         # Load pupil mask from raytrace - more accurate
         # self.uArray = self.pupilMaskU[:, :, 0]

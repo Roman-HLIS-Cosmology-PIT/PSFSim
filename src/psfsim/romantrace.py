@@ -9,6 +9,11 @@ from .wfi_data import scapos
 fratio_scale = 8.0  # scale FPA displacement modes by 8*f^2
 
 
+def _shadow(arr):
+    """This is for testing only. Patch this function to block some of the light paths."""
+    pass
+
+
 def _lanczos_weight(dx, dy, a=3):
     """
     Lanczos function.
@@ -1178,6 +1183,9 @@ def _RomanRayBundle(
         grad = True
 
     # obstructions:
+
+    # This does nothing except during tests.
+    _shadow(RB.open)
 
     # secondary mirror support tubes
     RB.mask(
