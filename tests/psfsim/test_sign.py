@@ -4,6 +4,7 @@ import numpy as np
 import psfsim.offsets
 import psfsim.polychrom
 import psfsim.romantrace
+from astropy.io import fits  # annoying to put this back every time # noqa: F401
 from scipy.interpolate import griddata
 from scipy.ndimage import gaussian_filter
 
@@ -165,6 +166,73 @@ def test_extra_aberrations():
     # with FPAOffsetContext({"DZ": 4.0}):
     #     obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(0.48, 0.76, 4))
     #     psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=81, ovsamp=6, use_filter="R")
+
+    # move the FPA 2 mm closer to the exit pupil *and* shorten the path
+    # from the edge by 1.125 microns (so positive OPD in Poppy convention).
+    # These should cancel out.
+    with FPAOffsetContext({"DZ": 2.0}):
+        obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 3))
+        psf = obj.compute_poly_psf(
+            cycle=10,
+            postage_stamp_size=81,
+            ovsamp=6,
+            use_filter="J",
+            extra_aberrations=np.array([0.0, 0.0, 1.125, 0.0, 0.0]),
+        )
+
+        # smooth the PSF, get the center
+        cpsf = gaussian_filter(psf, sigma=10)
+        (yop, xop) = np.where(cpsf > 0.1 * np.amax(cpsf))
+        xop0 = np.mean(xop)
+        yop0 = np.mean(yop)
+
+        assert 0.006 < np.amax(psf) < 0.008
+        # fits.PrimaryHDU(psf).writeto("test_psf_small.fits", overwrite=True)
+        #
+        # opposite way as a test
+        # psf2 = obj.compute_poly_psf(
+        #     cycle=10,
+        #     postage_stamp_size=81,
+        #     ovsamp=6,
+        #     use_filter="J",
+        #     extra_aberrations=np.array([0.0, 0.0, -1.125, 0.0, 0.0]),
+        # )
+        # fits.PrimaryHDU(psf2).writeto("test_psf_large.fits", overwrite=True)
+
+    # Test offsets of Z4 and Z5 or Z6
+    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 3))
+    psf_z45 = obj.compute_poly_psf(
+        cycle=10,
+        postage_stamp_size=81,
+        ovsamp=6,
+        use_filter="J",
+        extra_aberrations=np.array([0.0, 0.0, 0.5, 0.5, 0.0]),
+    )
+    psf_z46 = obj.compute_poly_psf(
+        cycle=10,
+        postage_stamp_size=81,
+        ovsamp=6,
+        use_filter="J",
+        extra_aberrations=np.array([0.0, 0.0, 0.5, 0.0, 0.5]),
+    )
+    # fits.PrimaryHDU(psf_z45).writeto("test_psf_z45.fits", overwrite=True)
+    # fits.PrimaryHDU(psf_z46).writeto("test_psf_z46.fits", overwrite=True)
+
+    # smooth the PSF, get the center
+    cpsf = gaussian_filter(psf_z45, sigma=10)
+    (yop, xop) = np.where(cpsf > 0.1 * np.amax(cpsf))
+    dx, dy = xop - xop0, yop - yop0
+    e1 = np.sum(dx**2 - dy**2) / np.sum(dx**2 + dy**2)
+    e2 = np.sum(2 * dx * dy) / np.sum(dx**2 + dy**2)
+    assert -0.05 < e1 < 0.05
+    assert 0.63 < e2 < 0.73
+    cpsf = gaussian_filter(psf_z46, sigma=10)
+    (yop, xop) = np.where(cpsf > 0.1 * np.amax(cpsf))
+    dx, dy = xop - xop0, yop - yop0
+    e1 = np.sum(dx**2 - dy**2) / np.sum(dx**2 + dy**2)
+    e2 = np.sum(2 * dx * dy) / np.sum(dx**2 + dy**2)
+    assert 0.63 < e1 < 0.73
+    assert -0.05 < e2 < 0.05
 
 
 def test_obstruct():
