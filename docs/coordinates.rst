@@ -65,3 +65,18 @@ We can also zoom out and look at the path from the filter to the focal plane:
 Here the filter is ≈ 660 mm "behind" the plane of the figure, with light rays coming out toward the viewer. We label the numpy indices of the rays to show the orientation of the ray bundle.
 
 We also show the direction cosines (u, v) for the light ray in the FPA coordinate system. Note that (for example) the ray coming *from* the top of the exit pupil (in the diagram) has the *most negative* value of v, because it is tilted the farthest in the FPA -Y direction in order to converge to the same point on the detector.
+
+Pupil coordinates
+=================
+
+In PSFSim, the same indexing of rays (designed to be intuitive at the *entrance pupil*) is used throughout the full ray trace. This does, however, result in a vertical flip relative to the pupil maps distributed by the Project and used in STPSF. The basic issue is that the STPSF pupil maps have the same chirality as an image looking at the sky, whereas the PSFSim maps have the chirality that you would see looking into the telescope.
+
+.. image:: figs/fpa.png
+  :width: 900
+  :alt: Pupil coordinate systems in STPSF and PSFSim.
+
+There are 2 places where this flip needs to be treated in PSFSim:
+
+- The script that builds a perturbation model from an input set of Zernikes needs to flip the y-axis (i.e., flip the sign of the Zernike coefficients with odd Noll numbers). This is done in when reading in the Project spreadsheet in ``psfsim.aberration_models.extract_basis_coefs`` (and only needs to be touched when we do a model update).
+
+- The output PSF. In ``psfsim.polychrom.PolychromaticPSF``, the ``frame="science"`` keyword/argument can be used to align everything to the science frame (which we suspect is what most users will need).
