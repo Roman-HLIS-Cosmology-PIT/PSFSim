@@ -137,8 +137,7 @@ def from_sca_to_fpa(scanum, scax, scay):
     """
     Coordinate transformation converting SCA to FPA coordinates.
 
-    The "SCA" coordinates are aligned with the SOC "Science" frame (i.e., 180 degrees
-    rotated relative to the FPA frame).
+    The "SCA" coordinates are in Analysis coordinates.
 
     Parameters
     ----------
@@ -210,11 +209,8 @@ def from_sca_to_analysis(scanum, scax, scay):
     """
     Coordinate transformation converting SCA coordinates (in mm) to Analysis coordinates (in microns).
 
-    The "SCA" coordinates are aligned with the SOC "Science" frame (i.e., 180 degrees
-    rotated relative to the FPA frame).
-
     The Analysis coordinates system is defined to be the FPA coordinate system with origin shifted to
-    the center of the SCA.
+    the center of the SCA and rotated 180 degrees.
 
     Parameters
     ----------

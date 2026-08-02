@@ -63,25 +63,40 @@ class PolychromaticPSF:
     scanum : int
         Roman SCA index passed through to ``PSFObject``.
     scax : float
-        Source x-position on the SCA, in mm.
+        Source x-position on the SCA.
     scay : float
-        Source y-position on the SCA, in mm.
+        Source y-position on the SCA.
     wavelengths : array-like
         Wavelength samples in microns. Values are evaluated in the provided order.
     sed : callable, optional
         Spectral energy distribution weight function evaluated as ``sed(wav_microns)``.
         This should be in units proportional to photons/m^2/s/micron.
         If ``None``, a flat spectral weight (in lambda F_lambda) is assumed.
+    frame : str, optional
+        Which frame to use? Options are "analysis" and "science".
+
+        - **analysis** : scax and scay are in mm with (0, 0) at the SCA center.
+        - **science** : scax and scay are in pixels with (0, 0) at the lower-left corner (in ds9 display).
+
+        The PSF is also flipped if necessary to coincide with the desired output.
+
+        Note also the 2 frames have a parity flip: SCI +Y is the same direction as ANA -Y.
 
     """
 
-    def __init__(self, scanum, scax, scay, wavelengths, sed=None):
+    def __init__(self, scanum, scax, scay, wavelengths, sed=None, frame="analysis"):
         self.scanum = scanum
         self.scax = scax
         self.scay = scay
         self.wavelengths = wavelengths  # replace with something better later
         self.sed = sed
         self.bandpass = galsim.roman.getBandpasses()
+        self.frame = frame.lower()  # make this case-insensitive
+
+        # convert positions to analysis frame
+        if self.frame == "science":
+            self.scax = 0.01 * (self.scax - 2043.5)
+            self.scay = -0.01 * (self.scay - 2043.5)
 
     def compute_poly_psf(
         self,
@@ -253,5 +268,10 @@ class PolychromaticPSF:
                 "check wavelength nodes, filter, and SED values."
             )
         chromatic_psf /= total_flux
+
+        # Convert to the desired coordinate system
+        if self.frame == "science":
+            chromatic_psf = chromatic_psf[::-1, :]
+
         self.chromatic_psf = chromatic_psf
         return chromatic_psf

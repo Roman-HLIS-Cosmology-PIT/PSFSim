@@ -54,6 +54,8 @@ The layout of the focal plane coordinate system is:
 
 Note that the FPA +Z axis is coming toward the viewer. The "science frame" of each detector defined by the SOC is flipped from the FPA coordinates so that it has the same parity as one would see looking at the sky. The science frame +Y is in the same direction as FPA +Y, but science frame +X is in the direction of FPA -X.
 
+The native computations in PSFSim are in the "analysis frame", which is rotated 180 degrees since there is a sign flip from (x, y) in the entrance pupil plane to (u, v) at the exit pupil. This frame has the origin at the *center* of the SCA. The main user interface, ``psfsim.polychrom.PolychromaticPSF``, can be configured to have input/output in either analysis or science coordinates. (Most users will want science.)
+
 We can also zoom out and look at the path from the filter to the focal plane:
 
 .. image:: figs/filter_to_fpa.png

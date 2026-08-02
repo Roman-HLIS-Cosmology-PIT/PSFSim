@@ -1,10 +1,12 @@
 """Test for whether focus / parity work the right way."""
 
+import galsim
 import numpy as np
 import psfsim.offsets
 import psfsim.polychrom
 import psfsim.romantrace
 from astropy.io import fits  # annoying to put this back every time # noqa: F401
+from psfsim.basis import basis_set_cy10
 from scipy.interpolate import griddata
 from scipy.ndimage import gaussian_filter
 
@@ -106,13 +108,148 @@ def test_centroid():
     assert np.all(np.abs(delta) > 0.01)
 
 
+def test_refraction():
+    """Tests that offsets are consistent with the filter refraction."""
+
+    # See Berlfein et al. 2026 for a discussion of the refraction effect.
+
+    # expected shift is that blue is closer to the center of the FPA
+    # in SCA9, that's to the upper right in FPA coords or the lower left in SCI coords
+    # so centroid(blue) - centroid(red) is in the 3rd Quadrant
+
+    # smooth because we don't want this test to be pulled by the coma, which also gives a chromatic shift
+    sigma = 10
+
+    # Choose a point halfway from the center to the corner of WFI09
+    psf_azul = psfsim.polychrom.PolychromaticPSF(9, 10.22, -10.22, np.array([0.93])).compute_poly_psf(
+        cycle=10,
+        postage_stamp_size=81,
+        ovsamp=6,
+        use_filter="W",
+    )
+    cpsf_azul = gaussian_filter(psf_azul, sigma=sigma)
+    psf_verde = psfsim.polychrom.PolychromaticPSF(9, 10.22, -10.22, np.array([1.46])).compute_poly_psf(
+        cycle=10,
+        postage_stamp_size=81,
+        ovsamp=6,
+        use_filter="W",
+    )
+    cpsf_verde = gaussian_filter(psf_verde, sigma=sigma)
+    psf_rojo = psfsim.polychrom.PolychromaticPSF(9, 10.22, -10.22, np.array([2.00])).compute_poly_psf(
+        cycle=10,
+        postage_stamp_size=81,
+        ovsamp=6,
+        use_filter="W",
+    )
+    cpsf_rojo = gaussian_filter(psf_rojo, sigma=sigma)
+    # fits.PrimaryHDU(psf_azul).writeto("azul.fits", overwrite=True)
+    # fits.PrimaryHDU(psf_verde).writeto("verde.fits", overwrite=True)
+    # fits.PrimaryHDU(psf_rojo).writeto("rojo.fits", overwrite=True)
+
+    # HSM centroids
+    ctr = []
+    for im in [cpsf_azul, cpsf_verde, cpsf_rojo]:
+        moms = galsim.Image(im).FindAdaptiveMom()
+        ctr.append(moms.moments_centroid)
+    print(ctr)
+    assert -1.6 < ctr[0].y - ctr[2].y < -1.1
+    assert -4.0 < ctr[0].x - ctr[2].x < -3.5
+
+
+def test_warp_mirror():
+    """Tests that warping the PM produces features with the correct parity."""
+
+    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(0.48, 0.76, 3))
+
+    # get data for the PM
+    arr = np.zeros(basis_set_cy10.N)
+    m1 = basis_set_cy10.basis["M1"]
+    offset = m1.start - 1 - m1.skip * (m1.skip + 1) // 2  # arr[k + offset] = coefficient of Z_k
+
+    # note PM object coordinate system orientation: PM +X = PCS -X; PM +Y = PCS +Y; PM +Z = -PCS +Z
+
+    # Zernike 7 (coma)
+    # PM object +Y (so PCS +Y direction) is "pushed in" 500 nm
+    # (so light has 1000 nm * cos theta times farther to go)
+    # The +/-Y sides contribute to the "tail" part of the coma and the center of the PM to the "head"
+    # head distance: np.sqrt(8)*2*1.0e-3/1184.*648000/np.pi/0.11*6 = 53.8 pix
+    # tail distance: np.sqrt(8)*7*1.0e-3/1184.*648000/np.pi/0.11*6 = 188.1 pix
+    #
+    # The direction of the tail is that at PM +Y the reflected ray is tilted "away from" the SM center,
+    # as if it *came from* farther along the center->edge vector. So the tail points in the +PCS Y direction
+    # if projected onto the sky as "reverse PSF", that is, in WFI field +(1/2) X - (sqrt3/2) Y
+    # or FPA field +(1/2) X + (sqrt3/2) Y
+    # That is ANA +(1/2) X + (sqrt3/2) Y for "forward PSF"
+    arr[:] = 0.0
+    arr[7 + offset] = 5.0e-4  # in mm, Noll convention
+    psf = obj.compute_poly_psf(
+        cycle=10,
+        postage_stamp_size=81,
+        ovsamp=6,
+        use_filter="R",
+        perturbations={"arr": arr, "basis": basis_set_cy10},
+    )
+    cpsf = gaussian_filter(psf, sigma=10)
+    (yop, xop) = np.where(cpsf > 0.8 * np.amax(cpsf))
+    xop80 = np.mean(xop)
+    yop80 = np.mean(yop)
+    (yop, xop) = np.where(cpsf > 0.05 * np.amax(cpsf))
+    xop5 = np.mean(xop)
+    yop5 = np.mean(yop)
+    dx = xop5 - xop80
+    dy = yop5 - yop80
+    ang = np.arctan2(dy, dx) * 180.0 / np.pi  # angle in degrees
+    proj = 0.5 * xop + np.sqrt(0.75) * yop
+    delta = np.amax(proj) - np.amin(proj)
+    print(ang, delta)
+    assert 55 < ang < 65
+    assert 0.85 < delta / (53.8 + 188.1) < 1.15
+
+    # Zernike 8 (coma)
+    # PM object +X (so PCS -X direction) is "pushed in" 500 nm
+    # (so light has 1000 nm * cos theta times farther to go)
+    # The +/-X sides contribute to the "tail" part of the coma and the center of the PM to the "head"
+    # head distance: np.sqrt(8)*2*1.0e-3/1184.*648000/np.pi/0.11*6 = 53.8 pix
+    # tail distance: np.sqrt(8)*7*1.0e-3/1184.*648000/np.pi/0.11*6 = 188.1 pix
+    #
+    # The direction of the tail is that at PM +X the reflected ray is tilted "away from" the SM center,
+    # as if it *came from* farther along the center->edge vector. So the tail points in the -PCS X direction
+    # if projected onto the sky as "reverse PSF", that is, in WFI field -(sqrt3/2) X - (1/2) Y
+    # or FPA field -(sqrt3/2) X + (1/2) Y
+    # That is -(sqrt3/2) X + (1/2) Y for "forward PSF"
+    arr[:] = 0.0
+    arr[8 + offset] = 5.0e-4  # in mm, Noll convention
+    psf = obj.compute_poly_psf(
+        cycle=10,
+        postage_stamp_size=81,
+        ovsamp=6,
+        use_filter="R",
+        perturbations={"arr": arr, "basis": basis_set_cy10},
+    )
+    cpsf = gaussian_filter(psf, sigma=10)
+    (yop, xop) = np.where(cpsf > 0.8 * np.amax(cpsf))
+    xop80 = np.mean(xop)
+    yop80 = np.mean(yop)
+    (yop, xop) = np.where(cpsf > 0.05 * np.amax(cpsf))
+    xop5 = np.mean(xop)
+    yop5 = np.mean(yop)
+    dx = xop5 - xop80
+    dy = yop5 - yop80
+    ang = np.arctan2(dy, dx) * 180.0 / np.pi  # angle in degrees
+    proj = -np.sqrt(0.75) * xop + 0.5 * yop
+    delta = np.amax(proj) - np.amin(proj)
+    print(ang, delta)
+    assert 145 < ang < 155
+    assert 0.85 < delta / (53.8 + 188.1) < 1.15
+
+
 def test_extra_aberrations():
     """Tests that adding extra aberrations has the correct effect."""
 
     # First, do Z2 and Z3.
     # Convention should be:
-    # +Z2 --> shorter path length on exit pupil +X (large u) --> ray moves toward FPA -X (left in image)
-    # +Z3 --> shorter path length on exit pupil +Y (large v) --> ray moves toward FPA -Y (down in image)
+    # +Z2 --> shorter path length @ large u --> ray moves toward FPA +X / ANA -X (left in image)
+    # +Z3 --> shorter path length @ large v --> ray moves toward FPA +Y / ANA -Y (down in image)
 
     # 1.0 microns RMS in Noll convention
     # -> Delta wavefront = 4.0 microns left-to-right
@@ -242,13 +379,17 @@ def test_obstruct():
     # (pretty exaggerated! this leads to a spot 50 native pixels wide)
     # AND block the right half of the entrance pupil
     with ShadowContext("+x"), FPAOffsetContext({"DZ": 4.0}):
-        obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 3))
+        obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 2))
         psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=81, ovsamp=6, use_filter="J")
 
     # smooth the PSF
     cpsf = gaussian_filter(psf, sigma=10)
 
     # this should result in a "right half annulus"
+    # Recall: the "illuminated" part is x_entrance < 0
+    # this corresponds to large u_exit ... and so rays that are coming from farther toward FPA -X
+    # at the element wheel. so if we move the FPA closer to the element wheel, the illuminated side
+    # is FPA -X or ANA +X.
     (yop, xop) = np.where(cpsf > 0.1 * np.amax(cpsf))
     xop = np.mean(xop)
     yop = np.mean(yop)
@@ -260,7 +401,7 @@ def test_obstruct():
     # (pretty exaggerated! this leads to a spot 50 native pixels wide)
     # AND block the right half of the entrance pupil
     with ShadowContext("+y"), FPAOffsetContext({"DZ": 4.0}):
-        obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 3))
+        obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 2))
         psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=81, ovsamp=6, use_filter="J")
 
     # smooth the PSF
@@ -301,3 +442,25 @@ def test_obstruct_pattern():
     assert np.all(np.abs(idx[0] - np.array([15, 35, 55])) < 1.5)
 
     # fits.PrimaryHDU(cpsf).writeto("test_cpsf.fits", overwrite=True)
+
+
+def test_scimode():
+    """Tests that in "science" mode we get all the correct flips."""
+
+    # move the FPA 4 mm closer to the exit pupil.
+    # (pretty exaggerated! this leads to a spot 50 native pixels wide)
+    with FPAOffsetContext({"DZ": 4.0}):
+        obj = psfsim.polychrom.PolychromaticPSF(1, -13.72, 10.22, np.linspace(1.38, 1.77, 2))
+        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=81, ovsamp=4, use_filter="H")
+
+    # Now check that in "science" coordinates this all works the correct way
+    with FPAOffsetContext({"DZ": 4.0}):
+        obj2 = psfsim.polychrom.PolychromaticPSF(
+            1, 671.5, 1021.5, np.linspace(1.38, 1.77, 2), frame="Science"
+        )
+        psf2 = obj2.compute_poly_psf(cycle=10, postage_stamp_size=81, ovsamp=4, use_filter="H")
+
+    print(np.amax(psf2))
+    print(np.amax(np.abs(psf2 - psf[::-1, :])))
+
+    assert np.allclose(psf[::-1, :], psf2)
