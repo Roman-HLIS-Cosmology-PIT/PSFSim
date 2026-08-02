@@ -562,7 +562,7 @@ class GeometricOptics:
             # the (u, v) system is flipped from the Project spreadsheet on the X-axis
             # because there is the inversion (x_in, y_in) -> (u, v)
             # and the y-flip of the pupil image
-            f = (-1)**(mZern + (zIndex if mZern != 0 else 0))
+            f = (-1) ** (mZern + (zIndex if mZern != 0 else 0))
             zernCoeff *= f
 
             path_diff -= (

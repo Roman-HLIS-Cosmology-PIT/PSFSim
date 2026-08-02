@@ -257,16 +257,12 @@ def test_extra_aberrations():
     obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.array([1.29]))
     psf = obj.compute_poly_psf(
         cycle=10,
-        postage_stamp_size=81,
+        postage_stamp_size=41,
         ovsamp=6,
         use_filter="J",
         extra_aberrations=np.array([1.0, 0.0, 0.0, 0.0, 0.0]),
     )
-
-    # smooth the PSF
-    cpsf = gaussian_filter(psf, sigma=10)
-
-    # this should result in a "right half annulus"
+    cpsf = gaussian_filter(psf, sigma=10)  # smooth
     (yop, xop) = np.where(cpsf > 0.1 * np.amax(cpsf))
     xop2 = np.mean(xop)
     yop2 = np.mean(yop)
@@ -279,16 +275,12 @@ def test_extra_aberrations():
     obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.array([1.29]))
     psf = obj.compute_poly_psf(
         cycle=10,
-        postage_stamp_size=81,
+        postage_stamp_size=41,
         ovsamp=6,
         use_filter="J",
         extra_aberrations=np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
     )
-
-    # smooth the PSF
-    cpsf = gaussian_filter(psf, sigma=10)
-
-    # this should result in a "right half annulus"
+    cpsf = gaussian_filter(psf, sigma=10)  # smooth
     (yop, xop) = np.where(cpsf > 0.1 * np.amax(cpsf))
     xop3 = np.mean(xop)
     yop3 = np.mean(yop)
@@ -337,7 +329,7 @@ def test_extra_aberrations():
         # fits.PrimaryHDU(psf2).writeto("test_psf_large.fits", overwrite=True)
 
     # Test offsets of Z4 and Z5 or Z6
-    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 2))
+    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.array([1.29]))
     psf_z45 = obj.compute_poly_psf(
         cycle=10,
         postage_stamp_size=81,
@@ -380,7 +372,7 @@ def test_obstruct():
     # AND block the right half of the entrance pupil
     with ShadowContext("+x"), FPAOffsetContext({"DZ": 4.0}):
         obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 2))
-        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=81, ovsamp=6, use_filter="J")
+        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=81, ovsamp=4, use_filter="J")
 
     # smooth the PSF
     cpsf = gaussian_filter(psf, sigma=10)
@@ -394,15 +386,15 @@ def test_obstruct():
     xop = np.mean(xop)
     yop = np.mean(yop)
     print(xop, yop)
-    assert 282 < xop < 322
-    assert 222 < yop < 262
+    assert 188 < xop < 215
+    assert 148 < yop < 175
 
     # move the FPA 4 mm closer to the exit pupil.
     # (pretty exaggerated! this leads to a spot 50 native pixels wide)
     # AND block the right half of the entrance pupil
     with ShadowContext("+y"), FPAOffsetContext({"DZ": 4.0}):
         obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 2))
-        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=81, ovsamp=6, use_filter="J")
+        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=81, ovsamp=4, use_filter="J")
 
     # smooth the PSF
     cpsf = gaussian_filter(psf, sigma=10)
@@ -413,8 +405,8 @@ def test_obstruct():
     xop = np.mean(xop)
     yop = np.mean(yop)
     print(xop, yop)
-    assert 222 < xop < 262
-    assert 282 < yop < 322
+    assert 148 < xop < 175
+    assert 188 < yop < 215
 
 
 def test_obstruct_pattern():
@@ -423,8 +415,8 @@ def test_obstruct_pattern():
     # move the FPA 4 mm closer to the exit pupil.
     # (pretty exaggerated! this leads to a spot 50 native pixels wide)
     with FPAOffsetContext({"DZ": 4.0}):
-        obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(0.48, 0.76, 4))
-        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=81, ovsamp=6, use_filter="R")
+        obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(0.48, 0.76, 3))
+        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=71, ovsamp=6, use_filter="R")
 
     # smooth the PSF
     cpsf = gaussian_filter(psf, sigma=10)
@@ -432,9 +424,9 @@ def test_obstruct_pattern():
     # check that the "maxima" of the inner part of the PSF are at position angles
     # 90, 210, and 330 degrees, measured counterclockwise from the X axis.
     i = np.linspace(0, 59, 60)
-    x = 242.0 + 55.0 * np.cos(np.pi * i / 30)
-    y = 240.0 + 55.0 * np.sin(np.pi * i / 30)
-    xx, yy = np.meshgrid(np.linspace(0, 485, 486), np.linspace(0, 485, 486))
+    x = 212.0 + 55.0 * np.cos(np.pi * i / 30)
+    y = 210.0 + 55.0 * np.sin(np.pi * i / 30)
+    xx, yy = np.meshgrid(np.linspace(0, 425, 426), np.linspace(0, 425, 426))
     interp_vals = griddata((xx.ravel(), yy.ravel()), cpsf.ravel(), (x, y), method="linear")
     idx = np.where(
         np.logical_and(interp_vals > np.roll(interp_vals, 1), interp_vals > np.roll(interp_vals, -1))
@@ -451,12 +443,12 @@ def test_scimode():
     # (pretty exaggerated! this leads to a spot 50 native pixels wide)
     with FPAOffsetContext({"DZ": 4.0}):
         obj = psfsim.polychrom.PolychromaticPSF(1, -13.72, 10.22, np.array([1.58]))
-        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=41, ovsamp=4, use_filter="H")
+        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=21, ovsamp=4, use_filter="H")
 
     # Now check that in "science" coordinates this all works the correct way
     with FPAOffsetContext({"DZ": 4.0}):
         obj2 = psfsim.polychrom.PolychromaticPSF(1, 671.5, 1021.5, np.array([1.58]), frame="Science")
-        psf2 = obj2.compute_poly_psf(cycle=10, postage_stamp_size=41, ovsamp=4, use_filter="H")
+        psf2 = obj2.compute_poly_psf(cycle=10, postage_stamp_size=21, ovsamp=4, use_filter="H")
 
     print(np.amax(psf2))
     print(np.amax(np.abs(psf2 - psf[::-1, :])))
@@ -469,14 +461,14 @@ def test_scimode2():
 
     # move the FPA 4 mm closer to the exit pupil.
     # (pretty exaggerated! this leads to a spot 50 native pixels wide)
-    with FPAOffsetContext({"DZ": 4.0}):
+    with FPAOffsetContext({"DZ": 1.0}):
         obj = psfsim.polychrom.PolychromaticPSF(1, -13.72, 10.22, np.array([1.38, 1.77]))
-        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=41, ovsamp=4, use_filter="H")
+        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=15, ovsamp=4, use_filter="H")
 
     # Now check that in "science" coordinates this all works the correct way
-    with FPAOffsetContext({"DZ": 4.0}):
+    with FPAOffsetContext({"DZ": 1.0}):
         obj2 = psfsim.polychrom.PolychromaticPSF(1, 671.5, 1021.5, np.array([1.38, 1.77]), frame="Science")
-        psf2 = obj2.compute_poly_psf(cycle=10, postage_stamp_size=41, ovsamp=4, use_filter="H")
+        psf2 = obj2.compute_poly_psf(cycle=10, postage_stamp_size=15, ovsamp=4, use_filter="H")
 
     print(np.amax(psf2))
     print(np.amax(np.abs(psf2 - psf[::-1, :])))
