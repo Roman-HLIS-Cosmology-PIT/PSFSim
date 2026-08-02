@@ -70,7 +70,7 @@ def test_diff():
     print(np.amax(arr10))
 
     err = np.amax(np.abs(arr9 - arr10))
-    assert err < 0.2 * np.amax(arr10)
+    assert err < 0.15 * np.amax(arr10)
 
 
 def test_psf_2x2bin():
