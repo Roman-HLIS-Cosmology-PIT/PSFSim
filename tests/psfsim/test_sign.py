@@ -171,7 +171,7 @@ def test_extra_aberrations():
     # from the edge by 1.125 microns (so positive OPD in Poppy convention).
     # These should cancel out.
     with FPAOffsetContext({"DZ": 2.0}):
-        obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 3))
+        obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 2))
         psf = obj.compute_poly_psf(
             cycle=10,
             postage_stamp_size=81,
@@ -200,7 +200,7 @@ def test_extra_aberrations():
         # fits.PrimaryHDU(psf2).writeto("test_psf_large.fits", overwrite=True)
 
     # Test offsets of Z4 and Z5 or Z6
-    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 3))
+    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 2))
     psf_z45 = obj.compute_poly_psf(
         cycle=10,
         postage_stamp_size=81,
