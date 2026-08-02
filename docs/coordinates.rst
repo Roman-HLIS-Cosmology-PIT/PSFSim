@@ -71,7 +71,7 @@ Pupil coordinates
 
 In PSFSim, the same indexing of rays (designed to be intuitive at the *entrance pupil*) is used throughout the full ray trace. This does, however, result in a vertical flip relative to the pupil maps distributed by the Project and used in STPSF. The basic issue is that the STPSF pupil maps have the same chirality as an image looking at the sky, whereas the PSFSim maps have the chirality that you would see looking into the telescope.
 
-.. image:: figs/fpa.png
+.. image:: figs/pupil_flip.png
   :width: 900
   :alt: Pupil coordinate systems in STPSF and PSFSim.
 
