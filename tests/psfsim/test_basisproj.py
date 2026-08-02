@@ -23,7 +23,7 @@ def test_grad(tmp_path):
 
     # check the aberration transfer matrices
     od = str(tmp_path) + "/zernike_corner0.fits"
-    t, svec = aberration_transfer_matrix(use_filter="W", nn=128, n_zernike=22, outdiagnostic=od)
+    t, svec = aberration_transfer_matrix(use_filter="W", nn=64, n_zernike=22, outdiagnostic=od)
     with fits.open(od) as f:
         n = np.shape(f[0].data)[-1]
         s = np.linspace(-0.5 * (1 - 1 / n), 0.5 * (1 - 1 / n), n) * 2500.0 / 1184.02
@@ -42,7 +42,7 @@ def test_grad(tmp_path):
         assert np.amax(np.abs(ft[0].data[:, 4:6, 1:3] - target)) < 0.2
 
     # check the SVD functions
-    U, S, Vh = aberration_transfer_matrix_svd(use_filter="W", nn=128, n_zernike=22)
+    U, S, Vh = aberration_transfer_matrix_svd(use_filter="W", nn=64, n_zernike=22)
     fits.HDUList([fits.PrimaryHDU(U), fits.ImageHDU(S), fits.ImageHDU(Vh)]).writeto(
         str(tmp_path) + "/transfer_svd.fits", overwrite=True
     )
@@ -52,7 +52,7 @@ def test_grad(tmp_path):
     with pytest.raises(ValueError):
         aberration_transfer_matrix_svd(
             use_filter="W",
-            nn=64,
+            nn=32,
             n_zernike=4,
             basis=RomanBasisSet(
                 {

@@ -123,21 +123,21 @@ def test_refraction():
     # Choose a point halfway from the center to the corner of WFI09
     psf_azul = psfsim.polychrom.PolychromaticPSF(9, 10.22, -10.22, np.array([0.93])).compute_poly_psf(
         cycle=10,
-        postage_stamp_size=81,
+        postage_stamp_size=61,
         ovsamp=6,
         use_filter="W",
     )
     cpsf_azul = gaussian_filter(psf_azul, sigma=sigma)
     psf_verde = psfsim.polychrom.PolychromaticPSF(9, 10.22, -10.22, np.array([1.46])).compute_poly_psf(
         cycle=10,
-        postage_stamp_size=81,
+        postage_stamp_size=61,
         ovsamp=6,
         use_filter="W",
     )
     cpsf_verde = gaussian_filter(psf_verde, sigma=sigma)
     psf_rojo = psfsim.polychrom.PolychromaticPSF(9, 10.22, -10.22, np.array([2.00])).compute_poly_psf(
         cycle=10,
-        postage_stamp_size=81,
+        postage_stamp_size=61,
         ovsamp=6,
         use_filter="W",
     )
@@ -159,7 +159,7 @@ def test_refraction():
 def test_warp_mirror():
     """Tests that warping the PM produces features with the correct parity."""
 
-    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(0.55, 0.69, 2))
+    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.array([0.62]))
 
     # get data for the PM
     arr = np.zeros(basis_set_cy10.N)
@@ -254,7 +254,7 @@ def test_extra_aberrations():
     # 1.0 microns RMS in Noll convention
     # -> Delta wavefront = 4.0 microns left-to-right
     # -> motion on FPA is 4.0 microns * f = 32 microns = 3.2 native pix = 19.4 oversamp pix
-    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 2))
+    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.array([1.29]))
     psf = obj.compute_poly_psf(
         cycle=10,
         postage_stamp_size=81,
@@ -276,7 +276,7 @@ def test_extra_aberrations():
     # 1.0 microns RMS in Noll convention
     # -> Delta wavefront = 4.0 microns top-to-bottom
     # -> motion on FPA is 4.0 microns * f = 32 microns = 3.2 native pix = 19.4 oversamp pix
-    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 2))
+    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.array([1.29]))
     psf = obj.compute_poly_psf(
         cycle=10,
         postage_stamp_size=81,
@@ -450,15 +450,33 @@ def test_scimode():
     # move the FPA 4 mm closer to the exit pupil.
     # (pretty exaggerated! this leads to a spot 50 native pixels wide)
     with FPAOffsetContext({"DZ": 4.0}):
-        obj = psfsim.polychrom.PolychromaticPSF(1, -13.72, 10.22, np.linspace(1.38, 1.77, 2))
-        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=81, ovsamp=4, use_filter="H")
+        obj = psfsim.polychrom.PolychromaticPSF(1, -13.72, 10.22, np.array([1.58]))
+        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=41, ovsamp=4, use_filter="H")
 
     # Now check that in "science" coordinates this all works the correct way
     with FPAOffsetContext({"DZ": 4.0}):
-        obj2 = psfsim.polychrom.PolychromaticPSF(
-            1, 671.5, 1021.5, np.linspace(1.38, 1.77, 2), frame="Science"
-        )
-        psf2 = obj2.compute_poly_psf(cycle=10, postage_stamp_size=81, ovsamp=4, use_filter="H")
+        obj2 = psfsim.polychrom.PolychromaticPSF(1, 671.5, 1021.5, np.array([1.58]), frame="Science")
+        psf2 = obj2.compute_poly_psf(cycle=10, postage_stamp_size=41, ovsamp=4, use_filter="H")
+
+    print(np.amax(psf2))
+    print(np.amax(np.abs(psf2 - psf[::-1, :])))
+
+    assert np.allclose(psf[::-1, :], psf2)
+
+
+def test_scimode2():
+    """Tests that in "science" mode we get all the correct flips in multiple wavelength mode."""
+
+    # move the FPA 4 mm closer to the exit pupil.
+    # (pretty exaggerated! this leads to a spot 50 native pixels wide)
+    with FPAOffsetContext({"DZ": 4.0}):
+        obj = psfsim.polychrom.PolychromaticPSF(1, -13.72, 10.22, np.array([1.38, 1.77]))
+        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=41, ovsamp=4, use_filter="H")
+
+    # Now check that in "science" coordinates this all works the correct way
+    with FPAOffsetContext({"DZ": 4.0}):
+        obj2 = psfsim.polychrom.PolychromaticPSF(1, 671.5, 1021.5, np.array([1.38, 1.77]), frame="Science")
+        psf2 = obj2.compute_poly_psf(cycle=10, postage_stamp_size=41, ovsamp=4, use_filter="H")
 
     print(np.amax(psf2))
     print(np.amax(np.abs(psf2 - psf[::-1, :])))

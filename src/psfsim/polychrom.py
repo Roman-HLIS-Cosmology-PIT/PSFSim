@@ -216,6 +216,10 @@ class PolychromaticPSF:
             this_psf.get_image_from_Intensity(centerpix=centerpix, reflect=True, tophat=True)
             return this_psf.detector_image
 
+        # output flips
+        _px = 1
+        _py = -1 if self.frame in ["science"] else 1
+
         if n_in_band == 1:
             wav = wavelengths[in_band_mask][0]
             chromatic_psf = _compute_mono_image(wav).astype(float, copy=True)
@@ -223,6 +227,7 @@ class PolychromaticPSF:
             if total_flux == 0.0:
                 raise ValueError("Monochromatic PSF has zero flux for the only in-band wavelength node.")
             chromatic_psf /= total_flux
+            chromatic_psf = chromatic_psf[::_py, ::_px]
             self.chromatic_psf = chromatic_psf
             return chromatic_psf
 
@@ -270,8 +275,7 @@ class PolychromaticPSF:
         chromatic_psf /= total_flux
 
         # Convert to the desired coordinate system
-        if self.frame == "science":
-            chromatic_psf = chromatic_psf[::-1, :]
+        chromatic_psf = chromatic_psf[::_py, ::_px]
 
         self.chromatic_psf = chromatic_psf
         return chromatic_psf
