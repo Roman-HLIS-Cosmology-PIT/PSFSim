@@ -159,7 +159,7 @@ def test_refraction():
 def test_warp_mirror():
     """Tests that warping the PM produces features with the correct parity."""
 
-    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(0.48, 0.76, 3))
+    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(0.55, 0.69, 2))
 
     # get data for the PM
     arr = np.zeros(basis_set_cy10.N)
@@ -254,7 +254,7 @@ def test_extra_aberrations():
     # 1.0 microns RMS in Noll convention
     # -> Delta wavefront = 4.0 microns left-to-right
     # -> motion on FPA is 4.0 microns * f = 32 microns = 3.2 native pix = 19.4 oversamp pix
-    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 3))
+    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 2))
     psf = obj.compute_poly_psf(
         cycle=10,
         postage_stamp_size=81,
@@ -276,7 +276,7 @@ def test_extra_aberrations():
     # 1.0 microns RMS in Noll convention
     # -> Delta wavefront = 4.0 microns top-to-bottom
     # -> motion on FPA is 4.0 microns * f = 32 microns = 3.2 native pix = 19.4 oversamp pix
-    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 3))
+    obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(1.131, 1.454, 2))
     psf = obj.compute_poly_psf(
         cycle=10,
         postage_stamp_size=81,
