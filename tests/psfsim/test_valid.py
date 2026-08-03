@@ -1,9 +1,8 @@
 """Ensure that the correct exceptions are raised for invalid values."""
 
-import numpy as np
 import pytest
 from psfsim.opticspsf import GeometricOptics
-from psfsim.wfi_coordinate_transformations import from_sca_to_fpa, from_sca_to_analysis
+from psfsim.wfi_coordinate_transformations import from_sca_to_analysis, from_sca_to_fpa
 
 
 def test_scaerr():
