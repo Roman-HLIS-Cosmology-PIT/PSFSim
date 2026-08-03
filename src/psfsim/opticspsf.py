@@ -480,7 +480,8 @@ class GeometricOptics:
         Returns
         -------
         np.ndarray of float
-            The pupil mask.
+            The pupil mask. This is a 2D array, with the axes aligned with the
+            entrance pupil (see ``docs/coordinates.rst``).
 
         """
 
@@ -574,7 +575,7 @@ class GeometricOptics:
         -------
         np.ndarray of float
             The path difference map; same shape as ``self.u_array()``.
-            Units of microns.
+            Units of microns. This map is in the convention that a longer path is positive.
 
         """
 
