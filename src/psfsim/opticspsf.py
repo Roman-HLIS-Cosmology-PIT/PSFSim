@@ -326,6 +326,8 @@ class GeometricOptics:
             self.perturbations = {"arr": cycle10_perturbations(use_filter), "basis": basis_set_cy10}
         if perturbations is not None:
             self.perturbations = perturbations
+        if (cycle < 10) and (self.ghost):
+            raise ValueError("ghost must be False for cycle < 10")
 
         # Compute Distortion Matrix and dterminant
         self.distortionMatrix = self.compute_distortion_matrix(method="raytrace")
