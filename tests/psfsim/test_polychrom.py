@@ -237,6 +237,7 @@ def test_poly_with_ghost():
     arr = p.compute_poly_psf(use_filter="H", ovsamp=4, cycle=10, postage_stamp_size=241)
 
     assert 1e-5 <= np.amax(arr) / np.sum(arr) <= 1e-4
+    assert np.all(arr[442:522, 442:522] < 0.3 * np.amax(arr))
 
     with pytest.raises(ValueError, match=r"^ghost"):
         p.compute_poly_psf(use_filter="H", ovsamp=4, use_postage_stamp_size=80, ray_trace=False)
