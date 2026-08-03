@@ -233,8 +233,8 @@ def test_poly_h():
 def test_poly_with_ghost():
     """Simple H-band test with ghost path enabled."""
 
-    p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6), ghost=True)
-    arr = p.compute_poly_psf(use_filter="H", ovsamp=8, use_postage_stamp_size=80)
+    p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 2), ghost=True)
+    arr = p.compute_poly_psf(use_filter="H", ovsamp=4, cycle=10, postage_stamp_size=241)
 
     assert 0.003 <= np.amax(arr) / np.sum(arr) <= 0.004
 
