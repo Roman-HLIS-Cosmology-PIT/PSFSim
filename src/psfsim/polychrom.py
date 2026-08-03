@@ -94,14 +94,13 @@ class PolychromaticPSF:
         self.wavelengths = wavelengths  # replace with something better later
         self.sed = sed
         self.bandpass = galsim.roman.getBandpasses()
+        self.ghost = ghost
         self.frame = frame.lower()  # make this case-insensitive
 
         # convert positions to analysis frame
         if self.frame == "science":
             self.scax = 0.01 * (self.scax - 2043.5)
             self.scay = -0.01 * (self.scay - 2043.5)
-
-            self.ghost = ghost
 
     def compute_poly_psf(
         self,
