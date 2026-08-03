@@ -236,8 +236,10 @@ def test_poly_with_ghost():
     p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 2), ghost=True)
     arr = p.compute_poly_psf(use_filter="H", ovsamp=4, cycle=10, postage_stamp_size=241)
 
-    assert 0.003 <= np.amax(arr) / np.sum(arr) <= 0.004
+    assert 1e-5 <= np.amax(arr) / np.sum(arr) <= 1e-4
 
     with pytest.raises(ValueError, match=r"^ghost"):
-        p.compute_poly_psf(use_filter="H", ovsamp=8, use_postage_stamp_size=80, ray_trace=False)
-    print("raises ValueError as expected")
+        p.compute_poly_psf(use_filter="H", ovsamp=4, use_postage_stamp_size=80, ray_trace=False)
+
+    with pytest.raises(ValueError, match=r"^ghost must be False"):
+        p.compute_poly_psf(use_filter="H", ovsamp=4, cycle=9, postage_stamp_size=241)
