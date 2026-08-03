@@ -4,10 +4,12 @@ import importlib
 import sys
 import types
 
+import galsim
 import numpy as np
 import psfsim
 import psfsim.polychrom
 import pytest
+from scipy.ndimage import gaussian_filter
 
 # --- These are tests for general functionality ---
 
@@ -244,3 +246,21 @@ def test_poly_with_ghost():
 
     with pytest.raises(ValueError, match=r"^ghost must be False"):
         p.compute_poly_psf(use_filter="H", ovsamp=4, cycle=9, postage_stamp_size=241)
+
+    # Check that the ghosts have correct refraction.
+    n_im = 2
+    wl = [0.95, 2.0]
+    alist = []
+    ctr = []
+    for j in range(n_im):
+        p = psfsim.polychrom.PolychromaticPSF(16, 0, 0, np.array([wl[j]]), ghost=True)
+        alist.append(p.compute_poly_psf(use_filter="W", ovsamp=4, cycle=10, postage_stamp_size=241))
+
+        moms = galsim.Image(gaussian_filter(alist[j], 5)[460:504, 460:504]).FindAdaptiveMom()
+        ctr.append(moms.moments_centroid)
+
+    dx = ctr[0].x - ctr[1].x
+    dy = ctr[0].y - ctr[1].y
+    print(dx, dy)
+    assert 4.5 < dx < 6.5
+    assert 1.0 < dy < 2.0
