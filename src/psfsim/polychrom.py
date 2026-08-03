@@ -62,10 +62,9 @@ class PolychromaticPSF:
     ----------
     scanum : int
         Roman SCA index passed through to ``PSFObject``.
-    scax : float
-        Source x-position on the SCA.
-    scay : float
-        Source y-position on the SCA.
+    scax, scay : float
+        Source x and y positions on the SCA. Units depend on the frame: mm (analysis, default) or
+        native pixels (science).
     wavelengths : array-like
         Wavelength samples in microns. Values are evaluated in the provided order.
     sed : callable, optional
