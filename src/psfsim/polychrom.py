@@ -72,6 +72,9 @@ class PolychromaticPSF:
         Spectral energy distribution weight function evaluated as ``sed(wav_microns)``.
         This should be in units proportional to photons/m^2/s/micron.
         If ``None``, a flat spectral weight (in lambda F_lambda) is assumed.
+    ghost : bool, optional
+        Whether to include the ghost path from refraction in the optical filter.
+        Default: False. Only can be true if ray_trace=True.
     frame : str, optional
         Which frame to use? Options are "analysis" and "science".
 
@@ -84,7 +87,7 @@ class PolychromaticPSF:
 
     """
 
-    def __init__(self, scanum, scax, scay, wavelengths, sed=None, frame="analysis"):
+    def __init__(self, scanum, scax, scay, wavelengths, sed=None, ghost=False, frame="analysis"):
         self.scanum = scanum
         self.scax = scax
         self.scay = scay
@@ -97,6 +100,8 @@ class PolychromaticPSF:
         if self.frame == "science":
             self.scax = 0.01 * (self.scax - 2043.5)
             self.scay = -0.01 * (self.scay - 2043.5)
+
+            self.ghost = ghost
 
     def compute_poly_psf(
         self,
@@ -192,6 +197,9 @@ class PolychromaticPSF:
                 f"Provided range: [{wavelengths.min():.6g}, {wavelengths.max():.6g}] microns."
             )
 
+        if (not ray_trace) and (self.ghost):
+            raise ValueError("ghost must be False")
+
         def _compute_mono_image(wav):
             this_psf = PSFObject(
                 self.scanum,
@@ -207,6 +215,7 @@ class PolychromaticPSF:
                 extra_aberrations=extra_aberrations,
                 cycle=cycle,
                 mjd=mjd,
+                ghost=self.ghost,
                 perturbations=perturbations,
             )
             this_psf.get_optical_psf()

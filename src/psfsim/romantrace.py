@@ -1579,6 +1579,9 @@ def _RomanRayBundle(
     return RB
 
 
+# ELLE DOING STUFF HERE TOO
+
+
 def RomanRayBundle(
     xan,
     yan,
