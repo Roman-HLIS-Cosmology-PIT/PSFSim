@@ -1,7 +1,6 @@
 """ Functions to handle decomposition of (un)polarised E fields into TE and TM modes and
 rotation of E field components from local coordinates to focal plane coordinates. """
 
-import time
 
 import numpy as np
 
@@ -151,52 +150,4 @@ def polarisation_mode_decomposition(ux, uy, E, sgn):
     A_TE[:, :] = Ex * ee1 + Ey * ee2
     A_TM[:, :] = Ex * ek1 + Ey * ek2 + Ez * ek3
 
-    return {"TE": A_TE, "TM": A_TM}
-
-
-def unpolarised_mode_decomposition(ux, uy, E0=1.0e10):
-    """
-    Decomposition for unpolarized light.
-
-    Parameters
-    ----------
-    ux, uy : float
-        Orthographic coordinates.
-    E0 : float, optional
-        Amplitude.
-
-    Returns
-    -------
-    dict of np.ndarray of complex
-        The keys are "TE" and "TM", and each have the same shape as `ux` and `uy`.
-
-    Notes
-    -----
-    **Warning** : This generates equal amplitudes but if you just use the field
-    values there will be unphysical interference. Need to figure out what to do about this.
-
-    """
-
-    print("Computing polarisation mode decomposition for unpolarised incident E field.....")
-    start_time = time.time()
-
-    # Function to obtain TE and TM mode amplitudes for unpolarised incident wave with magnitude of
-    # electric field E0.
-
-    u = np.sqrt((ux**2) + (uy**2))
-    mask = u <= 1
-    # mask = np.abs(ux) + np.abs(uy) <= 1.0
-    try:
-        shape = ux.shape
-    except AttributeError:
-        shape = (1, 1)
-    # shape = ux.shape
-    A_TE = np.zeros(shape, dtype=np.complex128)
-    A_TM = np.zeros(shape, dtype=np.complex128)
-
-    A_TE[mask] = (1.0 / np.sqrt(2)) * E0
-    A_TM[mask] = -(1.0 / np.sqrt(2)) * E0
-
-    end_time = time.time()
-    print(f"Finished computing polarisation mode decomposition in {end_time-start_time:.3f}")
     return {"TE": A_TE, "TM": A_TM}

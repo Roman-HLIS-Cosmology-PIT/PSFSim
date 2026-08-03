@@ -237,7 +237,7 @@ class LegendreBasis(_FigureBasis):
 
         """
 
-        return x >= self.xmin & x <= self.xmax & y >= self.ymin & y <= self.ymax
+        return (x >= self.xmin) & (x <= self.xmax) & (y >= self.ymin) & (y <= self.ymax)
 
 
 class LegendreBasisMaxOrder(_FigureBasis):
@@ -322,7 +322,7 @@ class LegendreBasisMaxOrder(_FigureBasis):
 
         """
 
-        return x >= self.xmin & x <= self.xmax & y >= self.ymin & y <= self.ymax
+        return (x >= self.xmin) & (x <= self.xmax) & (y >= self.ymin) & (y <= self.ymax)
 
 
 class RomanBasisSet:

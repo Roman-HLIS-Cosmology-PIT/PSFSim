@@ -62,10 +62,9 @@ class PolychromaticPSF:
     ----------
     scanum : int
         Roman SCA index passed through to ``PSFObject``.
-    scax : float
-        Source x-position on the SCA, in mm.
-    scay : float
-        Source y-position on the SCA, in mm.
+    scax, scay : float
+        Source x and y positions on the SCA. Units depend on the frame: mm (analysis, default) or
+        native pixels (science).
     wavelengths : array-like
         Wavelength samples in microns. Values are evaluated in the provided order.
     sed : callable, optional
@@ -75,10 +74,19 @@ class PolychromaticPSF:
     ghost : bool, optional
         Whether to include the ghost path from refraction in the optical filter.
         Default: False. Only can be true if ray_trace=True.
+    frame : str, optional
+        Which frame to use? Options are "analysis" and "science".
+
+        - **analysis** : scax and scay are in mm with (0, 0) at the SCA center.
+        - **science** : scax and scay are in pixels with (0, 0) at the lower-left corner (in ds9 display).
+
+        The PSF is also flipped if necessary to coincide with the desired output.
+
+        Note also the 2 frames have a parity flip: SCI +Y is the same direction as ANA -Y.
 
     """
 
-    def __init__(self, scanum, scax, scay, wavelengths, sed=None, ghost=False):
+    def __init__(self, scanum, scax, scay, wavelengths, sed=None, ghost=False, frame="analysis"):
         self.scanum = scanum
         self.scax = scax
         self.scay = scay
@@ -86,6 +94,12 @@ class PolychromaticPSF:
         self.sed = sed
         self.bandpass = galsim.roman.getBandpasses()
         self.ghost = ghost
+        self.frame = frame.lower()  # make this case-insensitive
+
+        # convert positions to analysis frame
+        if self.frame == "science":
+            self.scax = 0.01 * (self.scax - 2043.5)
+            self.scay = -0.01 * (self.scay - 2043.5)
 
     def compute_poly_psf(
         self,
@@ -209,6 +223,10 @@ class PolychromaticPSF:
             this_psf.get_image_from_Intensity(centerpix=centerpix, reflect=True, tophat=True)
             return this_psf.detector_image
 
+        # output flips
+        _px = 1
+        _py = -1 if self.frame in ["science"] else 1
+
         if n_in_band == 1:
             wav = wavelengths[in_band_mask][0]
             chromatic_psf = _compute_mono_image(wav).astype(float, copy=True)
@@ -216,6 +234,7 @@ class PolychromaticPSF:
             if total_flux == 0.0:
                 raise ValueError("Monochromatic PSF has zero flux for the only in-band wavelength node.")
             chromatic_psf /= total_flux
+            chromatic_psf = chromatic_psf[::_py, ::_px]
             self.chromatic_psf = chromatic_psf
             return chromatic_psf
 
@@ -261,5 +280,9 @@ class PolychromaticPSF:
                 "check wavelength nodes, filter, and SED values."
             )
         chromatic_psf /= total_flux
+
+        # Convert to the desired coordinate system
+        chromatic_psf = chromatic_psf[::_py, ::_px]
+
         self.chromatic_psf = chromatic_psf
         return chromatic_psf

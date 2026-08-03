@@ -61,7 +61,7 @@ def test_extraction(tmp_path):
         p = extract_basis_coefs(
             lname,
             filter,
-            nn=64,
+            nn=48,
             pars_input=p,
             nmin=nmin,
             smin=0.05,

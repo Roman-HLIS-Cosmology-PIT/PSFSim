@@ -343,7 +343,7 @@ class GeometricOptics:
         self.du = (self.uvcoefs[0][1] + self.uvcoefs[1][2]) / 2.0
 
         self.urhoPolar = np.sqrt((self.u_array() - self.ucen) ** 2 + (self.v_array() - self.vcen) ** 2)
-        self.uthetaPolar = np.arctan2(self.v_array() - self.vcen, -(self.u_array() - self.ucen))
+        self.uthetaPolar = np.arctan2(self.v_array() - self.vcen, self.u_array() - self.ucen)
 
         # Load pupil mask from raytrace - more accurate
         # self.uArray = self.pupilMaskU[:, :, 0]
@@ -480,7 +480,8 @@ class GeometricOptics:
         Returns
         -------
         np.ndarray of float
-            The pupil mask.
+            The pupil mask. This is a 2D array, with the axes aligned with the
+            entrance pupil (see ``docs/coordinates.rst``).
 
         """
 
@@ -574,7 +575,7 @@ class GeometricOptics:
         -------
         np.ndarray of float
             The path difference map; same shape as ``self.u_array()``.
-            Units of microns.
+            Units of microns. This map is in the convention that a longer path is positive.
 
         """
 
@@ -610,7 +611,13 @@ class GeometricOptics:
             zernCoeffsToInterpolate = np.asarray(mydata[zString][mask1])
             zernCoeff = altgriddata(points, zernCoeffsToInterpolate, (self.scax, self.scay))
             nZern, mZern = zernike.noll_to_zernike(i + 1)
-            # print(">>>", zernike.zernike(nZern, mZern, self.urhoPolar, self.uthetaPolar))
+
+            # the (u, v) system is flipped from the Project spreadsheet on the X-axis
+            # because there is the inversion (x_in, y_in) -> (u, v)
+            # and the y-flip of the pupil image
+            f = (-1) ** (mZern + (zIndex if mZern != 0 else 0))
+            zernCoeff *= f
+
             path_diff -= (
                 zernCoeff
                 * self.wavelength
