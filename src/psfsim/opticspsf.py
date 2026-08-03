@@ -144,6 +144,39 @@ def compute_jacobian(u, dx=1.0, dy=1.0):
     return jacobian
 
 
+def u_from_xyi(rb, thres=0.5):
+    """
+    Performs a linear regression of u vs xyi for a bundle object.
+    To be used as distortion matrix for raytrace objects with a ghost path.
+    Returns a coefficient array as a dictionary.
+
+    Arguments
+    ---------
+    rb: raytrace object
+        The bundle to perform fitting on.
+    thres: int, optional
+        Open ray threshold. Default is 0.5. Must be between 0-1.
+    Returns
+    --------
+    coeff: dict
+        Coefficient array as a dictionary, where:
+            coeff["Slope"] is a (2, 2) matrix.
+            coeff["Intercept"] is a (2,) vector.
+
+    """
+    open_rays = np.where(rb.open > thres)
+    xyi = rb.xyi[:, :, :][open_rays]
+    u = rb.u[:, :, :][open_rays]
+    xyi_stacked = np.hstack([xyi, np.ones([u.shape[0], 1], u.dtype)])
+    M = np.linalg.lstsq(xyi_stacked, u, rcond=None)[0]
+    A = M[0:2, :]
+    b = M[2, :]
+    coeff = {}
+    coeff["Slope:"] = A
+    coeff["Intercept:"] = b
+    return coeff
+
+
 class GeometricOptics:
     """
     Geometric optics object.
@@ -168,6 +201,9 @@ class GeometricOptics:
         Which cycle to use for the Zernike modes.
     mjd : float, optional
         The MJD to use for the optical model.
+    ghost : bool, optional
+        Whether to include the ghost path from refraction in the optical filter.
+        Default: False. Only can be true if ray_trace=True.
     perturbations : dict, optional
         If provided, replaces the default perturbations in the cycle model. Should contain the keys:
 
@@ -201,6 +237,9 @@ class GeometricOptics:
         The ray trace object.
     a_lanczos : int, optional
         The order of Lanczos kernel apodization to use for the high-resolution pupil.
+    ghost : bool
+        Whether to include the ghost path from refraction in the optical filter.
+        Default: False. Only can be true if ray_trace=True.
 
     Methods
     -------
@@ -234,6 +273,7 @@ class GeometricOptics:
         a_lanczos=3,
         cycle=9,
         mjd=None,
+        ghost=False,
         perturbations=None,
     ):
         # sca position in mm
@@ -244,6 +284,7 @@ class GeometricOptics:
         self.pupilLength = 2400 * 8  # in mm
         self.focalLength = 8  # m
         self.samplingwidth = (self.wavelength / self.dsX) * self.pupilLength  # in mm for raytrace
+        self.ghost = ghost
 
         self.scanum = scanum
         self.scax = scax
@@ -265,6 +306,8 @@ class GeometricOptics:
             self.uX = np.linspace(self.umin, self.umax, self.ulen)
             self.uY = np.linspace(self.umin, self.umax, self.ulen)
             self.uArray, self.vArray = np.meshgrid(self.uX, self.uY)
+            if self.ghost:
+                raise ValueError("ghost must be False if raytrace is False.")
 
         self.pupilSampling = self.ulen
 
@@ -283,6 +326,8 @@ class GeometricOptics:
             self.perturbations = {"arr": cycle10_perturbations(use_filter), "basis": basis_set_cy10}
         if perturbations is not None:
             self.perturbations = perturbations
+        if (cycle < 10) and (self.ghost):
+            raise ValueError("ghost must be False for cycle < 10")
 
         # Compute Distortion Matrix and dterminant
         self.distortionMatrix = self.compute_distortion_matrix(method="raytrace")
@@ -386,14 +431,19 @@ class GeometricOptics:
                 self.use_filter,
                 wl=self.wavelength * 0.001,
                 hasE=True,
+                ghostpath=self.ghost,
                 a_lanczos=self.a_lanczos,
             )
-            mat = compute_jacobian(
-                raytrace.u,
-                dx=raytrace.xyi[0, 1, 0] - raytrace.xyi[0, 0, 0],
-                dy=raytrace.xyi[0, 1, 0] - raytrace.xyi[0, 0, 0],
-            )[3, 3, :, :]
-            # mat has units of inverse mm
+            if self.ghost:
+                fit = u_from_xyi(raytrace)
+                mat = fit["Slope:"]
+            else:
+                mat = compute_jacobian(
+                    raytrace.u,
+                    dx=raytrace.xyi[0, 1, 0] - raytrace.xyi[0, 0, 0],
+                    dy=raytrace.xyi[0, 1, 0] - raytrace.xyi[0, 0, 0],
+                )[3, 3, :, :]
+                # mat has units of inverse mm
         else:
             raise Exception("Invalid method for computing distortion matrix")
         return mat
@@ -450,6 +500,7 @@ class GeometricOptics:
                 jacobian=jacobian,
                 a_lanczos=self.a_lanczos,
                 errs=self.perturbations,
+                ghostpath=self.ghost,
             )
 
             # Find bounding box of open pupil
@@ -492,6 +543,7 @@ class GeometricOptics:
                 hasE=True,
                 jacobian=jacobian,
                 errs=self.perturbations,
+                ghostpath=self.ghost,
             )
 
             self.rb = self.rb.pad(self.ulen)

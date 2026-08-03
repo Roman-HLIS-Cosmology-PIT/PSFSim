@@ -228,3 +228,19 @@ def test_poly_h():
         p2.compute_poly_psf(use_filter="H", ovsamp=8)
     with pytest.raises(ValueError, match=r"^Filter"):
         p.compute_poly_psf(use_filter="doesntexist", ovsamp=8)
+
+
+def test_poly_with_ghost():
+    """Simple H-band test with ghost path enabled."""
+
+    p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 2), ghost=True)
+    arr = p.compute_poly_psf(use_filter="H", ovsamp=4, cycle=10, postage_stamp_size=241)
+
+    assert 1e-5 <= np.amax(arr) / np.sum(arr) <= 1e-4
+    assert np.all(arr[442:522, 442:522] < 0.3 * np.amax(arr))
+
+    with pytest.raises(ValueError, match=r"^ghost"):
+        p.compute_poly_psf(use_filter="H", ovsamp=4, use_postage_stamp_size=80, ray_trace=False)
+
+    with pytest.raises(ValueError, match=r"^ghost must be False"):
+        p.compute_poly_psf(use_filter="H", ovsamp=4, cycle=9, postage_stamp_size=241)
