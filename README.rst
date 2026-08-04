@@ -16,7 +16,7 @@ Additional information:
 - `Model description <docs/model.rst>`_.
 - `Coordinates in PSFSim <docs/coordinates.rst>`_.
 
-Written by Nihar Dalal, Charuhas Shiveshwarkar, Chris Hirata, Elle Moore, Katherine Laliotis, and Anthony Harbo Torres
+Written by Nihar Dalal, Charuhas Shiveshwarkar, Chris Hirata, Elle Moore, Katherine Laliotis, Anthony Harbo Torres, and David Kuhtenia.
 
 Data files:
 
