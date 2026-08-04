@@ -1473,11 +1473,6 @@ def _RomanRayBundle(
             ],
         )
 
-    # START ELLE (filter ghost development)
-    # replace first comment about S1 through final intersect/refract through s2
-
-    # testing just putting transformation matrices/defs first then having refract/reflect after
-
     # DEFINE/GET STUFF FOR S1
     S1 = build_transform_matrix(
         xde=531.5125171153529,
@@ -1514,10 +1509,14 @@ def _RomanRayBundle(
 
     # ghost time
     if ghostpath:
+        _, _, L = RB.intersect_surface(S2, Rinv=Rinv2, K=K2, update=False)
+        RB.s += L * (n_Infrasil301(wl) - n_Infrasil301(wlref))
         RB.intersect_surface_and_reflect(S2, Rinv=Rinv2, K=K2, activeZone=activeZone2)
+        _, _, L = RB.intersect_surface(S1, Rinv=Rinv1, K=K1, update=False)
+        RB.s += L * (n_Infrasil301(wl) - n_Infrasil301(wlref))
         RB.intersect_surface_and_reflect(S1, Rinv=Rinv1, K=K1, activeZone=activeZone1, gd=gd1)
 
-    # END ELLE. down here is the refract through S2!
+    # down here is the refract through S2
     _, _, L = RB.intersect_surface(S2, Rinv=Rinv2, K=0.0, update=False)
     RB.s += L * (n_Infrasil301(wl) - n_Infrasil301(wlref))
     RB.intersect_surface_and_refract(S2, Rinv=Rinv2, K=K2, n_new=n_new2, activeZone=activeZone2)

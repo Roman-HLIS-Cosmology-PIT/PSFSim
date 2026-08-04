@@ -8,6 +8,10 @@ authors = [
     { name = "Nihar Dalal", email = "dalal.64@osu.edu" },
     { name = "Charuhas Shiveshwarkar", email = "shiveshwarkar.1@osu.edu" },
     { name = "Christopher Hirata", email = "hirata.10@osu.edu" },
+    { name = "Elle Moore", email = "moore.5248@osu.edu" },
+    { name = "Katherine Laliotis", email = "laliotis.2@osu.edu" },
+    { name = "Anthony Harbo Torres", email = "harbotorres.1@osu.edu" },
+    { name = "David Kuhtenia", email = "kuhtenia.3@osu.edu" },
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
