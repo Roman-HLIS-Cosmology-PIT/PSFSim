@@ -1,4 +1,8 @@
-.. image:: https://codecov.io/gh/Roman-HLIS-Cosmology-PIT/PSFSim/graph/badge.svg?token=kI7xCYckoa :target: https://codecov.io/gh/Roman-HLIS-Cosmology-PIT/PSFSim
+|badge1| |badge2|
+
+.. |badge1| image:: https://codecov.io/gh/Roman-HLIS-Cosmology-PIT/PSFSim/graph/badge.svg?token=kI7xCYckoa :target: https://codecov.io/gh/Roman-HLIS-Cosmology-PIT/PSFSim
+
+.. |badge2| image:: https://github.com/Roman-HLIS-Cosmology-PIT/PSFSim/actions/workflows/smoke-test.yml/badge.svg
 
 PSFSim
 ######
