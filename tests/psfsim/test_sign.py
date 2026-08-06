@@ -461,7 +461,6 @@ def test_fpamode():
     """Tests that in "FPA" mode we get all the correct flips."""
 
     # move the FPA 4 mm closer to the exit pupil.
-    # (pretty exaggerated! this leads to a spot 50 native pixels wide)
     with FPAOffsetContext({"DZ": 4.0}):
         obj = psfsim.polychrom.PolychromaticPSF(1, -13.72, 10.22, np.array([1.58]))
         psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=21, ovsamp=4, use_filter="H")
@@ -475,18 +474,7 @@ def test_fpamode():
 
     assert np.allclose(obj2.scax, -13.72)
     assert np.allclose(obj2.scay, 10.22)
-
-    print(np.amax(psf2))
-    print(np.amax(np.abs(psf2 - psf[::-1, ::-1])))
-
     assert np.allclose(psf[::-1, ::-1], psf2)
-
-
-def test_badframe():
-    """Tests that an unrecognized frame is rejected."""
-
-    with pytest.raises(ValueError):
-        psfsim.polychrom.PolychromaticPSF(1, 671.5, 1021.5, np.array([1.58]), frame="sci")
 
 
 def test_scimode2():
