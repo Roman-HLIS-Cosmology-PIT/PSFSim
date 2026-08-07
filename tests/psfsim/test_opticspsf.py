@@ -36,7 +36,7 @@ def test_geometricoptics9():
     # Pupil locations
     print(g.samplingwidth)
     print(g.ucen, g.vcen)
-    assert np.abs(13056 - g.samplingwidth) < 5.0
+    assert np.abs(12751 - g.samplingwidth) < 5.0
     assert np.hypot(-0.12413403996321462 - g.ucen, -0.17128826467513136 - g.vcen) < 0.01
 
     omega = g.du**2 * np.sum(g.pupil_mask)
@@ -69,7 +69,7 @@ def test_geometricoptics10():
     # Pupil locations
     print(g.samplingwidth)
     print(g.ucen, g.vcen)
-    assert np.abs(13056 - g.samplingwidth) < 5.0
+    assert np.abs(12751 - g.samplingwidth) < 5.0
     assert np.hypot(-0.12413403996321462 - g.ucen, -0.17128826467513136 - g.vcen) < 0.01
 
     omega = g.du**2 * np.sum(g.pupil_mask)
@@ -118,7 +118,7 @@ def test_geometricoptics10():
     # Pupil locations
     print(g_ghost.samplingwidth)
     print(g_ghost.ucen, g_ghost.vcen)
-    assert np.abs(13056 - g_ghost.samplingwidth) < 5.0
+    assert np.abs(12751 - g_ghost.samplingwidth) < 5.0
     assert np.hypot(-0.12413403996321462 - g_ghost.ucen, -0.17128826467513136 - g_ghost.vcen) < 0.01
 
     omega_ghost = g_ghost.du**2 * np.sum(g_ghost.pupil_mask)

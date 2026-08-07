@@ -83,5 +83,5 @@ def test_extraction(tmp_path):
 
     # these you might have to update if you change the model
     assert -25 < 1.0e6 * data[0, 0] < -23
-    assert -17 < 1.0e6 * data[nmin, 0] < -15
+    assert -22 < 1.0e6 * data[nmin, 0] < -20
     assert -1 < 1.0e6 * data[nmin, 1] < 1

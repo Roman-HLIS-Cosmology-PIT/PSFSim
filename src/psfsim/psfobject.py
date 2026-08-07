@@ -11,6 +11,7 @@ from .mtf_diffusion import intensity_to_image
 from .opticspsf import GeometricOptics
 from .polarisation_decomposition import polarisation_mode_decomposition
 from .quadrature_integration import QuadratureIntegrator
+from .romantrace import fratio_scale
 from .wfi_data import pix
 from .zernike import noll_to_zernike, zernike
 
@@ -217,12 +218,7 @@ class PSFObject:
             # Changed this to a - sign so that it is consistent with Poppy. -- C.H.
             for n, m, mag in zip(nArr, mArr, extra_aberrations[:coeff_count], strict=False):
                 self.optics.path_difference -= (
-                    (
-                        mag
-                        * zernike(
-                            n, m, 2 * self.optics.focalLength * self.optics.urhoPolar, self.optics.uthetaPolar
-                        )
-                    )
+                    (mag * zernike(n, m, 2 * fratio_scale * self.optics.urhoPolar, self.optics.uthetaPolar))
                     if mag is not None
                     else 0
                 )
