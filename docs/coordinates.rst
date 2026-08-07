@@ -54,7 +54,7 @@ The layout of the focal plane coordinate system is:
 
 Note that the FPA +Z axis is coming toward the viewer. The "science frame" of each detector defined by the SOC is flipped from the FPA coordinates so that it has the same parity as one would see looking at the sky. The science frame +Y is in the same direction as FPA +Y, but science frame +X is in the direction of FPA -X.
 
-The native computations in PSFSim are in the "analysis frame", which is rotated 180 degrees since there is a sign flip from (x, y) in the entrance pupil plane to (u, v) at the exit pupil. This frame has the origin at the *center* of the SCA. The main user interface, ``psfsim.polychrom.PolychromaticPSF``, can be configured to have input/output in either analysis or science coordinates. (Most users will want science.)
+The native computations in PSFSim are in the "analysis frame", which is rotated 180 degrees since there is a sign flip from (x, y) in the entrance pupil plane to (u, v) at the exit pupil. This frame has the origin at the *center* of the SCA. The main user interface, ``psfsim.polychrom.PolychromaticPSF``, can be configured to have input/output in analysis, science, or FPA coordinates (``frame="analysis"``, ``"science"``, or ``"fpa"``). (Most users will want science.) The science and FPA options take the position in native pixels; since the science frame is flipped from FPA on the X axis, the two label the same point on the detector when ``x_sci + x_fpa = 4087`` and ``y_sci = y_fpa``.
 
 We can also zoom out and look at the path from the filter to the focal plane:
 
@@ -79,4 +79,4 @@ There are 2 places where this flip needs to be treated in PSFSim:
 
 - The script that builds a perturbation model from an input set of Zernikes needs to flip the y-axis (i.e., flip the sign of the Zernike coefficients with odd Noll numbers). This is done in when reading in the Project spreadsheet in ``psfsim.aberration_models.extract_basis_coefs`` (and only needs to be touched when we do a model update).
 
-- The output PSF. In ``psfsim.polychrom.PolychromaticPSF``, the ``frame="science"`` keyword/argument can be used to align everything to the science frame (which we suspect is what most users will need).
+- The output PSF. In ``psfsim.polychrom.PolychromaticPSF``, the ``frame="science"`` keyword/argument can be used to align everything to the science frame (which we suspect is what most users will need), or ``frame="fpa"`` to align it to the focal plane array.

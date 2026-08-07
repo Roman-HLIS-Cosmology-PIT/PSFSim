@@ -456,6 +456,26 @@ def test_scimode():
     assert np.allclose(psf[::-1, :], psf2)
 
 
+def test_fpamode():
+    """Tests that in "FPA" mode we get all the correct flips."""
+
+    # move the FPA 4 mm closer to the exit pupil.
+    with FPAOffsetContext({"DZ": 4.0}):
+        obj = psfsim.polychrom.PolychromaticPSF(1, -13.72, 10.22, np.array([1.58]))
+        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=21, ovsamp=4, use_filter="H")
+
+    # The FPA frame is rotated 180 degrees from the analysis frame, so this is the same
+    # point on the detector as (-13.72, 10.22) in analysis coordinates, and as
+    # (671.5, 1021.5) in science coordinates (note 3415.5 + 671.5 = 2*2043.5).
+    with FPAOffsetContext({"DZ": 4.0}):
+        obj2 = psfsim.polychrom.PolychromaticPSF(1, 3415.5, 1021.5, np.array([1.58]), frame="FPA")
+        psf2 = obj2.compute_poly_psf(cycle=10, postage_stamp_size=21, ovsamp=4, use_filter="H")
+
+    assert np.allclose(obj2.scax, -13.72)
+    assert np.allclose(obj2.scay, 10.22)
+    assert np.allclose(psf[::-1, ::-1], psf2)
+
+
 def test_scimode2():
     """Tests that in "science" mode we get all the correct flips in multiple wavelength mode."""
 

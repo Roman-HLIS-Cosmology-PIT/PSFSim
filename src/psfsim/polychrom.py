@@ -75,14 +75,19 @@ class PolychromaticPSF:
         Whether to include the ghost path from refraction in the optical filter.
         Default: False. Only can be true if ray_trace=True.
     frame : str, optional
-        Which frame to use? Options are "analysis" and "science".
+        Which frame to use? Options are "analysis", "science", and "fpa".
 
         - **analysis** : scax and scay are in mm with (0, 0) at the SCA center.
         - **science** : scax and scay are in pixels with (0, 0) at the lower-left corner (in ds9 display).
+        - **fpa** : scax and scay are in pixels, in the orientation of the focal plane array
+          (see ``docs/coordinates.rst``).
 
         The PSF is also flipped if necessary to coincide with the desired output.
 
-        Note also the 2 frames have a parity flip: SCI +Y is the same direction as ANA -Y.
+        Note the parity and orientation relations: SCI +Y is the same direction as ANA -Y,
+        and the FPA frame is rotated 180 degrees from the analysis frame (so FPA +X is
+        ANA -X and FPA +Y is ANA -Y). The science and FPA frames are related by a flip of
+        the X axis only, so SCI x + FPA x = 4087 for the same point on the detector.
 
     """
 
@@ -95,11 +100,17 @@ class PolychromaticPSF:
         self.bandpass = galsim.roman.getBandpasses()
         self.ghost = ghost
         self.frame = frame.lower()  # make this case-insensitive
+        if self.frame not in ("analysis", "science", "fpa"):
+            raise ValueError(f"Unknown frame '{frame}'; options are 'analysis', 'science', and 'fpa'.")
 
         # convert positions to analysis frame
-        if self.frame == "science":
-            self.scax = 0.01 * (self.scax - 2043.5)
-            self.scay = -0.01 * (self.scay - 2043.5)
+        if self.frame in ("science", "fpa"):
+            # both are in native pixels measured from the corner of the SCA
+            dx = 0.01 * (self.scax - 2043.5)
+            dy = 0.01 * (self.scay - 2043.5)
+            # SCI +X is ANA +X, but the FPA frame is rotated 180 degrees from the analysis frame
+            self.scax = -dx if self.frame == "fpa" else dx
+            self.scay = -dy
 
     def compute_poly_psf(
         self,
@@ -223,9 +234,9 @@ class PolychromaticPSF:
             this_psf.get_image_from_Intensity(centerpix=centerpix, reflect=True, tophat=True)
             return this_psf.detector_image
 
-        # output flips
-        _px = 1
-        _py = -1 if self.frame in ["science"] else 1
+        # output flips (the PSF is computed in the analysis frame)
+        _px = -1 if self.frame == "fpa" else 1
+        _py = -1 if self.frame in ("science", "fpa") else 1
 
         if n_in_band == 1:
             wav = wavelengths[in_band_mask][0]
