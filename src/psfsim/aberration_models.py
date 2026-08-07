@@ -6,12 +6,9 @@ import numpy as np
 from astropy.io import fits
 
 from .basis import basis_set_default
-from .romantrace import RomanRayBundle
+from .romantrace import RomanRayBundle, fratio_scale
 from .wfi_data import remove_tiptilt
 from .zernike import noll_to_zernike, zernike
-
-# parameters
-fratio = 8.0
 
 
 def aberration_gradients(use_filter="W", nn=128, subtract_offset=False, mask=False, basis=basis_set_default):
@@ -120,7 +117,7 @@ def aberration_transfer_matrix(
         # note that there is a sign flip between (x,y) in the entrance pupil plane
         # and (u, v) at the exit
         ctr = np.mean(RB.u[nn // 2 - 1 : nn // 2 + 1, nn // 2 - 1 : nn // 2 + 1, :], axis=(0, 1))
-        rho12 = 2.0 * fratio * (RB.u - ctr[None, None, :])
+        rho12 = 2.0 * fratio_scale * (RB.u - ctr[None, None, :])
         rho = np.hypot(rho12[:, :, 0], rho12[:, :, 1])
         theta = np.arctan2(-rho12[:, :, 1], -rho12[:, :, 0])
         del rho12
@@ -302,13 +299,16 @@ def extract_basis_coefs(
     input_zernikes *= 0.001 * w  # convert input wavefront to millimeters
 
     if flip_y:
-        # Z3, 5, etc. need to be flipped, so in Python indexing, start with 2
-        input_zernikes[:, 2::2] *= -1.0
+        # Zernikes with m < 0 need to be flipped
+        for iz in range(nz):
+            if noll_to_zernike(iz + 1)[1] < 0:
+                # print("flip", iz + 1, nz) # <-- just for test
+                input_zernikes[:, iz] *= -1.0
 
     # insert tip-tilt
     # check signs!
-    input_zernikes[:, 1] += dpos[:, 0] / (4.0 * fratio)
-    input_zernikes[:, 2] += dpos[:, 1] / (4.0 * fratio)
+    input_zernikes[:, 1] += dpos[:, 0] / (4.0 * fratio_scale)
+    input_zernikes[:, 2] += dpos[:, 1] / (4.0 * fratio_scale)
 
     # get transfer matrix
     T, s_decomp = aberration_transfer_matrix(use_filter=use_filter, nn=nn, n_zernike=nz, basis=basis)

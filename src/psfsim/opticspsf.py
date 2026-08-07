@@ -10,7 +10,7 @@ from astropy.io import fits
 from . import wfi_data, zernike
 from .basis import basis_set_cy10
 from .perturbations import cycle10_perturbations
-from .romantrace import RomanRayBundle
+from .romantrace import RomanRayBundle, fratio_scale
 from .wfi_coordinate_transformations import from_fpa_to_angle, from_sca_to_fpa
 
 
@@ -282,7 +282,6 @@ class GeometricOptics:
         self.wavelength = wavelength
         self.dsX = pixelsampling  # pixel spacing in microns
         self.pupilLength = 2400 * 8  # in mm
-        self.focalLength = 8  # m
         self.samplingwidth = (self.wavelength / self.dsX) * self.pupilLength  # in mm for raytrace
         self.ghost = ghost
 
@@ -519,7 +518,7 @@ class GeometricOptics:
                 # Calculate bounding width in mm
                 pupil_width_pixels = max(x_max - x_min, y_max - y_min)
                 bounded_width = 3000.0 * pupil_width_pixels / 128.0
-                print(f"Bounding pupil width determined from initial ray trace: {bounded_width:.2f} mm")
+                # print(f"Bounding pupil width determined from initial ray trace: {bounded_width:.2f} mm")
             else:
                 bounded_width = self.samplingwidth
 
@@ -621,7 +620,7 @@ class GeometricOptics:
             path_diff -= (
                 zernCoeff
                 * self.wavelength
-                * zernike.zernike(nZern, mZern, 2 * self.focalLength * self.urhoPolar, self.uthetaPolar)
+                * zernike.zernike(nZern, mZern, 2 * fratio_scale * self.urhoPolar, self.uthetaPolar)
             )
             # - sign since OPD in the file has a sign difference
             # need the conversion to microns --- thanks Claude!

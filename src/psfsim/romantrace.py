@@ -6,7 +6,8 @@ from .mirror_properties import reflect_RB_model
 from .offsets import fbias_offset, fpa_offset, sm_offset
 from .wfi_data import scapos
 
-fratio_scale = 8.0  # scale FPA displacement modes by 8*f^2
+fratio_scale = 7.935  # scale FPA displacement modes by 8*f^2
+# based on the paraxial EFL = 18751.5 mm and the PM baffle inner radius of 1181.56 mm
 
 
 def _shadow(arr):
