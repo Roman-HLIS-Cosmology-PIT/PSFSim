@@ -281,7 +281,7 @@ class GeometricOptics:
 
         self.wavelength = wavelength
         self.dsX = pixelsampling  # pixel spacing in microns
-        self.pupilLength = 2400 * 8  # in mm
+        self.pupilLength = 18751.5  # in mm
         self.samplingwidth = (self.wavelength / self.dsX) * self.pupilLength  # in mm for raytrace
         self.ghost = ghost
 
