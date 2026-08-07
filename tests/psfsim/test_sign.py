@@ -5,7 +5,6 @@ import numpy as np
 import psfsim.offsets
 import psfsim.polychrom
 import psfsim.romantrace
-import pytest
 from astropy.io import fits  # annoying to put this back every time # noqa: F401
 from psfsim.basis import basis_set_cy10
 from scipy.interpolate import griddata

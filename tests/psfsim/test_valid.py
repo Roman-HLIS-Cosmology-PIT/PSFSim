@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from psfsim.aberration_models import aberration_transfer_matrix
 from psfsim.opticspsf import GeometricOptics
+from psfsim.polychrom import PolychromaticPSF
 from psfsim.wfi_coordinate_transformations import from_sca_to_analysis, from_sca_to_fpa
 from psfsim.zernike import zernike, zernike_radial
 
@@ -40,3 +41,10 @@ def test_aberr_odd():
 
     with pytest.raises(ValueError):
         aberration_transfer_matrix(nn=25)
+
+
+def test_polychrom_noframe():
+    """Test that an error is raised for an invalid frame."""
+
+    with pytest.raises(ValueError):
+        PolychromaticPSF(7, 0.0, 0.0, np.array([1.4, 1.6]), frame="invalid")
