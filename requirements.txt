@@ -3,4 +3,3 @@ scipy>=1.17.1
 astropy
 galsim
 pandas
-matplotlib
