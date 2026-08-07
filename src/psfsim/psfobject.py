@@ -218,12 +218,7 @@ class PSFObject:
             # Changed this to a - sign so that it is consistent with Poppy. -- C.H.
             for n, m, mag in zip(nArr, mArr, extra_aberrations[:coeff_count], strict=False):
                 self.optics.path_difference -= (
-                    (
-                        mag
-                        * zernike(
-                            n, m, 2 * fratio_scale * self.optics.urhoPolar, self.optics.uthetaPolar
-                        )
-                    )
+                    (mag * zernike(n, m, 2 * fratio_scale * self.optics.urhoPolar, self.optics.uthetaPolar))
                     if mag is not None
                     else 0
                 )
