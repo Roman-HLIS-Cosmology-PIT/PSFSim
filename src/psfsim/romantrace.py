@@ -444,6 +444,7 @@ class RayBundle:
         hires=None,
         ovsamp=6,
         idealgeom=True,
+        save_trace_history=False,
     ):
         if jacobian is None:
             jacobian = np.array([[1, 0], [0, 1]])
@@ -509,8 +510,13 @@ class RayBundle:
                 )
                 @ field_bias
             )
+        # the following transformations take you from WFI field coordinates to PCS coordinates
         self.x = RayBundle.MiV(field_bias, self.x)
         self.p = RayBundle.MiV(field_bias, self.p)
+
+        self.save_trace_history = save_trace_history
+        if save_trace_history:
+            self.trace_history = [self.x[:,:,1:4].copy()]
 
         # if requested, build the E-field
         if hasE:
@@ -597,6 +603,8 @@ class RayBundle:
         # return to standard coords
         if update:
             self.x = self.x + L[:, :, None] * self.p
+            if self.save_trace_history:
+                self.trace_history.append(self.x[:,:,1:4].copy())
 
         pos_object = xs_[:, :, 1:3]
         dir_global = RayBundle.MV(Trf, norm)
@@ -1068,6 +1076,7 @@ def _RomanRayBundle(
     outsca=None,
     errs=None,
     savexy=False,
+    save_trace_history=False,
 ):
     """
     Carries out trace through RST optics.
@@ -1171,6 +1180,7 @@ def _RomanRayBundle(
         hires=hires,
         ovsamp=ovsamp,
         idealgeom=idealgeom,
+        save_trace_history=save_trace_history,
     )
     if errs is not None and not isinstance(errs, dict):
         raise ValueError("errs must be a dictionary or None")
