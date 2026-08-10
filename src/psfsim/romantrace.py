@@ -326,6 +326,9 @@ class RayBundle:
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
     idealgeom : bool, optional
         Forces the design model rather than with the best-fit offsets.
+    save_trace_history : bool, optional
+        Adds a trace_history attribute to the ray bundle so it can track its locations along
+        its path.
 
     Attributes
     ----------
@@ -356,6 +359,8 @@ class RayBundle:
         The electric field (optional, 4D: 2D for array, 1D for input pol, 1D for output pol).
         Shape is (`N1`, `N2`, 2, 2).
         None if not used.
+    trace_history : list
+        A list of ray positions (from self.x) along the ray bundle's total path.
 
     Methods
     -------
@@ -603,6 +608,7 @@ class RayBundle:
         # return to standard coords
         if update:
             self.x = self.x + L[:, :, None] * self.p
+            # also update trace_history if save_trace_history set to True
             if self.save_trace_history:
                 self.trace_history.append(self.x[:,:,1:4].copy())
 
