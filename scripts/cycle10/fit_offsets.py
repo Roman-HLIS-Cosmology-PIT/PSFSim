@@ -51,7 +51,6 @@ def _residuals(p):
     offsets.fpa_offset["DX"] = p[3]
     offsets.fpa_offset["DY"] = p[4]
     offsets.fpa_offset["DZ"] = p[5]
-    offsets.fpa_offset["DZ"] = p[5]
     offsets.fpa_offset["TILT"] = p[6]
     offsets.fpa_offset["TIP"] = p[7]
     offsets.fpa_offset["ROLL"] = p[8]
