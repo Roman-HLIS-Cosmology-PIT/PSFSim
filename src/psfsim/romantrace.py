@@ -522,7 +522,7 @@ class RayBundle:
             # ingoing E in y-pol
             self.E[:, :, 1, 1] = (np.cos(r) - 1) * np.sin(phi) * np.cos(phi)
             self.E[:, :, 1, 2] = np.cos(phi) ** 2 + np.cos(r) * np.sin(phi) ** 2
-            self.E[:, :, 1, 3] = -np.sin(r) * np.cos(phi)
+            self.E[:, :, 1, 3] = -np.sin(r) * np.sin(phi)
             self.E = RayBundle.MiV(field_bias, self.E)
         else:
             self.E = None
