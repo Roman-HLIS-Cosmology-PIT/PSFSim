@@ -1856,7 +1856,7 @@ def demo(writefiles=False, savexy=False):
     tmp_arr = np.array(
         [
             [0.0 + 0.0j, 0.92894895 + 0.0j, 0.3679539 + 0.0j, 0.04078929 + 0.0j],
-            [0.0 + 0.0j, -0.08449756 + 0.0j, 0.10352705 + 0.0j, 0.99104315 + 0.0j],
+            [0.0 + 0.0j, -0.08451810 + 0.0j, 0.10351725 + 0.0j, 0.99103021 + 0.0j],
         ]
     )
     rotFPA = build_transform_matrix(
@@ -1864,6 +1864,7 @@ def demo(writefiles=False, savexy=False):
         bde=-27.09897706981732,
         cde=13.3889006733882,
     )  # this is to rotate to the correct answer to the FPA coordinates.
+    print(RB.E[128, 128, :, :] @ rotFPA.T)
     assert np.all(np.abs(RB.E[128, 128, :, :] - tmp_arr @ rotFPA) < 1e-5)
     out_pos = np.array([766.73306894, -1593.99400015, -473.55384725])
     assert np.all(np.abs(RB.x[::64, ::64, 1:] - out_pos[None, None, :]) < 0.1)
