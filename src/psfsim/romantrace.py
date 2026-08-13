@@ -522,7 +522,7 @@ class RayBundle:
             # ingoing E in y-pol
             self.E[:, :, 1, 1] = (np.cos(r) - 1) * np.sin(phi) * np.cos(phi)
             self.E[:, :, 1, 2] = np.cos(phi) ** 2 + np.cos(r) * np.sin(phi) ** 2
-            self.E[:, :, 1, 3] = -np.sin(r) * np.cos(phi)
+            self.E[:, :, 1, 3] = -np.sin(r) * np.sin(phi)
             self.E = RayBundle.MiV(field_bias, self.E)
         else:
             self.E = None
@@ -940,7 +940,8 @@ class RayBundle:
 
             # P-type directions
             Pdir_in = np.cross(Sdir, self.p[:, :, 1:])
-            Pdir_out = np.cross(p_out[:, :, 1:], Sdir)
+            Pdir_out = np.cross(Sdir, p_out[:, :, 1:])
+            # for transmission, this is what we need to do to make the P-pol direction "almost parallel"
 
             # E-field transformation
             tempS = TS[:, :, None] * np.sum(self.E[:, :, :, 1:] * Sdir[:, :, None, :], axis=-1)
@@ -1855,8 +1856,8 @@ def demo(writefiles=False, savexy=False):
     # test against "correct" answer
     tmp_arr = np.array(
         [
-            [0.0 + 0.0j, 0.92894895 + 0.0j, 0.3679539 + 0.0j, 0.04078929 + 0.0j],
-            [0.0 + 0.0j, -0.08449756 + 0.0j, 0.10352705 + 0.0j, 0.99104315 + 0.0j],
+            [0.0 + 0.0j, 0.928888295 + 0.0j, 0.368027812 + 0.0j, 0.0414977693 + 0.0j],
+            [0.0 + 0.0j, -0.0851821811 + 0.0j, 0.103254177 + 0.0j, 0.991000793 + 0.0j],
         ]
     )
     rotFPA = build_transform_matrix(
@@ -1864,7 +1865,18 @@ def demo(writefiles=False, savexy=False):
         bde=-27.09897706981732,
         cde=13.3889006733882,
     )  # this is to rotate to the correct answer to the FPA coordinates.
+    print(RB.E[128, 128, :, :] @ rotFPA.T)
     assert np.all(np.abs(RB.E[128, 128, :, :] - tmp_arr @ rotFPA) < 1e-5)
+
+    # check orthogonal to propagation
+    evec = RB.E[:, :, :, 1:]
+    n = np.shape(evec)[0]
+    uvec = np.zeros((n, n, 3))
+    uvec[:, :, :-1] = RB.u
+    uvec[:, :, -1] = np.sqrt(1.0 - uvec[:, :, 0] ** 2 - uvec[:, :, 1] ** 2)
+    dotprod = np.sum(evec * uvec[:, :, None, :], axis=-1)
+    assert np.all(np.abs(dotprod) < 1.0e-12)
+
     out_pos = np.array([766.73306894, -1593.99400015, -473.55384725])
     assert np.all(np.abs(RB.x[::64, ::64, 1:] - out_pos[None, None, :]) < 0.1)
     _n = np.shape(RB.u)[0]
