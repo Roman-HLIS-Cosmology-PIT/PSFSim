@@ -941,6 +941,7 @@ class RayBundle:
             # P-type directions
             Pdir_in = np.cross(Sdir, self.p[:, :, 1:])
             Pdir_out = np.cross(Sdir, p_out[:, :, 1:])
+            # for transmission, this is what we need to do to make the P-pol direction "almost parallel"
 
             # E-field transformation
             tempS = TS[:, :, None] * np.sum(self.E[:, :, :, 1:] * Sdir[:, :, None, :], axis=-1)
