@@ -508,7 +508,7 @@ class GeometricOptics:
                 a_lanczos=self.a_lanczos,
                 errs=self.perturbations,
                 ghostpath=self.ghost,
-                idealmirror=self.idealmirror
+                idealmirror=self.idealmirror,
             )
 
             # Find bounding box of open pupil
@@ -552,7 +552,7 @@ class GeometricOptics:
                 jacobian=jacobian,
                 errs=self.perturbations,
                 ghostpath=self.ghost,
-                idealmirror=self.idealmirror
+                idealmirror=self.idealmirror,
             )
 
             self.rb = self.rb.pad(self.ulen)

@@ -127,6 +127,7 @@ class PolychromaticPSF:
         cycle=9,
         mjd=None,
         perturbations=None,
+        idealmirror=False,
     ):
         """
         Compute the polychromatic PSF by integrating monochromatic PSFs across wavelength.
@@ -171,6 +172,8 @@ class PolychromaticPSF:
             Which cycle to use for the Zernike modes.
         mjd : float, optional
             The MJD to use for the optical model.
+        idealmirror: bool, optional
+            Whether to use an ideal mirror in the optical model. Default: False.
         perturbations : dict, optional
             If provided, replaces the default perturbations in the cycle model. Should contain the keys:
 
@@ -224,6 +227,7 @@ class PolychromaticPSF:
                 extra_aberrations=extra_aberrations,
                 cycle=cycle,
                 mjd=mjd,
+                idealmirror=idealmirror,
                 ghost=self.ghost,
                 perturbations=perturbations,
             )
