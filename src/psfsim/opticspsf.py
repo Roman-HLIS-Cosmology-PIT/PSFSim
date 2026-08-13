@@ -204,6 +204,8 @@ class GeometricOptics:
     ghost : bool, optional
         Whether to include the ghost path from refraction in the optical filter.
         Default: False. Only can be true if ray_trace=True.
+    idealmirror : bool, optional
+        Whether to use an ideal mirror in the optical model. Default: False.
     perturbations : dict, optional
         If provided, replaces the default perturbations in the cycle model. Should contain the keys:
 
@@ -240,6 +242,8 @@ class GeometricOptics:
     ghost : bool
         Whether to include the ghost path from refraction in the optical filter.
         Default: False. Only can be true if ray_trace=True.
+    idealmirror : bool
+        Whether to use an ideal mirror in the optical model. Default: False.
 
     Methods
     -------
@@ -274,6 +278,7 @@ class GeometricOptics:
         cycle=9,
         mjd=None,
         ghost=False,
+        idealmirror=False,
         perturbations=None,
     ):
         # sca position in mm
@@ -284,6 +289,7 @@ class GeometricOptics:
         self.pupilLength = 18751.5  # in mm
         self.samplingwidth = (self.wavelength / self.dsX) * self.pupilLength  # in mm for raytrace
         self.ghost = ghost
+        self.idealmirror = idealmirror
 
         self.scanum = scanum
         self.scax = scax
@@ -431,6 +437,7 @@ class GeometricOptics:
                 wl=self.wavelength * 0.001,
                 hasE=True,
                 ghostpath=self.ghost,
+                idealmirror=self.idealmirror,
                 a_lanczos=self.a_lanczos,
             )
             if self.ghost:
@@ -501,6 +508,7 @@ class GeometricOptics:
                 a_lanczos=self.a_lanczos,
                 errs=self.perturbations,
                 ghostpath=self.ghost,
+                idealmirror=self.idealmirror
             )
 
             # Find bounding box of open pupil
@@ -544,6 +552,7 @@ class GeometricOptics:
                 jacobian=jacobian,
                 errs=self.perturbations,
                 ghostpath=self.ghost,
+                idealmirror=self.idealmirror
             )
 
             self.rb = self.rb.pad(self.ulen)
