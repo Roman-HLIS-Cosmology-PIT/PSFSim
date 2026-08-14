@@ -79,6 +79,8 @@ class PSFObject:
     ghost : bool, optional
         Whether to include the ghost path from refraction in the optical filter.
         Default: False. Only can be true if ray_trace=True.
+    idealmirror : bool, optional
+        Whether to use an ideal mirror in the optical model. Default: False.
     perturbations : dict, optional
         If provided, replaces the default perturbations in the cycle model. Should contain the keys:
 
@@ -132,6 +134,7 @@ class PSFObject:
         cycle=9,
         mjd=None,
         ghost=False,
+        idealmirror=False,
         perturbations=None,
     ):
         self.wavelength = wavelength
@@ -181,6 +184,7 @@ class PSFObject:
             cycle=cycle,
             mjd=mjd,
             ghost=ghost,
+            idealmirror=idealmirror,
             perturbations=perturbations,
         )
         self.ux, self.uy = (
