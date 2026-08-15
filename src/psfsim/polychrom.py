@@ -117,11 +117,11 @@ class PolychromaticPSF:
         postage_stamp_size=31,
         ovsamp=10,
         use_filter="H",
-        npix_boundary=1,
         use_postage_stamp_size=None,
         ray_trace=True,
         extra_aberrations=None,
         optical_psf_only=False,
+        reflect=True,
         req_in_bandpass=True,
         centerpix=True,
         cycle=9,
@@ -146,8 +146,6 @@ class PolychromaticPSF:
             The filter as a string (e.g., "H").
         use_postage_stamp_size : int, optional
             Force pupil postage stamp size instead of internal calculation. In native pixels.
-        npix_boundary : int, optional
-            ?
         ray_trace : bool, optional
             Whether to use ray tracing. (Only turn off for testing.)
         extra_aberrations: float array, optional
@@ -162,6 +160,9 @@ class PolychromaticPSF:
             Z6: also astigmatism
         optical_psf_only : bool, optional
             Whether to draw the optical PSF only.
+        reflect : bool, optional
+            Whether to include the "mirror image" of a source due to boundary conditions at the
+            edge of the SCA.
         req_in_bandpass : bool, optional
             Whether to only accept in-band light (turning this on will make things faster
             for some settings, but will miss detail in the PSF from out-of-band leakage).
@@ -221,7 +222,6 @@ class PolychromaticPSF:
                 postage_stamp_size=postage_stamp_size,
                 ovsamp=ovsamp,
                 use_filter=use_filter,
-                npix_boundary=npix_boundary,
                 use_postage_stamp_size=use_postage_stamp_size,
                 ray_trace=ray_trace,
                 extra_aberrations=extra_aberrations,
@@ -235,7 +235,7 @@ class PolychromaticPSF:
             if optical_psf_only:
                 return this_psf.Optical_PSF
 
-            this_psf.get_image_from_Intensity(centerpix=centerpix, reflect=True, tophat=True)
+            this_psf.get_image_from_Intensity(centerpix=centerpix, reflect=reflect, tophat=True)
             return this_psf.detector_image
 
         # output flips (the PSF is computed in the analysis frame)

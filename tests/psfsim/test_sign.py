@@ -416,7 +416,7 @@ def test_obstruct_pattern():
     # (pretty exaggerated! this leads to a spot 50 native pixels wide)
     with FPAOffsetContext({"DZ": 4.0}):
         obj = psfsim.polychrom.PolychromaticPSF(1, -10.22, 10.22, np.linspace(0.48, 0.76, 3))
-        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=71, ovsamp=6, use_filter="R")
+        psf = obj.compute_poly_psf(cycle=10, postage_stamp_size=71, ovsamp=6, use_filter="R", centerpix=False)
 
     # smooth the PSF
     cpsf = gaussian_filter(psf, sigma=10)
@@ -424,16 +424,17 @@ def test_obstruct_pattern():
     # check that the "maxima" of the inner part of the PSF are at position angles
     # 90, 210, and 330 degrees, measured counterclockwise from the X axis.
     i = np.linspace(0, 59, 60)
-    x = 212.0 + 55.0 * np.cos(np.pi * i / 30)
-    y = 210.0 + 55.0 * np.sin(np.pi * i / 30)
+    x = 212.5 + 55.0 * np.cos(np.pi * i / 30)
+    y = 212.5 + 55.0 * np.sin(np.pi * i / 30)
     xx, yy = np.meshgrid(np.linspace(0, 425, 426), np.linspace(0, 425, 426))
     interp_vals = griddata((xx.ravel(), yy.ravel()), cpsf.ravel(), (x, y), method="linear")
     idx = np.where(
         np.logical_and(interp_vals > np.roll(interp_vals, 1), interp_vals > np.roll(interp_vals, -1))
     )
-    assert np.all(np.abs(idx[0] - np.array([15, 35, 55])) < 1.5)
-
+    for i in range(60):
+        print(f"{i:2d} {interp_vals[i]:11.5E}")
     # fits.PrimaryHDU(cpsf).writeto("test_cpsf.fits", overwrite=True)
+    assert np.all(np.abs(idx[0] - np.array([15, 35, 55])) < 1.5)
 
 
 def test_scimode():
@@ -494,3 +495,7 @@ def test_scimode2():
     print(np.amax(np.abs(psf2 - psf[::-1, :])))
 
     assert np.allclose(psf[::-1, :], psf2)
+
+
+if __name__ == "__main__":
+    test_obstruct_pattern()

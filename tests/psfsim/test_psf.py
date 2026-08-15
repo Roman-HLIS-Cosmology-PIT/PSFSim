@@ -30,7 +30,6 @@ def _pt(cycle):
         wavelength=1.35,
         postage_stamp_size=31,
         ovsamp=n,
-        npix_boundary=1,
         use_postage_stamp_size=None,
         extra_aberrations=None,
         cycle=cycle,
@@ -48,7 +47,6 @@ def _pt(cycle):
     obj.get_image_from_Intensity()
     assert obj.detector_image.shape == (obj.postage_stamp_size * n, obj.postage_stamp_size * n)
     assert np.all(obj.detector_image >= 0)
-    # assert obj.npix_boundary == -1 # <-- used to force failure so we can look at the logs
 
 
 def test_psfobject():
@@ -73,7 +71,6 @@ def test_psfobject_extra_aberrations():
         wavelength=1.35,
         postage_stamp_size=31,
         ovsamp=n,
-        npix_boundary=1,
         use_postage_stamp_size=None,
         extra_aberrations=None,
         cycle=10,
@@ -86,7 +83,6 @@ def test_psfobject_extra_aberrations():
         wavelength=1.35,
         postage_stamp_size=31,
         ovsamp=n,
-        npix_boundary=1,
         use_postage_stamp_size=None,
         extra_aberrations=extra_aberrations,
         cycle=10,
@@ -100,7 +96,6 @@ def test_psfobject_extra_aberrations():
             wavelength=1.35,
             postage_stamp_size=31,
             ovsamp=n,
-            npix_boundary=1,
             use_postage_stamp_size=None,
             extra_aberrations=fake_aberrations,
             cycle=10,
@@ -115,7 +110,6 @@ def test_psfobject_extra_aberrations():
             wavelength=1.35,
             postage_stamp_size=31,
             ovsamp=1,
-            npix_boundary=1,
             use_postage_stamp_size=96,
             extra_aberrations=None,
             cycle=10,
@@ -141,7 +135,6 @@ def test_psf_object_override_errs():
         postage_stamp_size=31,
         ovsamp=6,
         use_filter="J",
-        npix_boundary=1,
         cycle=10,
     )
 
@@ -153,7 +146,6 @@ def test_psf_object_override_errs():
         postage_stamp_size=31,
         ovsamp=6,
         use_filter="J",
-        npix_boundary=1,
         cycle=10,
         perturbations={"arr": np.zeros(basis_set_cy10.N), "basis": basis_set_cy10},
     )
@@ -182,7 +174,6 @@ def test_psf_object_ghost():
         wavelength=1.35,
         postage_stamp_size=31,
         ovsamp=8,
-        npix_boundary=1,
         use_postage_stamp_size=None,
         extra_aberrations=None,
         cycle=10,
@@ -214,7 +205,6 @@ def test_psf_object_ghost_errs():
             wavelength=1.35,
             postage_stamp_size=31,
             ovsamp=8,
-            npix_boundary=1,
             use_postage_stamp_size=None,
             extra_aberrations=None,
             cycle=10,
