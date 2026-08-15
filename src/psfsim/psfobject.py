@@ -509,14 +509,16 @@ class PSFObject:
 
         self.detector_image = intensity_to_image(
             self.Intensity_in_detector,
-            x_in=self.x_A,
-            y_in=self.y_A,
-            x_out=x_out,
-            y_out=y_out,
+            x_in=-self.x_A,
+            y_in=-self.y_A,
+            x_out=-x_out,
+            y_out=-y_out,
             n_out=self.postage_stamp_size * self.ovsamp,
             dx=self.dx,
             reflect=reflect,
             tophat=tophat,
         )
+        # - signs are because we have the positions in FPA coordinates but images
+        # are indexed in Analysis coordinates
 
         return

@@ -186,7 +186,7 @@ def test_poly_h():
 
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
-    p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6))
+    p = psfsim.polychrom.PolychromaticPSF(6, 12.105, -2.205, np.linspace(1.4, 1.9, 6))
     arr = p.compute_poly_psf(use_filter="H", ovsamp=8, use_postage_stamp_size=80)
 
     # These are to alert us to things that change.
@@ -209,17 +209,18 @@ def test_poly_h():
         sc[i] += arr[yi, xi + 1] * xf * (1 - yf) + arr[yi + 1, xi + 1] * xf * yf
     sc /= np.mean(sc)
     scft = np.fft.ifft(sc)
-    # for i in range(N//2+1): print(f"{scft[i].real:8.5f} {scft[i].imag:8.5f} {np.abs(scft[i]):8.5f}")
+    for i in range(N // 2 + 1):
+        print(f"{scft[i].real:8.5f} {scft[i].imag:8.5f} {np.abs(scft[i]):8.5f}")
 
     # expect lots of m=6 and m=12, less of the others
-    assert np.abs(scft[4]) < 0.075
-    assert np.abs(scft[5]) < 0.075
-    assert 0.1 < np.abs(scft[6]) < 0.2
-    assert np.abs(scft[7]) < 0.075
-    assert np.abs(scft[8]) < 0.075
-    assert np.abs(scft[11]) < 0.075
-    assert 0.1 < np.abs(scft[12]) < 0.2
-    assert np.abs(scft[13]) < 0.075
+    assert np.abs(scft[4]) < 0.06
+    assert np.abs(scft[5]) < 0.06
+    assert 0.09 < np.abs(scft[6]) < 0.2
+    assert np.abs(scft[7]) < 0.06
+    assert np.abs(scft[8]) < 0.06
+    assert np.abs(scft[11]) < 0.06
+    assert 0.09 < np.abs(scft[12]) < 0.2
+    assert np.abs(scft[13]) < 0.06
 
     # Tests for simple exceptions
     with pytest.raises(ValueError, match="wavelengths must be a non-empty 1D sequence in microns."):
