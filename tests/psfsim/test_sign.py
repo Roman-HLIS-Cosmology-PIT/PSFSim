@@ -431,10 +431,9 @@ def test_obstruct_pattern():
     idx = np.where(
         np.logical_and(interp_vals > np.roll(interp_vals, 1), interp_vals > np.roll(interp_vals, -1))
     )
-    for i in range(60):
-        print(f"{i:2d} {interp_vals[i]:11.5E}")
-    # fits.PrimaryHDU(cpsf).writeto("test_cpsf.fits", overwrite=True)
     assert np.all(np.abs(idx[0] - np.array([15, 35, 55])) < 1.5)
+
+    # fits.PrimaryHDU(cpsf).writeto("test_cpsf.fits", overwrite=True)
 
 
 def test_scimode():
