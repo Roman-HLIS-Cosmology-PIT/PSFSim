@@ -37,8 +37,6 @@ class PSFObject:
         The oversampling factor for the PSF (number of samples per native pixel).
     use_filter : str, optional
         The filter configuration to use (1-character code).
-    npix_boundary : int, optional
-        ?
     use_postage_stamp_size : int, optional
         Force pupil postage stamp size instead of internal calculation. In native pixels.
     ray_trace : bool, optional
@@ -123,7 +121,6 @@ class PSFObject:
         postage_stamp_size=31,
         ovsamp=10,
         use_filter="H",
-        npix_boundary=1,
         a_lanczos=3,
         use_postage_stamp_size=None,
         ray_trace=True,
@@ -139,7 +136,6 @@ class PSFObject:
     ):
         self.wavelength = wavelength
         self.ghost = ghost
-        self.npix_boundary = npix_boundary
 
         if (not ray_trace) and (self.ghost):
             raise ValueError("Ghost path requires ray_trace=True")
@@ -509,14 +505,16 @@ class PSFObject:
 
         self.detector_image = intensity_to_image(
             self.Intensity_in_detector,
-            x_in=self.x_A,
-            y_in=self.y_A,
-            x_out=x_out,
-            y_out=y_out,
+            x_in=-self.x_A,
+            y_in=-self.y_A,
+            x_out=-x_out,
+            y_out=-y_out,
             n_out=self.postage_stamp_size * self.ovsamp,
             dx=self.dx,
             reflect=reflect,
             tophat=tophat,
         )
+        # - signs are because we have the positions in FPA coordinates but images
+        # are indexed in Analysis coordinates
 
         return

@@ -95,7 +95,9 @@ def diffusion_prob(xd, yd, width=10.0, x2=0.0, y2=0.0):
     return term
 
 
-def intensity_to_image(intensity, x_in, y_in, x_out, y_out, n_out, dx, reflect=True, tophat=True):
+def intensity_to_image(
+    intensity, x_in, y_in, x_out, y_out, n_out, dx, reflect=True, tophat=True, clip_if_reflect=True
+):
     """
     Function to convolve an intensity image with the Green's function.
 
@@ -116,6 +118,9 @@ def intensity_to_image(intensity, x_in, y_in, x_out, y_out, n_out, dx, reflect=T
     tophat : bool, optional
         Integrate over the pixel tophat. Note that if this option is chosen, the unit of
         the output is the unit of the intensity times micron^2.
+    clip_if_reflect : bool, optional
+        If the reflection is on, masks out light that falls off the SCA boundaries.
+        Do not turn this off except for testing!
 
     Returns
     -------
@@ -133,6 +138,17 @@ def intensity_to_image(intensity, x_in, y_in, x_out, y_out, n_out, dx, reflect=T
         y_sgn = 1 if y_in > 0 else -1
         pos = [(0, 0), (x_sgn, 0), (0, y_sgn), (x_sgn, y_sgn)]
     hds = pix * nside / 2.0  # coordinate of side
+
+    # If reflected, need to mask values past the edges.
+    if reflect and clip_if_reflect:
+        x_in_arr = x_in + np.linspace(-0.5 * (nx_in - 1), 0.5 * (nx_in - 1), nx_in) * dx
+        y_in_arr = y_in + np.linspace(-0.5 * (ny_in - 1), 0.5 * (ny_in - 1), ny_in) * dx
+        # distance from the boundary in both cases; positive is on chip
+        dist_x = (hds - np.abs(x_in_arr)) / dx
+        dist_y = (hds - np.abs(y_in_arr)) / dx
+        wx = np.where(dist_x > 0.5, 1.0, np.where(dist_x < -0.5, 0.0, 0.5 + dist_x))
+        wy = np.where(dist_y > 0.5, 1.0, np.where(dist_y < -0.5, 0.0, 0.5 + dist_y))
+        intensity = intensity * wy[:, None] * wx[None, :]  # now points to new array
 
     # Sum over reflected images
     im_out = np.zeros((n_out, n_out))

@@ -39,10 +39,10 @@ def test_convolve():
     xi, yi = np.meshgrid(xi_, yi_)
     intensity = np.exp(-0.5 * ((xi - 20460.0) ** 2 + (yi - 412.0) ** 2) / 5.0**2) / (2.0 * np.pi * 5.0**2)
     i_conv1 = mtfd.intensity_to_image(
-        intensity, 20420.0, 410.0, 20422.0, 408.0, 33, 2.5, reflect=False, tophat=False
+        intensity, 20420.0, 410.0, 20422.0, 408.0, 33, 2.5, reflect=False, tophat=False, clip_if_reflect=False
     )
     i_conv2 = mtfd.intensity_to_image(
-        intensity, 20420.0, 410.0, 20422.0, 408.0, 33, 2.5, reflect=True, tophat=False
+        intensity, 20420.0, 410.0, 20422.0, 408.0, 33, 2.5, reflect=True, tophat=False, clip_if_reflect=False
     )
 
     assert np.abs(i_conv1[21, 15] / 0.0007185) < 0.01
@@ -52,10 +52,28 @@ def test_convolve():
 
     # test transpose
     i_conv3 = mtfd.intensity_to_image(
-        intensity.T, 410.0, 20420.0, 408.0, 20422.0, 33, 2.5, reflect=False, tophat=False
+        intensity.T,
+        410.0,
+        20420.0,
+        408.0,
+        20422.0,
+        33,
+        2.5,
+        reflect=False,
+        tophat=False,
+        clip_if_reflect=False,
     )
     i_conv4 = mtfd.intensity_to_image(
-        intensity.T, 410.0, 20420.0, 408.0, 20422.0, 33, 2.5, reflect=True, tophat=False
+        intensity.T,
+        410.0,
+        20420.0,
+        408.0,
+        20422.0,
+        33,
+        2.5,
+        reflect=True,
+        tophat=False,
+        clip_if_reflect=False,
     )
     assert np.all(np.abs(i_conv1 - i_conv3.T) < 1.0e-6)
     assert np.all(np.abs(i_conv2 - i_conv4.T) < 1.0e-6)
@@ -64,7 +82,7 @@ def test_convolve():
 
     # test tophat
     i_conv5 = mtfd.intensity_to_image(
-        intensity, 20420.0, 410.0, 20422.0, 408.0, 33, 2.5, reflect=False, tophat=True
+        intensity, 20420.0, 410.0, 20422.0, 408.0, 33, 2.5, reflect=False, tophat=True, clip_if_reflect=False
     )
     x0 = 28
     y0 = 20
