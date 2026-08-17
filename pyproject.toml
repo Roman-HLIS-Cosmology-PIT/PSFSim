@@ -3,7 +3,7 @@
 name = "psfsim"
 license = "MIT"
 license-files = ["LICENSE"]
-readme = "README.md"
+readme = "README.rst"
 authors = [
     { name = "Nihar Dalal", email = "dalal.64@osu.edu" },
     { name = "Charuhas Shiveshwarkar", email = "shiveshwarkar.1@osu.edu" },
