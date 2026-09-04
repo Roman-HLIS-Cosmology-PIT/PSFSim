@@ -21,6 +21,12 @@ def test_indices():
     for j in range(5):
         assert np.abs(n[j] - ntarget[j]) < 1e-3
 
+    n_ice = fdp.n_ice(np.linspace(0.5, 2.5, 6))
+    n_target = [1.26462652, 1.25672216, 1.25497519, 1.25431598, 1.25399766, 1.25381995]
+    print(n_ice)
+    for j in range(5):
+        assert np.abs(n_ice[j] - n_target[j]) < 1e-3
+
 
 def test_rotation():
     """Test of rotation matrices."""
