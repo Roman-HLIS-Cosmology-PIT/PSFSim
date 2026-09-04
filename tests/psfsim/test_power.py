@@ -1,8 +1,15 @@
 """Simple test functions for filter."""
 
 import numpy as np
-from psfsim.filter_detector_properties import FilterDetector, n_mercadtel
+from psfsim.filter_detector_properties import FilterDetector, _f_mct, n_mercadtel
 from psfsim.index_cdte import n_cdte
+
+
+def test_f_mct():
+    """Test function for the helper."""
+
+    q = _f_mct(0.4532, 0.1349, 0.8421, 0.6832, 0.9214)
+    assert 0.73108 < q < 0.73109
 
 
 def test_power():
