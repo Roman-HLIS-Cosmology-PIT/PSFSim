@@ -91,7 +91,7 @@ class PolychromaticPSF:
 
     """
 
-    def __init__(self, scanum, scax, scay, wavelengths, sed=None, ghost=False, frame="analysis"):
+    def __init__(self, scanum, scax, scay, wavelengths, sed=None, ghost=False, frame="science"):
         self.scanum = scanum
         self.scax = scax
         self.scay = scay
@@ -124,7 +124,7 @@ class PolychromaticPSF:
         reflect=True,
         req_in_bandpass=True,
         centerpix=True,
-        cycle=9,
+        cycle=10,
         mjd=None,
         perturbations=None,
         idealmirror=False,
