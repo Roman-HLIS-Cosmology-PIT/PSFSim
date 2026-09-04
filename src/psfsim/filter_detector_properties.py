@@ -3,15 +3,24 @@
 
 import numpy as np
 from numpy import newaxis as na
+from numba import njit, prange
 
 from .polarisation_decomposition import local_to_fpa_rotation
 
 ### begin materials
 
 
+
+@njit(cache = True)
+def _f_mct(a0, a1, a2, a3, x):
+    """Helper function for n_mercadtel; computes a0*(1-x) + (a1 + a2*x)*x*(1-x) + a3*x."""
+    return a0 * (1 - x) + (a1 + a2 * x) * x * (1 - x) + a3 * x
+
+
+@njit(cache = True)
 def n_mercadtel(wavelength, T=89.0, x=0.445, force_old=False, force_short=False):
     """
-    Mercury cadmium telluride index of refraction.
+    JIT-compiled Mercury cadmium telluride index of refraction.
 
     Parameters
     ----------
@@ -37,19 +46,14 @@ def n_mercadtel(wavelength, T=89.0, x=0.445, force_old=False, force_short=False)
     E = 1.23984198405504 / wavelength  # in eV
 
     # Djuri\v si\'c & Li, J. Appl. Phys.85:2854 (1999)
-
-    # parameters: Table II: a0i*(1-x) + (a1i+a2i*x)*x*(1-x) + a3i*x
-    def f(a0, a1, a2, a3, x):
-        return a0 * (1 - x) + (a1 + a2 * x) * x * (1 - x) + a3 * x
-
-    epsilon_inf = f(1.665, 0.644, -1.339, 1.252, x)
+    #epsilon_inf = _f_mct(1.665, 0.644, -1.339, 1.252, x)
     epsilon_inf = 1.938
 
     # E0 transition
     E0 = -0.302 + 1.93 * x + 5.35 * (1 - 2 * x) * T / 1e4 - 0.81 * x**2 + 0.832 * x**3
-    Delta0 = f(0.654, 0.778, -2.626, 2.456, x) - E0
-    Gamma0 = f(0.025, 6.119, -1.784, 0.487, x) / 10.0
-    A = f(3.100, -6.988, 1.974, 5.098, x)
+    #Delta0 = _f_mct(0.654, 0.778, -2.626, 2.456, x) - E0
+    #Gamma0 = _f_mct(0.025, 6.119, -1.784, 0.487, x) / 10.0
+    #A = _f_mct(3.100, -6.988, 1.974, 5.098, x)
     Delta0 = 1.544 - E0
     Gamma0 = 0.0358
     A = 1.003
@@ -66,8 +70,8 @@ def n_mercadtel(wavelength, T=89.0, x=0.445, force_old=False, force_short=False)
     #
     # exciton contribution
     epsilon0x = 0.0
-    A0x = f(0.003, 2.505, -3.000, 0.010, x)
-    G03D = f(0.002, 3.084, -3.589, 0.001, x)
+    #A0x = _f_mct(0.003, 2.505, -3.000, 0.010, x)
+    #G03D = _f_mct(0.002, 3.084, -3.589, 0.001, x)
     A0x = 0.011
     G03D = 0.013
     for m in range(1, 100):
@@ -76,9 +80,9 @@ def n_mercadtel(wavelength, T=89.0, x=0.445, force_old=False, force_short=False)
     # E1 transition
     E1 = 2.147 + 0.44 * x + 0.7 * x**2
     Delta1 = 2.778 + 0.47 * x + 0.6 * x**2 - E1
-    Gamma1 = f(1.349, 3.421, 10.095, 1.904, x) / 10.0
-    B1 = f(1.320, 5.542, -3.599, 1.816, x)
-    B1s = f(0.240, 4.289, -4.040, 1.055, x)
+    #Gamma1 = _f_mct(1.349, 3.421, 10.095, 1.904, x) / 10.0
+    #B1 = _f_mct(1.320, 5.542, -3.599, 1.816, x)
+    #B1s = _f_mct(0.240, 4.289, -4.040, 1.055, x)
     Gamma1 = 0.2307
     B1 = 1.726
     B1s = 0.156
@@ -88,10 +92,10 @@ def n_mercadtel(wavelength, T=89.0, x=0.445, force_old=False, force_short=False)
     #
     # exciton contribution
     epsilonIII = 0.0
-    B1x = f(0.453, 2.604, -0.066, 1.029, x)
-    B2x = f(0.248, 1.100, 0.373, 0.666, x)
-    G1 = f(0.054, -0.378, 0.664, 0.001, x)
-    G1s = f(0.057, -0.212, 0.384, 0.013, x)
+    #B1x = _f_mct(0.453, 2.604, -0.066, 1.029, x)
+    #B2x = _f_mct(0.248, 1.100, 0.373, 0.666, x)
+    #G1 = _f_mct(0.054, -0.378, 0.664, 0.001, x)
+    #G1s = _f_mct(0.057, -0.212, 0.384, 0.013, x)
     B1x = 0.746
     B2x = 0.356
     G1 = 1e-4
@@ -111,10 +115,10 @@ def n_mercadtel(wavelength, T=89.0, x=0.445, force_old=False, force_short=False)
     #
     epsilonIV = 0.0
     # sum fj^2 / (Ej^2 - E^2 - i E Gammaj')
-    f2 = f(4.526, 6.421, -9.926, 5.232, x)
-    Gamma2 = f(1.167, 0.873, 0.481, 0.734, x)
-    alpha2 = f(0.397, -0.010, 0.119, 0.022, x)
-    E2 = f(4.559, 0.506, -0.856, 5.089, x)
+    #f2 = _f_mct(4.526, 6.421, -9.926, 5.232, x)
+    #Gamma2 = _f_mct(1.167, 0.873, 0.481, 0.734, x)
+    #alpha2 = _f_mct(0.397, -0.010, 0.119, 0.022, x)
+    #E2 = _f_mct(4.559, 0.506, -0.856, 5.089, x)
     f2 = 4.407
     Gamma2 = 1.082
     alpha2 = 0.029
@@ -122,10 +126,10 @@ def n_mercadtel(wavelength, T=89.0, x=0.445, force_old=False, force_short=False)
     Gamma2p = Gamma2 * np.exp(-alpha2 * ((E - E2) / Gamma2) ** 2)
     epsilonIV += f2**2 / (E2**2 - E**2 - 1j * E * Gamma2p)
     #
-    f3 = f(6.147, 6.139, -8.472, 1.861, x)
-    Gamma3 = f(1.946, 0.808, -0.944, 0.087, x)
-    alpha3 = f(0.173, -1.905, 4.202, 0.160, x)
-    E3 = f(6.499, 1.564, 1.374, 6.356, x)
+    #f3 = _f_mct(6.147, 6.139, -8.472, 1.861, x)
+    #Gamma3 = _f_mct(1.946, 0.808, -0.944, 0.087, x)
+    #alpha3 = _f_mct(0.173, -1.905, 4.202, 0.160, x)
+    #E3 = _f_mct(6.499, 1.564, 1.374, 6.356, x)
     f3 = 4.422
     Gamma3 = 3.726
     alpha3 = 0.081
@@ -133,10 +137,10 @@ def n_mercadtel(wavelength, T=89.0, x=0.445, force_old=False, force_short=False)
     Gamma3p = Gamma3 * np.exp(-alpha3 * ((E - E3) / Gamma3) ** 2)
     epsilonIV += f3**2 / (E3**2 - E**2 - 1j * E * Gamma3p)
     #
-    f4 = f(8.750, 0, 0, 2.033, x)
-    Gamma4 = f(4.146, 0, 0, 0.929, x)
-    alpha4 = f(0.797, 0, 0, 0.014, x)
-    E4 = f(2.919, 3.472, -6.331, 2.890, x)
+    #f4 = _f_mct(8.750, 0, 0, 2.033, x)
+    #Gamma4 = _f_mct(4.146, 0, 0, 0.929, x)
+    #alpha4 = _f_mct(0.797, 0, 0, 0.014, x)
+    #E4 = _f_mct(2.919, 3.472, -6.331, 2.890, x)
     f4 = 8.122
     Gamma4 = 4.854
     alpha4 = 0.066
@@ -177,7 +181,7 @@ def n_mercadtel(wavelength, T=89.0, x=0.445, force_old=False, force_short=False)
 
     return n
 
-
+@njit(cache = True)
 def n_ice(wavelength):
     """
     Ice index of refraction.
@@ -199,6 +203,101 @@ def n_ice(wavelength):
     # This is a visible paper, so the formula doesn't include the drop as you approach the water
     # bands in the IR. We may update this later.
     return np.sqrt(1 + 0.280 / (1 - (0.071 / wavelength) ** 2) + 0.291 / (1 - (0.134 / wavelength) ** 2)) + 0j
+
+@njit(cache=True)
+def _calc_transmission_scalar(ll, ux, uy, ns, es, ts, mus, eHgCdTe, muHgCdTe):
+    """Computes TE and TM transmission for a single ux, uy."""
+    u2 = ux**2 + uy**2
+    if u2 > 1.0:
+        return 0.0j, 0.0j
+    
+    u = np.sqrt(u2)
+    k0 = 2 * np.pi / ll
+    
+    # Initialize 2x2 matrices as identity
+    M_TE_00, M_TE_01, M_TE_10, M_TE_11 = 1.0j - 1.0j, 0.0j, 0.0j, 1.0j - 1.0j
+    M_TE_00, M_TE_11 = 1.0+0j, 1.0+0j
+    M_TM_00, M_TM_01, M_TM_10, M_TM_11 = 1.0+0j, 0.0j, 0.0j, 1.0+0j
+
+    # Multiply layer matrices sequentially
+    for j in range(len(ns)):
+        kzj = k0 * np.sqrt(ns[j]**2 - u2)
+        phase = kzj * ts[j]
+        cos_p = np.cos(phase)
+        sin_p = np.sin(phase)
+        
+        # TE matrix elements for layer j
+        TE_j_00, TE_j_11 = cos_p, cos_p
+        TE_j_01 = -(k0 * mus[j] / kzj) * 1j * sin_p
+        TE_j_10 = -(kzj / k0 / mus[j]) * 1j * sin_p
+        
+        # TM matrix elements for layer j
+        TM_j_00, TM_j_11 = cos_p, cos_p
+        TM_j_01 = -(k0 * es[j] / kzj) * 1j * sin_p
+        TM_j_10 = -(kzj / k0 / es[j]) * 1j * sin_p
+        
+        # Explicit 2x2 multiplication M = M @ M_j
+        new_TE_00 = M_TE_00 * TE_j_00 + M_TE_01 * TE_j_10
+        new_TE_01 = M_TE_00 * TE_j_01 + M_TE_01 * TE_j_11
+        new_TE_10 = M_TE_10 * TE_j_00 + M_TE_11 * TE_j_10
+        new_TE_11 = M_TE_10 * TE_j_01 + M_TE_11 * TE_j_11
+        M_TE_00, M_TE_01, M_TE_10, M_TE_11 = new_TE_00, new_TE_01, new_TE_10, new_TE_11
+        
+        new_TM_00 = M_TM_00 * TM_j_00 + M_TM_01 * TM_j_10
+        new_TM_01 = M_TM_00 * TM_j_01 + M_TM_01 * TM_j_11
+        new_TM_10 = M_TM_10 * TM_j_00 + M_TM_11 * TM_j_10
+        new_TM_11 = M_TM_10 * TM_j_01 + M_TM_11 * TM_j_11
+        M_TM_00, M_TM_01, M_TM_10, M_TM_11 = new_TM_00, new_TM_01, new_TM_10, new_TM_11
+
+    cos_theta = np.sqrt(1.0 - u2)
+    kz_sub = np.sqrt(k0**2 * (eHgCdTe - u2))
+    if kz_sub.imag < 0.0:
+        kz_sub = -kz_sub
+        
+    T_TE = 2 * cos_theta / (
+        (cos_theta * (M_TE_00 + (kz_sub / k0 / muHgCdTe) * M_TE_01)) +
+        (M_TE_10 + (kz_sub / k0 / muHgCdTe) * M_TE_11)
+    )
+    
+    T_TM = 2 * cos_theta / (
+        (cos_theta * (M_TM_00 + (kz_sub / k0 / eHgCdTe) * M_TM_01)) +
+        (M_TM_10 + (kz_sub / k0 / eHgCdTe) * M_TM_11)
+    )
+    
+    return T_TE, T_TM
+
+@njit(parallel=True, cache=True)
+def _compute_power_parallel(ll, thetas, ns, es, ts, mus, n_sub, e_sub, mu_sub):
+    """Parallelized loop to compute power over large arrays."""
+    alphas = np.sin(thetas)
+    cos_incs = np.cos(thetas)
+    
+    power_S = np.zeros_like(thetas, dtype=np.float64)
+    power_P = np.zeros_like(thetas, dtype=np.float64)
+    
+    # Flatten the inputs conceptually by looping over the 1D view
+    thetas_flat = thetas.ravel()
+    alphas_flat = alphas.ravel()
+    cos_incs_flat = cos_incs.ravel()
+    
+    out_S_flat = power_S.ravel()
+    out_P_flat = power_P.ravel()
+    
+    for i in prange(thetas_flat.size):
+        alpha = alphas_flat[i]
+        cos_inc = cos_incs_flat[i]
+        
+        # transmission requires ux, uy. We set uy=alpha, ux=0
+        T_TE, T_TM = _calc_transmission_scalar(
+            ll, 0.0, alpha, ns, es, ts, mus, e_sub, mu_sub
+        )
+        
+        costheta_tr = np.sqrt(1.0 - (alpha / n_sub)**2)
+        
+        out_S_flat[i] = (np.abs(T_TE)**2 * np.real(costheta_tr * n_sub)) / cos_inc
+        out_P_flat[i] = (np.abs(T_TM)**2 * np.real(costheta_tr / n_sub)) / cos_inc
+        
+    return power_S, power_P
 
 
 ### end materials
@@ -546,7 +645,7 @@ class FilterDetector:
 
     def transmitted_power(self, ll, theta):
         """
-        Computes the transmitted power fraction through the AR coating.
+        JIT compiled computation of the transmitted power fraction through the AR coating.
 
         Parameters
         ----------
@@ -563,18 +662,22 @@ class FilterDetector:
 
         """
 
-        # refraction information
-        alpha = np.sin(theta)
-        n = n_mercadtel(ll)
-        costheta_inc = np.cos(theta)
-        costheta_tr = np.sqrt(1.0 - alpha**2 / n**2)
+        n_sub = n_mercadtel(ll)
+        e_sub = n_sub**2
+        mu_sub = self.muHgCdTe
 
-        # Flux scales with Ex^* Hy - Ey^* * Hx
-        #
-        # TE: flux ~ |Ex|^2 Re {cos theta * n}
-        # TM: flux ~ |Hx|^2 Re {cos theta / n}
-        cm = self.transmission(ll, np.zeros_like(theta), alpha)
-        power_S = np.abs(cm["TE"]) ** 2 * np.real(costheta_tr * n) / costheta_inc
-        power_P = np.abs(cm["TM"]) ** 2 * np.real(costheta_tr / n) / costheta_inc
+        if self.ice_layer:
+            n0 = n_ice(ll)
+            ns = np.array([n0]+self.n, dtype=np.complex128)
+            es = np.array([n0**2]+self.e, dtype=np.complex128)
+            ts = np.array([self.t_ice]+self.t, dtype=np.float64)
+            mus = np.array([1.0]+self.mu, dtype=np.complex128)
+        else:
+            ns = np.array(self.n, dtype=np.complex128)
+            es = np.array(self.e, dtype=np.complex128)
+            ts = np.array(self.t, dtype=np.float64)
+            mus = np.array(self.mu, dtype=np.complex128)
+
+        power_S, power_P = _compute_power_parallel(ll, np.asarray(theta), ns, es, ts, mus, n_sub, e_sub, mu_sub)
 
         return power_S, power_P
