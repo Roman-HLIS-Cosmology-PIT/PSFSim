@@ -22,7 +22,7 @@ def _h(cycle):
 
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
-    p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6))
+    p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6), frame="analysis")
     arr = p.compute_poly_psf(
         use_filter="H", ovsamp=8, use_postage_stamp_size=80, cycle=cycle, centerpix=False
     )
@@ -84,6 +84,7 @@ def test_psf_2x2bin():
         20.15,
         5.12,
         wavelengths=[1.7],
+        frame="analysis",
     )
 
     obj_lores = psfsim.polychrom.PolychromaticPSF(
@@ -91,6 +92,7 @@ def test_psf_2x2bin():
         20.15,
         5.12,
         wavelengths=[1.7],
+        frame="analysis",
     )
 
     psf_hires = obj_hires.compute_poly_psf(

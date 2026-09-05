@@ -76,9 +76,10 @@ def test_single_in_band_node_returns_monochromatic(patch_poly_deps):
         scay=0.0,
         wavelengths=[2.5, 1.2, 0.9],  # Only 1.2 micron is in-band
         sed=lambda wav: 99.0,
+        frame="analysis",
     )
 
-    out = p.compute_poly_psf(postage_stamp_size=1, ovsamp=2, use_filter="H")
+    out = p.compute_poly_psf(postage_stamp_size=1, ovsamp=2, use_filter="H", cycle=9)
 
     expected = np.array([[1.0, 0.0], [0.0, 1.2**2]], dtype=float)
     expected /= expected.sum()
@@ -186,8 +187,8 @@ def test_poly_h():
 
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
-    p = psfsim.polychrom.PolychromaticPSF(6, 12.105, -2.205, np.linspace(1.4, 1.9, 6))
-    arr = p.compute_poly_psf(use_filter="H", ovsamp=8, use_postage_stamp_size=80)
+    p = psfsim.polychrom.PolychromaticPSF(6, 12.105, -2.205, np.linspace(1.4, 1.9, 6), frame="analysis")
+    arr = p.compute_poly_psf(use_filter="H", ovsamp=8, use_postage_stamp_size=80, cycle=9)
 
     # These are to alert us to things that change.
     # If you do a big enough model update, they might fail,
@@ -224,26 +225,30 @@ def test_poly_h():
 
     # Tests for simple exceptions
     with pytest.raises(ValueError, match="wavelengths must be a non-empty 1D sequence in microns."):
-        p2 = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6).reshape((2, 3)))
-        p2.compute_poly_psf(use_filter="H", ovsamp=8)
+        p2 = psfsim.polychrom.PolychromaticPSF(
+            6, 12.1, -2.2, np.linspace(1.4, 1.9, 6).reshape((2, 3)), frame="analysis"
+        )
+        p2.compute_poly_psf(use_filter="H", ovsamp=8, cycle=9)
     with pytest.raises(ValueError, match="wavelengths must be unique values for trapezoidal integration."):
-        p2 = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.full((5,), 1.3))
-        p2.compute_poly_psf(use_filter="H", ovsamp=8)
+        p2 = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.full((5,), 1.3), frame="analysis")
+        p2.compute_poly_psf(use_filter="H", ovsamp=8, cycle=9)
     with pytest.raises(ValueError, match=r"^Filter"):
-        p.compute_poly_psf(use_filter="doesntexist", ovsamp=8)
+        p.compute_poly_psf(use_filter="doesntexist", ovsamp=8, cycle=9)
 
 
 def test_poly_with_ghost():
     """Simple H-band test with ghost path enabled."""
 
-    p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 2), ghost=True)
+    p = psfsim.polychrom.PolychromaticPSF(
+        6, 12.1, -2.2, np.linspace(1.4, 1.9, 2), ghost=True, frame="analysis"
+    )
     arr = p.compute_poly_psf(use_filter="H", ovsamp=4, cycle=10, postage_stamp_size=241)
 
     assert 1e-5 <= np.amax(arr) / np.sum(arr) <= 1e-4
     assert np.all(arr[442:522, 442:522] < 0.3 * np.amax(arr))
 
     with pytest.raises(ValueError, match=r"^ghost"):
-        p.compute_poly_psf(use_filter="H", ovsamp=4, use_postage_stamp_size=80, ray_trace=False)
+        p.compute_poly_psf(use_filter="H", ovsamp=4, use_postage_stamp_size=80, ray_trace=False, cycle=9)
 
     with pytest.raises(ValueError, match=r"^ghost must be False"):
         p.compute_poly_psf(use_filter="H", ovsamp=4, cycle=9, postage_stamp_size=241)
@@ -254,7 +259,7 @@ def test_poly_with_ghost():
     alist = []
     ctr = []
     for j in range(n_im):
-        p = psfsim.polychrom.PolychromaticPSF(16, 0, 0, np.array([wl[j]]), ghost=True)
+        p = psfsim.polychrom.PolychromaticPSF(16, 0, 0, np.array([wl[j]]), ghost=True, frame="analysis")
         alist.append(p.compute_poly_psf(use_filter="W", ovsamp=4, cycle=10, postage_stamp_size=241))
 
         moms = galsim.Image(gaussian_filter(alist[j], 5)[460:504, 460:504]).FindAdaptiveMom()
