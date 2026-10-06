@@ -117,7 +117,7 @@ class PolychromaticPSF:
         postage_stamp_size=None,
         ovsamp=10,
         use_filter="H",
-        pupil_stamp_size=64,
+        pupil_stamp_size=210,
         ray_trace=True,
         extra_aberrations=None,
         optical_psf_only=False,
