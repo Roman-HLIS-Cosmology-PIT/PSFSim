@@ -155,9 +155,7 @@ class PSFObject:
         # pupil_stamp_size when an explicit native-pixel size is provided.
         self.ulen = 2048  # default value
         if pupil_stamp_size is not None:
-            if isinstance(pupil_stamp_size, bool) or not isinstance(
-                pupil_stamp_size, (int | np.integer)
-            ):
+            if isinstance(pupil_stamp_size, bool) or not isinstance(pupil_stamp_size, (int | np.integer)):
                 raise TypeError(
                     "pupil_stamp_size must be a positive integer number of native pixels or None."
                 )
@@ -165,9 +163,13 @@ class PSFObject:
                 raise ValueError("pupil_stamp_size must be a positive integer number of native pixels.")
             self.ulen = pupil_stamp_size * self.ovsamp
 
-        if postage_stamp_size is not None and isinstance(postage_stamp_size, (int | np.integer)) and postage_stamp_size > 0:
+        if (
+            postage_stamp_size is not None
+            and isinstance(postage_stamp_size, (int | np.integer))
+            and postage_stamp_size > 0
+        ):
             self.postage_stamp_size = postage_stamp_size
-        else: 
+        else:
             self.postage_stamp_size = pupil_stamp_size
 
         self.optics = GeometricOptics(
