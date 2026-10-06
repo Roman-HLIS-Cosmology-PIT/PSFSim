@@ -30,7 +30,7 @@ def _pt(cycle):
         wavelength=1.35,
         postage_stamp_size=31,
         ovsamp=n,
-        use_postage_stamp_size=None,
+        pupil_stamp_size=None,
         extra_aberrations=None,
         cycle=cycle,
     )
@@ -71,7 +71,7 @@ def test_psfobject_extra_aberrations():
         wavelength=1.35,
         postage_stamp_size=31,
         ovsamp=n,
-        use_postage_stamp_size=None,
+        pupil_stamp_size=None,
         extra_aberrations=None,
         cycle=10,
     )
@@ -83,7 +83,7 @@ def test_psfobject_extra_aberrations():
         wavelength=1.35,
         postage_stamp_size=31,
         ovsamp=n,
-        use_postage_stamp_size=None,
+        pupil_stamp_size=None,
         extra_aberrations=extra_aberrations,
         cycle=10,
     )
@@ -96,7 +96,7 @@ def test_psfobject_extra_aberrations():
             wavelength=1.35,
             postage_stamp_size=31,
             ovsamp=n,
-            use_postage_stamp_size=None,
+            pupil_stamp_size=None,
             extra_aberrations=fake_aberrations,
             cycle=10,
         )
@@ -110,7 +110,7 @@ def test_psfobject_extra_aberrations():
             wavelength=1.35,
             postage_stamp_size=31,
             ovsamp=1,
-            use_postage_stamp_size=96,
+            pupil_stamp_size=96,
             extra_aberrations=None,
             cycle=10,
         )
@@ -174,7 +174,7 @@ def test_psf_object_ghost():
         wavelength=1.35,
         postage_stamp_size=31,
         ovsamp=8,
-        use_postage_stamp_size=None,
+        pupil_stamp_size=None,
         extra_aberrations=None,
         cycle=10,
         ghost=True,
@@ -205,7 +205,7 @@ def test_psf_object_ghost_errs():
             wavelength=1.35,
             postage_stamp_size=31,
             ovsamp=8,
-            use_postage_stamp_size=None,
+            pupil_stamp_size=None,
             extra_aberrations=None,
             cycle=10,
             ghost=True,

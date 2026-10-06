@@ -37,7 +37,7 @@ class PSFObject:
         The oversampling factor for the PSF (number of samples per native pixel).
     use_filter : str, optional
         The filter configuration to use (1-character code).
-    use_postage_stamp_size : int, optional
+    pupil_stamp_size : int, optional
         Force pupil postage stamp size instead of internal calculation. In native pixels.
     ray_trace : bool, optional
         Whether to use ray tracing. (Only turn off for testing.)
@@ -122,7 +122,7 @@ class PSFObject:
         ovsamp=10,
         use_filter="H",
         a_lanczos=3,
-        use_postage_stamp_size=None,
+        pupil_stamp_size=None,
         ray_trace=True,
         extra_aberrations=None,
         detector_thickness=2,
@@ -148,24 +148,27 @@ class PSFObject:
                 1,
             )
         self.interference_filter = interference_filter
-
-        self.postage_stamp_size = postage_stamp_size
         self.detector_thickness = detector_thickness
         self.z_array = np.linspace(0, detector_thickness, zlen)
         self.ovsamp = ovsamp
         # The following sets the ulen of the GeometricOptics object based on
-        # use_postage_stamp_size when an explicit native-pixel size is provided.
+        # pupil_stamp_size when an explicit native-pixel size is provided.
         self.ulen = 2048  # default value
-        if use_postage_stamp_size is not None:
-            if isinstance(use_postage_stamp_size, bool) or not isinstance(
-                use_postage_stamp_size, (int | np.integer)
+        if pupil_stamp_size is not None:
+            if isinstance(pupil_stamp_size, bool) or not isinstance(
+                pupil_stamp_size, (int | np.integer)
             ):
                 raise TypeError(
-                    "use_postage_stamp_size must be a positive integer number of native pixels or None."
+                    "pupil_stamp_size must be a positive integer number of native pixels or None."
                 )
-            if use_postage_stamp_size <= 0:
-                raise ValueError("use_postage_stamp_size must be a positive integer number of native pixels.")
-            self.ulen = use_postage_stamp_size * self.ovsamp
+            if pupil_stamp_size <= 0:
+                raise ValueError("pupil_stamp_size must be a positive integer number of native pixels.")
+            self.ulen = pupil_stamp_size * self.ovsamp
+
+        if postage_stamp_size is not None and isinstance(postage_stamp_size, (int | np.integer)) and postage_stamp_size > 0:
+            self.postage_stamp_size = postage_stamp_size
+        else: 
+            self.postage_stamp_size = pupil_stamp_size
 
         self.optics = GeometricOptics(
             scanum,
