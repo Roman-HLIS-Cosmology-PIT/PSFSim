@@ -5,6 +5,7 @@ import pytest
 from psfsim.aberration_models import aberration_transfer_matrix
 from psfsim.opticspsf import GeometricOptics
 from psfsim.polychrom import PolychromaticPSF
+from psfsim.psfobject import PSFObject
 from psfsim.wfi_coordinate_transformations import from_sca_to_analysis, from_sca_to_fpa
 from psfsim.zernike import zernike, zernike_radial
 
@@ -48,3 +49,12 @@ def test_polychrom_noframe():
 
     with pytest.raises(ValueError):
         PolychromaticPSF(7, 0.0, 0.0, np.array([1.4, 1.6]), frame="invalid")
+
+
+def test_psfobject_invalid():
+    """Test invalid pupil_stamp_size."""
+
+    with pytest.raises(ValueError):
+        PSFObject(6, 50.0, 450.0, pupil_stamp_size=-1)
+    with pytest.raises(TypeError):
+        PSFObject(6, 50.0, 450.0, pupil_stamp_size=np.pi)  # can't use non-integer sizes
