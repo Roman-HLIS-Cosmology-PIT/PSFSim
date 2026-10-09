@@ -188,7 +188,7 @@ def test_poly_h():
     # This will go out of the bandpass, and since req_in_band is True
     # by default the final wavelengths don't get used.
     p = psfsim.polychrom.PolychromaticPSF(6, 12.105, -2.205, np.linspace(1.4, 1.9, 6), frame="analysis")
-    arr = p.compute_poly_psf(use_filter="H", ovsamp=8, use_postage_stamp_size=80, cycle=9)
+    arr = p.compute_poly_psf(use_filter="H", ovsamp=8, postage_stamp_size=31, pupil_stamp_size=80, cycle=9)
 
     # These are to alert us to things that change.
     # If you do a big enough model update, they might fail,
@@ -248,7 +248,7 @@ def test_poly_with_ghost():
     assert np.all(arr[442:522, 442:522] < 0.3 * np.amax(arr))
 
     with pytest.raises(ValueError, match=r"^ghost"):
-        p.compute_poly_psf(use_filter="H", ovsamp=4, use_postage_stamp_size=80, ray_trace=False, cycle=9)
+        p.compute_poly_psf(use_filter="H", ovsamp=4, pupil_stamp_size=80, ray_trace=False, cycle=9)
 
     with pytest.raises(ValueError, match=r"^ghost must be False"):
         p.compute_poly_psf(use_filter="H", ovsamp=4, cycle=9, postage_stamp_size=241)

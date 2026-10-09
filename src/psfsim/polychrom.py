@@ -114,14 +114,14 @@ class PolychromaticPSF:
 
     def compute_poly_psf(
         self,
-        postage_stamp_size=31,
+        postage_stamp_size=None,
         ovsamp=10,
         use_filter="H",
-        use_postage_stamp_size=None,
+        pupil_stamp_size=210,
         ray_trace=True,
         extra_aberrations=None,
         optical_psf_only=False,
-        reflect=True,
+        reflect=False,
         req_in_bandpass=True,
         centerpix=True,
         cycle=10,
@@ -144,7 +144,7 @@ class PolychromaticPSF:
             The number of samples per native pixel on each axis.
         use_filter : str, optional
             The filter as a string (e.g., "H").
-        use_postage_stamp_size : int, optional
+        pupil_stamp_size : int, optional
             Force pupil postage stamp size instead of internal calculation. In native pixels.
         ray_trace : bool, optional
             Whether to use ray tracing. (Only turn off for testing.)
@@ -222,7 +222,7 @@ class PolychromaticPSF:
                 postage_stamp_size=postage_stamp_size,
                 ovsamp=ovsamp,
                 use_filter=use_filter,
-                use_postage_stamp_size=use_postage_stamp_size,
+                pupil_stamp_size=pupil_stamp_size,
                 ray_trace=ray_trace,
                 extra_aberrations=extra_aberrations,
                 cycle=cycle,
