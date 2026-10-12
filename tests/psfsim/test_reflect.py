@@ -21,7 +21,7 @@ def test_neumann():
         (x, y) = pos
         psfs.append(
             PolychromaticPSF(sca, x, y, np.array([1.58]), frame="science").compute_poly_psf(
-                postage_stamp_size=n, cycle=10, ovsamp=ov, use_filter="H", centerpix=False
+                postage_stamp_size=n, cycle=10, ovsamp=ov, use_filter="H", centerpix=False, reflect=True
             )
         )
 

@@ -30,7 +30,7 @@ def _pt(cycle):
         wavelength=1.35,
         postage_stamp_size=31,
         ovsamp=n,
-        use_postage_stamp_size=None,
+        pupil_stamp_size=None,
         extra_aberrations=None,
         cycle=cycle,
     )
@@ -71,7 +71,7 @@ def test_psfobject_extra_aberrations():
         wavelength=1.35,
         postage_stamp_size=31,
         ovsamp=n,
-        use_postage_stamp_size=None,
+        pupil_stamp_size=None,
         extra_aberrations=None,
         cycle=10,
     )
@@ -83,7 +83,7 @@ def test_psfobject_extra_aberrations():
         wavelength=1.35,
         postage_stamp_size=31,
         ovsamp=n,
-        use_postage_stamp_size=None,
+        pupil_stamp_size=None,
         extra_aberrations=extra_aberrations,
         cycle=10,
     )
@@ -96,7 +96,7 @@ def test_psfobject_extra_aberrations():
             wavelength=1.35,
             postage_stamp_size=31,
             ovsamp=n,
-            use_postage_stamp_size=None,
+            pupil_stamp_size=None,
             extra_aberrations=fake_aberrations,
             cycle=10,
         )
@@ -110,7 +110,7 @@ def test_psfobject_extra_aberrations():
             wavelength=1.35,
             postage_stamp_size=31,
             ovsamp=1,
-            use_postage_stamp_size=96,
+            pupil_stamp_size=96,
             extra_aberrations=None,
             cycle=10,
         )
@@ -174,7 +174,7 @@ def test_psf_object_ghost():
         wavelength=1.35,
         postage_stamp_size=31,
         ovsamp=8,
-        use_postage_stamp_size=None,
+        pupil_stamp_size=None,
         extra_aberrations=None,
         cycle=10,
         ghost=True,
@@ -205,9 +205,30 @@ def test_psf_object_ghost_errs():
             wavelength=1.35,
             postage_stamp_size=31,
             ovsamp=8,
-            use_postage_stamp_size=None,
+            pupil_stamp_size=None,
             extra_aberrations=None,
             cycle=10,
             ghost=True,
             ray_trace=False,
         )
+
+
+def test_psf_object_no_postage_stamp_size():
+    """Test function for PSF object with postage_stamp_size=None."""
+
+    obj = PSFObject(
+        4,
+        20.15,
+        5.12,
+        wavelength=1.35,
+        postage_stamp_size=None,
+        ovsamp=8,
+        pupil_stamp_size=41,
+        extra_aberrations=None,
+        cycle=10,
+    )
+    obj.get_optical_psf()
+    assert obj.Optical_PSF.shape == (328, 328)
+    assert 0.0079 < np.amax(obj.Optical_PSF) < 0.0083
+    assert 0.999 < np.sum(obj.Optical_PSF) < 1.001
+    assert 0.3 < np.sum(obj.Optical_PSF[160:168, 160:168]) < 0.35

@@ -24,7 +24,7 @@ def _h(cycle):
     # by default the final wavelengths don't get used.
     p = psfsim.polychrom.PolychromaticPSF(6, 12.1, -2.2, np.linspace(1.4, 1.9, 6), frame="analysis")
     arr = p.compute_poly_psf(
-        use_filter="H", ovsamp=8, use_postage_stamp_size=80, cycle=cycle, centerpix=False
+        use_filter="H", ovsamp=8, postage_stamp_size=31, pupil_stamp_size=80, cycle=cycle, centerpix=False
     )
 
     # These are to alert us to things that change.
