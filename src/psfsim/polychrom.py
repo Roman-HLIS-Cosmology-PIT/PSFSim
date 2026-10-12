@@ -266,9 +266,9 @@ class PolychromaticPSF:
             if req_in_bandpass and not is_in_bandpass:
                 continue
 
+            wav_nm = wav * 1e3
+            bp = self.bandpass[filter_key]
             if self.sed is not None:
-                wav_nm = wav * 1e3
-                bp = self.bandpass[filter_key]
                 integrand_weight = bp(wav_nm) * self.sed(wav)
             else:
                 integrand_weight = bp(wav_nm)
