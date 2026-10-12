@@ -271,7 +271,7 @@ class PolychromaticPSF:
                 bp = self.bandpass[filter_key]
                 integrand_weight = bp(wav_nm) * self.sed(wav)
             else:
-                integrand_weight = 1.0
+                integrand_weight = bp(wav_nm)
 
             weight = quad_weight * integrand_weight
             if weight == 0.0:
