@@ -87,6 +87,8 @@ class PSFObject:
         - ``basis``: psfsim.basis.RomanBasisSet
 
           The number of basis modes, ``basis.N``, must equal the number of entries in ``arr``.
+    ice_thickness : float, optional
+        The thickness (in microns) of the ice layer located on the detector. Default: 0.0
 
     Attributes
     ----------
@@ -133,6 +135,7 @@ class PSFObject:
         ghost=False,
         idealmirror=False,
         perturbations=None,
+        ice_thickness = 0.0,
     ):
         self.wavelength = wavelength
         self.ghost = ghost
@@ -147,6 +150,7 @@ class PSFObject:
                 [0.163, 0.137, 0.084, 0.010, 0.008],
                 1,
             )
+        interference_filter.add_ice_layer(t_ice = ice_thickness)
         self.interference_filter = interference_filter
         self.detector_thickness = detector_thickness
         self.z_array = np.linspace(0, detector_thickness, zlen)
@@ -240,6 +244,10 @@ class PSFObject:
         ph = np.outer(x_minus, x_minus)  # phase required to translate fft to center
 
         self.prefactor = prefactor * ph
+
+        # storing so they are not recomputed when calculating ice response
+        self.TE_TM_h_polarized = None
+        self.TE_TM_v_polarized = None
 
         # self.MTF_array = diffusion_green(self.sX, self.sY)
 
@@ -389,13 +397,13 @@ class PSFObject:
             self.get_optical_psf()
 
         # Get the TE and TM mode amplitudes for the h-polarized and v-polarized E-fields
-        TE_TM_h_polarized = polarisation_mode_decomposition(self.ux, self.uy, self.E_FPA_h_polarized, sgn=1)
-        TE_TM_v_polarized = polarisation_mode_decomposition(self.ux, self.uy, self.E_FPA_v_polarized, sgn=1)
+        self.TE_TM_h_polarized = polarisation_mode_decomposition(self.ux, self.uy, self.E_FPA_h_polarized, sgn=1)
+        self.TE_TM_v_polarized = polarisation_mode_decomposition(self.ux, self.uy, self.E_FPA_v_polarized, sgn=1)
 
-        A_TE_h = TE_TM_h_polarized["TE"]
-        A_TM_h = TE_TM_h_polarized["TM"]
-        A_TE_v = TE_TM_v_polarized["TE"]
-        A_TM_v = TE_TM_v_polarized["TM"]
+        A_TE_h = self.TE_TM_h_polarized["TE"]
+        A_TM_h = self.TE_TM_h_polarized["TM"]
+        A_TE_v = self.TE_TM_v_polarized["TE"]
+        A_TM_v = self.TE_TM_v_polarized["TM"]
 
         # Obtain the integrated intensity in the detector for the h-polarized and v-polarized E-fields
         # by calling get_Intensity_from_E with the corresponding TE and TM mode amplitudes for

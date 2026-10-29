@@ -128,6 +128,8 @@ class PolychromaticPSF:
         mjd=None,
         perturbations=None,
         idealmirror=False,
+        ice_thickness=0.0,
+        ice_response=None,
     ):
         """
         Compute the polychromatic PSF by integrating monochromatic PSFs across wavelength.
@@ -183,6 +185,19 @@ class PolychromaticPSF:
             - ``basis``: psfsim.basis.RomanBasisSet
 
               The number of basis modes, ``basis.N``, must equal the number of entries in ``arr``.
+        ice_thickness : float, optional
+            The thickness (in microns) of the ice layer located on the detector. Default: 0.0
+        ice_response: function, optional
+            A callable function that takes as input (in this exact order): 
+                - the SCA
+                - SCA x position in science frame
+                - SCA y position in science frame
+                - wavelength in microns
+                - ice thickness in microns
+            and returns the relative response due to the ice layer. A value of 1 corresponds
+            to an ice layer of 0 thickness and therefore no change in response. If ice_thickness
+            is provided and ice_response = None, the response is calculated by internally.
+            Default: None.
 
         Returns
         -------
@@ -230,6 +245,7 @@ class PolychromaticPSF:
                 idealmirror=idealmirror,
                 ghost=self.ghost,
                 perturbations=perturbations,
+                ice_thickness=ice_thickness,
             )
             this_psf.get_optical_psf()
             if optical_psf_only:
@@ -278,6 +294,18 @@ class PolychromaticPSF:
                 continue
 
             mono_image = _compute_mono_image(wav)
+            # Since the monochromatic PSFs do not normalize the transmission coming
+            # from the FilterDetector layers, these may be double counting the effects
+            # from the AR coating, CdTe layer, and MerCadTel layer already included
+            # in the throughput for each bandpass (used in integrand_weight above).
+            mono_image /= np.sum(mono_image)
+            if ice_thickness != 0:
+                if ice_response is None:
+                    # calculate the ice transmission response internally
+                    ice_transmission = get_ice_transmission_wave(this_psf, ice_thickness)
+                else:
+                    ice_transmission = ice_response(self.scanum, self.scax, self.scay, wav, ice_thickness )
+                weight *= ice_transmission
             if chromatic_psf is None:
                 chromatic_psf = np.zeros_like(mono_image, dtype=float)
             chromatic_psf += weight * mono_image
