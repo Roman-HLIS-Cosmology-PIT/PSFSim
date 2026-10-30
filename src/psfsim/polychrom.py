@@ -189,7 +189,7 @@ class PolychromaticPSF:
         ice_thickness : float, optional
             The thickness (in microns) of the ice layer located on the detector. Default: 0.0
         ice_response: function, optional
-            A callable function that takes as input (in this exact order): 
+            A callable function that takes as input (in this exact order):
                 - the SCA
                 - SCA x position in science frame
                 - SCA y position in science frame
@@ -261,7 +261,8 @@ class PolychromaticPSF:
 
         if n_in_band == 1:
             wav = wavelengths[in_band_mask][0]
-            chromatic_psf, _ = _compute_mono_image(wav).astype(float, copy=True)
+            chromatic_psf, _ = _compute_mono_image(wav)
+            chromatic_psf = chromatic_psf.astype(float, copy=True)
             total_flux = np.sum(chromatic_psf)
             if total_flux == 0.0:
                 raise ValueError("Monochromatic PSF has zero flux for the only in-band wavelength node.")
@@ -302,7 +303,7 @@ class PolychromaticPSF:
                     # calculate the ice transmission response internally
                     ice_transmission = get_ice_transmission_wave(this_psf, ice_thickness)
                 else:
-                    ice_transmission = ice_response(self.scanum, self.scax, self.scay, wav, ice_thickness )
+                    ice_transmission = ice_response(self.scanum, self.scax, self.scay, wav, ice_thickness)
                 weight *= ice_transmission
             if chromatic_psf is None:
                 chromatic_psf = np.zeros_like(mono_image, dtype=float)
