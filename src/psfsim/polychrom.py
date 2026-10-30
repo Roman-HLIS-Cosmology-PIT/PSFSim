@@ -6,6 +6,7 @@ import numpy as np
 from .psfobject import PSFObject
 from .utils.ice_utils import get_ice_transmission_wave, inBandpass
 
+
 class PolychromaticPSF:
     """
     Compute and draw weighted polychromatic PSFs.

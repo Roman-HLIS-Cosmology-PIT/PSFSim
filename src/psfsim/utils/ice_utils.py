@@ -1,10 +1,9 @@
+import galsim.roman
 import numpy as np
-from psfsim.filter_detector_properties import FilterDetector, n_ice, n_mercadtel
+
+from psfsim.filter_detector_properties import n_ice, n_mercadtel
 from psfsim.polarisation_decomposition import polarisation_mode_decomposition
 from psfsim.psfobject import PSFObject
-from psfsim.index_cdte import n_cdte
-import galsim.roman
-
 
 
 def inBandpass(wav, filter_string, bandpasses):
@@ -53,6 +52,7 @@ def inBandpass(wav, filter_string, bandpasses):
     # If none of the candidate bandpasses contain the wavelength, report that it is out of band.
     return False, None
 
+
 def _matmul_2x2(A, B):
     """
     Explicit multiplication of two two 2x2, similar to that in _calc_transmission_scalar()
@@ -76,7 +76,7 @@ def _layer_matrices_from_q(ll, q, n, t, mu=1.0):
     """
     k0 = 2.0 * np.pi / ll
     n = complex(n)
-    e = n**2 
+    e = n**2
     mu = complex(mu)
 
     # z-component of the wave vector inside the layer and the phase accumulated through it
@@ -134,7 +134,7 @@ def _deposit_linear_to_q_grid(q_values, weights, q_grid):
 
     # Fractional grid index of each point, e.g. x = 15.3 is 30% of the way from bin 15 to 16
     x = (q_values - q_grid[0]) / dq
-    i0 = np.clip(np.floor(x).astype(np.int64), 0, nq - 2) # lower neighbour, i0+1 must stay in range
+    i0 = np.clip(np.floor(x).astype(np.int64), 0, nq - 2)  # lower neighbour, i0+1 must stay in range
     frac = np.clip(x - i0, 0.0, 1.0)
 
     out = np.bincount(i0, weights=weights * (1.0 - frac), minlength=nq)
@@ -166,7 +166,7 @@ def _prepare_fast_ice_flux_radial(psf_obj, n_q=2048):
     k0 = 2.0 * np.pi / ll
     ux = np.asarray(psf_obj.ux)
     uy = np.asarray(psf_obj.uy)
-    mask = psf_obj.mask 
+    mask = psf_obj.mask
 
     # The filter only depends on the incident direction through q = ux^2 + uy^2 = sin(theta)^2
     q = ux**2 + uy**2
@@ -176,8 +176,8 @@ def _prepare_fast_ice_flux_radial(psf_obj, n_q=2048):
     TE_TM_h_polarized = psf_obj.TE_TM_h_polarized
     TE_TM_v_polarized = psf_obj.TE_TM_v_polarized
     if TE_TM_h_polarized is None or TE_TM_v_polarized is None:
-        E_FPA_h_polarized = psf_obj.optics.rb.E[:, :, 0, 1:4] # horizontal polarization
-        E_FPA_v_polarized = psf_obj.optics.rb.E[:, :, 1, 1:4] # vertical polarization
+        E_FPA_h_polarized = psf_obj.optics.rb.E[:, :, 0, 1:4]  # horizontal polarization
+        E_FPA_v_polarized = psf_obj.optics.rb.E[:, :, 1, 1:4]  # vertical polarization
         TE_TM_h_polarized = polarisation_mode_decomposition(ux, uy, E_FPA_h_polarized, sgn=1)
         TE_TM_v_polarized = polarisation_mode_decomposition(ux, uy, E_FPA_v_polarized, sgn=1)
 
@@ -186,12 +186,12 @@ def _prepare_fast_ice_flux_radial(psf_obj, n_q=2048):
     A_TE_v = TE_TM_v_polarized["TE"]
     A_TM_v = TE_TM_v_polarized["TM"]
 
-    A_TE2 = np.abs(A_TE_h)**2 + np.abs(A_TE_v)**2
-    A_TM2 = np.abs(A_TM_h)**2 + np.abs(A_TM_v)**2
+    A_TE2 = np.abs(A_TE_h) ** 2 + np.abs(A_TE_v) ** 2
+    A_TM2 = np.abs(A_TM_h) ** 2 + np.abs(A_TM_v) ** 2
 
     # The total flux in the image is the pupil sum of |E|^2 up to a constant, so only |prefactor|^2
     # matters and the phases drop out.
-    prefactor2 = np.abs(psf_obj.prefactor)**2
+    prefactor2 = np.abs(psf_obj.prefactor) ** 2
 
     # Fields inside the HgCdTe detector, see FilterDetector.transmitted_E
     nHgCdTe = complex(n_mercadtel(ll))
@@ -204,7 +204,7 @@ def _prepare_fast_ice_flux_radial(psf_obj, n_q=2048):
 
     # The TM mode contribution
     tm_E_factor = np.zeros_like(q, dtype=float)
-    tm_E_factor[mask] = (np.abs(kz[mask] / (k0 * eHgCdTe))**2 + np.abs(np.sqrt(q[mask]) / eHgCdTe)**2)
+    tm_E_factor[mask] = np.abs(kz[mask] / (k0 * eHgCdTe)) ** 2 + np.abs(np.sqrt(q[mask]) / eHgCdTe) ** 2
 
     # get_Intensity_from_E integrates over the detector depth L with Gaussian quadrature,
     # here we do it analytically
@@ -254,7 +254,7 @@ def _prepare_fast_ice_flux_radial(psf_obj, n_q=2048):
     }
 
 
-def _fast_ice_flux_radial(cache,thickness_um):
+def _fast_ice_flux_radial(cache, thickness_um):
     """
     Calculate the total detector flux for one or list of ice thicknesses.
     This function only deals with the ice-layer matrix changes with thickness,
@@ -288,27 +288,27 @@ def _fast_ice_flux_radial(cache,thickness_um):
     eice = nice**2
 
     # z-component of the wave vector inside the ice. This depends on q and lambda, but NOT thickness.
-    kz_ice = k0* np.sqrt(nice**2- q+ 0j)
+    kz_ice = k0 * np.sqrt(nice**2 - q + 0j)
 
     # This gives the ice phase at every thickness and q value.
-    phase = t[:, None]* kz_ice[None, :]
+    phase = t[:, None] * kz_ice[None, :]
     c = np.cos(phase)
     s = np.sin(phase)
 
     # Now we build the electric field modes (TM and TE) characteristic matrix.
     # For ice magnetic constant is essentially 1, so not included in TE calculation
-    M00, M11 = c, c # M00 and M11 are the same
-    M01 = -(k0 / kz_ice[None, :])* 1j * s
-    M10 = -(kz_ice[None, :] / k0)* 1j * s
+    M00, M11 = c, c  # M00 and M11 are the same
+    M01 = -(k0 / kz_ice[None, :]) * 1j * s
+    M10 = -(kz_ice[None, :] / k0) * 1j * s
     I_TE = (M00, M01, M10, M11)
 
     # Now for the TM matrix, M01 and M10 are identical but we need to include the dielectric constant
-    I_TM = (M00, M01*eice, M10/eice, M11)
+    I_TM = (M00, M01 * eice, M10 / eice, M11)
 
     # Now we multiply the ice matrices with the characteristic matrix without ice.
     # characteristic_matrix puts the ice as the first layer, so the ice matrix goes on the left.
-    M_TE = _matmul_2x2(I_TE,cache["M_TE_net"])
-    M_TM = _matmul_2x2(I_TM,cache["M_TM_net"])
+    M_TE = _matmul_2x2(I_TE, cache["M_TE_net"])
+    M_TM = _matmul_2x2(I_TM, cache["M_TM_net"])
 
     M00s, M01s, M10s, M11s = M_TE
     M00p, M01p, M10p, M11p = M_TM
@@ -320,20 +320,20 @@ def _fast_ice_flux_radial(cache,thickness_um):
     # to what filter_detector_properties.transmission does.
 
     # TE
-    eta_TE = kz/ k0/ cache["muHgCdTe"]
-    denom_TE = cos_theta*(M00s+ eta_TE * M01s)+(M10s+ eta_TE * M11s)
-    T_TE = 2.0* cos_theta/ denom_TE
-    eta_TM = kz/ k0/ cache["eHgCdTe"]
+    eta_TE = kz / k0 / cache["muHgCdTe"]
+    denom_TE = cos_theta * (M00s + eta_TE * M01s) + (M10s + eta_TE * M11s)
+    T_TE = 2.0 * cos_theta / denom_TE
+    eta_TM = kz / k0 / cache["eHgCdTe"]
 
     # TM
-    denom_TM = cos_theta* (M00p + eta_TM * M01p)+(M10p + eta_TM * M11p)
-    T_TM = 2.0*cos_theta/denom_TM
+    denom_TM = cos_theta * (M00p + eta_TM * M01p) + (M10p + eta_TM * M11p)
+    T_TM = 2.0 * cos_theta / denom_TM
 
     # All that is left is to integrate over the Roman pupil to get the flux.
-    flux = np.sum(cache["W_TE"][None, :]* np.abs(T_TE)**2+
-                  cache["W_TM"][None, :]* np.abs(T_TM)**2,
-                  axis=1,
-                 )
+    flux = np.sum(
+        cache["W_TE"][None, :] * np.abs(T_TE) ** 2 + cache["W_TM"][None, :] * np.abs(T_TM) ** 2,
+        axis=1,
+    )
 
     if np.ndim(thickness_um) == 0:
         return flux[0]
@@ -360,15 +360,15 @@ def get_ice_transmission_wave(base_psf, ice_thickness):
         Flux ratio relative to no ice, one value per thickness.
     """
     cache = _prepare_fast_ice_flux_radial(base_psf)
-     #Flux at the some ice thickness.
-    flux_t = _fast_ice_flux_radial(cache,ice_thickness)
+    # Flux at the some ice thickness.
+    flux_t = _fast_ice_flux_radial(cache, ice_thickness)
     # Flux with zero ice thickness.
     flux_0 = _fast_ice_flux_radial(cache, 0.0)
     ice_transmission = flux_t / flux_0
     return ice_transmission
 
 
-def _get_PSF(wave,scanum, scax, scay, use_filter,pupil_stamp_size, kwargs):
+def _get_PSF(wave, scanum, scax, scay, use_filter, pupil_stamp_size, kwargs):
     """
     Build a monochromatic PSFObject at a given SCA position.
     """
@@ -382,26 +382,46 @@ def _get_PSF(wave,scanum, scax, scay, use_filter,pupil_stamp_size, kwargs):
         wavelength=wave,
         use_filter=use_filter,
         pupil_stamp_size=pupil_stamp_size,
-        **kwargs
-        )
+        **kwargs,
+    )
     return base_psf
+
 
 def _parse_filter_name(filter_name):
     """
     Convert a Roman filter name to its full bandpass name
     """
-    bandpass_names = { 'R': 'R062',  'Z': 'Z087',  'Y': 'Y106',  'J': 'J129',
-                       'H': 'H158',  'F': 'F184', 'K':'K213', 'W': 'W146'}
-    if filter_name in bandpass_names.keys():
+    bandpass_names = {
+        "R": "R062",
+        "Z": "Z087",
+        "Y": "Y106",
+        "J": "J129",
+        "H": "H158",
+        "F": "F184",
+        "K": "K213",
+        "W": "W146",
+    }
+    if filter_name in bandpass_names:
         return bandpass_names[filter_name]
     if filter_name in bandpass_names.values():
         return filter_name
     else:
         raise ValueError(f"Filter name must be a Roman filter: {list(bandpass_names.values())}")
 
-def get_ice_transmission(scanum = 1, scax = 2044, scay = 2044, filter_name = None, waves = None, nwaves = 20,
-                         pupil_stamp_size = 10, ice_thickness = 0.0, ice_response = None,
-                         return_throughput = False, psf_kwargs=None):
+
+def get_ice_transmission(
+    scanum=1,
+    scax=2044,
+    scay=2044,
+    filter_name=None,
+    waves=None,
+    nwaves=20,
+    pupil_stamp_size=10,
+    ice_thickness=0.0,
+    ice_response=None,
+    return_throughput=False,
+    psf_kwargs=None,
+):
     """
     Ice transmission F(lambda,t) / F(lambda,0) as a function of wavelength at a given SCA position.
     If only filter_name is passed, the transmission is evaluated at nwaves wavelengths across
@@ -451,37 +471,35 @@ def get_ice_transmission(scanum = 1, scax = 2044, scay = 2044, filter_name = Non
         # in order to return the new throuhput a filter name must be passed
         raise ValueError("filter_name must be defined if return_throughput = True ")
 
-
     wave_list = waves
     if filter_name is not None:
         use_filter = _parse_filter_name(filter_name)
         bandpass = galsim.roman.getBandpasses()[use_filter]
         if waves is None:
             wave_list = np.linspace(bandpass.blue_limit, bandpass.red_limit, nwaves)
-            wave_list /= 1000 # convert to microns
+            wave_list /= 1000  # convert to microns
         else:
             wavelengths = np.asarray(waves, dtype=float)
             # multiply by 1e3 because galsim bandpass takes nm, and this function takes microns
-            is_in_bandpass = [inBandpass(wav, use_filter, bandpass)[0] for wav in wavelengths*1e3]
+            is_in_bandpass = [inBandpass(wav, use_filter, bandpass)[0] for wav in wavelengths * 1e3]
             wave_list = waves[is_in_bandpass]
             if len(wave_list) == 0:
                 raise ValueError(
-                f"No in-band wavelength nodes found for filter '{use_filter}'. "
-                f"Provided range: [{wavelengths.min():.6g}, {wavelengths.max():.6g}] microns."
+                    f"No in-band wavelength nodes found for filter '{use_filter}'. "
+                    f"Provided range: [{wavelengths.min():.6g}, {wavelengths.max():.6g}] microns."
                 )
 
     transmission_ratio = []
     if ice_response is None:
-        import time
         for wave in wave_list:
-            base_psf = _get_PSF(wave,scanum, scax, scay, use_filter, pupil_stamp_size, psf_kwargs)
+            base_psf = _get_PSF(wave, scanum, scax, scay, use_filter, pupil_stamp_size, psf_kwargs)
             ice_transmission = get_ice_transmission_wave(base_psf, ice_thickness)
             transmission_ratio.append(ice_transmission)
         transmission_ratio = np.array(transmission_ratio)
     else:
-        transmission_ratio = ice_response(scanum, scax, scay, wave_list, ice_thickness )
+        transmission_ratio = ice_response(scanum, scax, scay, wave_list, ice_thickness)
 
     if return_throughput:
-        return wave_list, transmission_ratio, transmission_ratio*bandpass(wave_list*1000)
+        return wave_list, transmission_ratio, transmission_ratio * bandpass(wave_list * 1000)
     else:
         return wave_list, transmission_ratio
