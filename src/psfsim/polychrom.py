@@ -4,7 +4,7 @@ import galsim.roman
 import numpy as np
 
 from .psfobject import PSFObject
-from .utils.ice_transmission import get_ice_transmission_wave
+from .utils.ice_utils import get_ice_transmission_wave
 
 
 def inBandpass(wav, filter_string, bandpasses):
@@ -189,7 +189,7 @@ class PolychromaticPSF:
         ice_thickness : float, optional
             The thickness (in microns) of the ice layer located on the detector. Default: 0.0
         ice_response: function, optional
-            A callable function that takes as input (in this exact order):
+            A callable function that takes as input (in this exact order): 
                 - the SCA
                 - SCA x position in science frame
                 - SCA y position in science frame
@@ -285,10 +285,7 @@ class PolychromaticPSF:
 
             wav_nm = wav * 1e3
             bp = self.bandpass[filter_key]
-            if self.sed is not None:
-                integrand_weight = bp(wav_nm) * self.sed(wav)
-            else:
-                integrand_weight = bp(wav_nm)
+            integrand_weight = bp(wav_nm) * self.sed(wav) if self.sed is not None else bp(wav_nm)
 
             weight = quad_weight * integrand_weight
             if weight == 0.0:
@@ -305,7 +302,7 @@ class PolychromaticPSF:
                     # calculate the ice transmission response internally
                     ice_transmission = get_ice_transmission_wave(this_psf, ice_thickness)
                 else:
-                    ice_transmission = ice_response(self.scanum, self.scax, self.scay, wav, ice_thickness)
+                    ice_transmission = ice_response(self.scanum, self.scax, self.scay, wav, ice_thickness )
                 weight *= ice_transmission
             if chromatic_psf is None:
                 chromatic_psf = np.zeros_like(mono_image, dtype=float)
