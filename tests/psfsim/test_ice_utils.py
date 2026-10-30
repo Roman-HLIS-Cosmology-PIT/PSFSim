@@ -21,8 +21,8 @@ def test_main_interface():
 
     # check dummy function
     T_ice = get_ice_transmission(filter_name="H158", ice_thickness=0.1, ice_response=ice_function)
-    assert T_noice[0] == T_ice[0]
-    assert T_noice[1] == T_ice[1]
+    assert np.array_equal(T_noice[0], T_ice[0])
+    assert np.array_equal(T_noice[1], T_ice[1])
 
 
 def test_ice_accuracy():

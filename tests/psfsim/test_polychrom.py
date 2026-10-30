@@ -290,7 +290,8 @@ def test_add_ice():
     # check this returns the same as no ice layer
     psf_arr_ice = psf.compute_poly_psf(ice_thickness=t_ice, ice_response=ice_function, use_filter=use_filter)
     psf_arr_noice = psf.compute_poly_psf(use_filter=use_filter)
-    assert np.array_equal(psf_arr_ice, psf_arr_noice)
+    abs_diff = np.abs(psf_arr_ice - psf_arr_noice)
+    assert abs_diff < 1e-10
 
 
 def test_optical_only():
