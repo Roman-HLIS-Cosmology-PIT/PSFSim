@@ -250,7 +250,7 @@ class PolychromaticPSF:
             )
             this_psf.get_optical_psf()
             if optical_psf_only:
-                return this_psf.Optical_PSF
+                return this_psf.Optical_PSF, this_psf
 
             this_psf.get_image_from_Intensity(centerpix=centerpix, reflect=reflect, tophat=True)
             return this_psf.detector_image, this_psf
