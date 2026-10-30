@@ -4,54 +4,7 @@ import galsim.roman
 import numpy as np
 
 from .psfobject import PSFObject
-
-
-def inBandpass(wav, filter_string, bandpasses):
-    """
-    Compute whether a wavelength is in a filter.
-
-    Parameters
-    ----------
-    wav : float
-        Wavelength in microns
-    filter_string: str
-        String to identify the filter. Can either be just a letter or letter + wl (e.g. 'H' or 'H158').
-    bandpasses : dict
-        Dictionary of GalSim Roman bandpasses, typically from ``galsim.roman.getBandpasses()``.
-
-    Returns
-    -------
-    bool, str
-        Whether the wavelength is in the filter, and the galsim key of the filter if it is in the bandpass.
-
-    """
-
-    wav *= 1e3  # convert to nm for galsim
-    bp = bandpasses
-
-    # First, check for an exact match of the filter string to a bandpass key.
-    if filter_string in bp:
-        band = bp[filter_string]
-        if band.blue_limit <= wav <= band.red_limit:
-            return True, filter_string
-        else:
-            return False, None
-
-    # Otherwise, look for all keys that contain the filter_string as a substring.
-    matching_keys = [key for key in bp if filter_string in key]
-    if not matching_keys:
-        raise ValueError(
-            f"Filter {filter_string} not found in bandpasses. Available filters are: {bp.keys()}"
-        )
-
-    # Check each matching key and return True on the first one whose bandpass contains the wavelength.
-    for key in matching_keys:
-        band = bp[key]
-        if band.blue_limit <= wav <= band.red_limit:
-            return True, key
-
-    # If none of the candidate bandpasses contain the wavelength, report that it is out of band.
-    return False, None
+from .utils.ice_utils import get_ice_transmission_wave, inBandpass
 
 
 class PolychromaticPSF:
@@ -128,6 +81,8 @@ class PolychromaticPSF:
         mjd=None,
         perturbations=None,
         idealmirror=False,
+        ice_thickness=0.0,
+        ice_response=None,
     ):
         """
         Compute the polychromatic PSF by integrating monochromatic PSFs across wavelength.
@@ -183,6 +138,19 @@ class PolychromaticPSF:
             - ``basis``: psfsim.basis.RomanBasisSet
 
               The number of basis modes, ``basis.N``, must equal the number of entries in ``arr``.
+        ice_thickness : float, optional
+            The thickness (in microns) of the ice layer located on the detector. Default: 0.0
+        ice_response: function, optional
+            A callable function that takes as input (in this exact order):
+                - the SCA
+                - SCA x position in science frame
+                - SCA y position in science frame
+                - wavelength in microns
+                - ice thickness in microns
+            and returns the relative response due to the ice layer. A value of 1 corresponds
+            to an ice layer of 0 thickness and therefore no change in response. If ice_thickness
+            is provided and ice_response = None, the response is calculated by internally.
+            Default: None.
 
         Returns
         -------
@@ -212,6 +180,8 @@ class PolychromaticPSF:
 
         if (not ray_trace) and (self.ghost):
             raise ValueError("ghost must be False")
+        if ice_thickness < 0.0:
+            raise ValueError("ice thickness must be non-negative")
 
         def _compute_mono_image(wav):
             this_psf = PSFObject(
@@ -230,13 +200,14 @@ class PolychromaticPSF:
                 idealmirror=idealmirror,
                 ghost=self.ghost,
                 perturbations=perturbations,
+                ice_thickness=ice_thickness,
             )
             this_psf.get_optical_psf()
             if optical_psf_only:
-                return this_psf.Optical_PSF
+                return this_psf.Optical_PSF, this_psf
 
             this_psf.get_image_from_Intensity(centerpix=centerpix, reflect=reflect, tophat=True)
-            return this_psf.detector_image
+            return this_psf.detector_image, this_psf
 
         # output flips (the PSF is computed in the analysis frame)
         _px = -1 if self.frame == "fpa" else 1
@@ -244,7 +215,8 @@ class PolychromaticPSF:
 
         if n_in_band == 1:
             wav = wavelengths[in_band_mask][0]
-            chromatic_psf = _compute_mono_image(wav).astype(float, copy=True)
+            chromatic_psf, _ = _compute_mono_image(wav)
+            chromatic_psf = chromatic_psf.astype(float, copy=True)
             total_flux = np.sum(chromatic_psf)
             if total_flux == 0.0:
                 raise ValueError("Monochromatic PSF has zero flux for the only in-band wavelength node.")
@@ -268,16 +240,25 @@ class PolychromaticPSF:
 
             wav_nm = wav * 1e3
             bp = self.bandpass[filter_key]
-            if self.sed is not None:
-                integrand_weight = bp(wav_nm) * self.sed(wav)
-            else:
-                integrand_weight = bp(wav_nm)
+            integrand_weight = bp(wav_nm) * self.sed(wav) if self.sed is not None else bp(wav_nm)
 
             weight = quad_weight * integrand_weight
             if weight == 0.0:
                 continue
 
-            mono_image = _compute_mono_image(wav)
+            mono_image, this_psf = _compute_mono_image(wav)
+            # Since the monochromatic PSFs do not normalize the transmission coming
+            # from the FilterDetector layers, these may be double counting the effects
+            # from the AR coating, CdTe layer, and MerCadTel layer already included
+            # in the throughput for each bandpass (used in integrand_weight above).
+            mono_image /= np.sum(mono_image)
+            if ice_thickness != 0:
+                if ice_response is None:
+                    # calculate the ice transmission response internally
+                    ice_transmission = get_ice_transmission_wave(this_psf, ice_thickness)
+                else:
+                    ice_transmission = ice_response(self.scanum, self.scax, self.scay, wav, ice_thickness)
+                weight *= ice_transmission
             if chromatic_psf is None:
                 chromatic_psf = np.zeros_like(mono_image, dtype=float)
             chromatic_psf += weight * mono_image
