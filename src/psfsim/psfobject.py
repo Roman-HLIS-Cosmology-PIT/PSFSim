@@ -135,7 +135,7 @@ class PSFObject:
         ghost=False,
         idealmirror=False,
         perturbations=None,
-        ice_thickness = 0.0,
+        ice_thickness=0.0,
     ):
         self.wavelength = wavelength
         self.ghost = ghost
@@ -150,7 +150,7 @@ class PSFObject:
                 [0.163, 0.137, 0.084, 0.010, 0.008],
                 1,
             )
-        interference_filter.add_ice_layer(t_ice = ice_thickness)
+        interference_filter.add_ice_layer(t_ice=ice_thickness)
         self.interference_filter = interference_filter
         self.detector_thickness = detector_thickness
         self.z_array = np.linspace(0, detector_thickness, zlen)
@@ -397,8 +397,12 @@ class PSFObject:
             self.get_optical_psf()
 
         # Get the TE and TM mode amplitudes for the h-polarized and v-polarized E-fields
-        self.TE_TM_h_polarized = polarisation_mode_decomposition(self.ux, self.uy, self.E_FPA_h_polarized, sgn=1)
-        self.TE_TM_v_polarized = polarisation_mode_decomposition(self.ux, self.uy, self.E_FPA_v_polarized, sgn=1)
+        self.TE_TM_h_polarized = polarisation_mode_decomposition(
+            self.ux, self.uy, self.E_FPA_h_polarized, sgn=1
+        )
+        self.TE_TM_v_polarized = polarisation_mode_decomposition(
+            self.ux, self.uy, self.E_FPA_v_polarized, sgn=1
+        )
 
         A_TE_h = self.TE_TM_h_polarized["TE"]
         A_TM_h = self.TE_TM_h_polarized["TM"]
