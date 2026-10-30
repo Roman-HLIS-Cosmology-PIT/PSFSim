@@ -4,56 +4,7 @@ import galsim.roman
 import numpy as np
 
 from .psfobject import PSFObject
-from .utils.ice_utils import get_ice_transmission_wave
-
-
-def inBandpass(wav, filter_string, bandpasses):
-    """
-    Compute whether a wavelength is in a filter.
-
-    Parameters
-    ----------
-    wav : float
-        Wavelength in microns
-    filter_string: str
-        String to identify the filter. Can either be just a letter or letter + wl (e.g. 'H' or 'H158').
-    bandpasses : dict
-        Dictionary of GalSim Roman bandpasses, typically from ``galsim.roman.getBandpasses()``.
-
-    Returns
-    -------
-    bool, str
-        Whether the wavelength is in the filter, and the galsim key of the filter if it is in the bandpass.
-
-    """
-
-    wav *= 1e3  # convert to nm for galsim
-    bp = bandpasses
-
-    # First, check for an exact match of the filter string to a bandpass key.
-    if filter_string in bp:
-        band = bp[filter_string]
-        if band.blue_limit <= wav <= band.red_limit:
-            return True, filter_string
-        else:
-            return False, None
-
-    # Otherwise, look for all keys that contain the filter_string as a substring.
-    matching_keys = [key for key in bp if filter_string in key]
-    if not matching_keys:
-        raise ValueError(
-            f"Filter {filter_string} not found in bandpasses. Available filters are: {bp.keys()}"
-        )
-
-    # Check each matching key and return True on the first one whose bandpass contains the wavelength.
-    for key in matching_keys:
-        band = bp[key]
-        if band.blue_limit <= wav <= band.red_limit:
-            return True, key
-
-    # If none of the candidate bandpasses contain the wavelength, report that it is out of band.
-    return False, None
-
+from .utils.ice_utils import get_ice_transmission_wave, inBandpass
 
 class PolychromaticPSF:
     """
@@ -228,6 +179,8 @@ class PolychromaticPSF:
 
         if (not ray_trace) and (self.ghost):
             raise ValueError("ghost must be False")
+        if ice_thickness < 0.0:
+            raise ValueError("ice thickness must be non-negative")
 
         def _compute_mono_image(wav):
             this_psf = PSFObject(
