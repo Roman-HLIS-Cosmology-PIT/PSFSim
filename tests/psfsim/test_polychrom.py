@@ -270,3 +270,36 @@ def test_poly_with_ghost():
     print(dx, dy)
     assert 4.5 < dx < 6.5
     assert 1.0 < dy < 2.0
+
+
+def test_add_ice():
+    """test of computing polychromatic PSF with ice layer"""
+    use_filter = "H"
+    scanum = 1
+    scax, scay = 2044, 2044
+    wavelengths = np.linspace(1.4, 1.8, 2)
+    psf = psfsim.polychrom.PolychromaticPSF(scanum, scax, scay, wavelengths)
+    t_ice = 0.1  # microns
+    # check that it runs with non-zero thickness
+    psf_arr_ice = psf.compute_poly_psf(ice_thickness=t_ice, use_filter=use_filter)
+
+    # dummy function to test passing a callable function to get ice response
+    def ice_function(scanum, scax, scay, wave, ice_thickness):
+        return 1
+
+    # check this returns the same as no ice layer
+    psf_arr_ice = psf.compute_poly_psf(ice_thickness=t_ice, ice_response=ice_function, use_filter=use_filter)
+    psf_arr_noice = psf.compute_poly_psf(use_filter=use_filter)
+    abs_diff = np.abs(psf_arr_ice - psf_arr_noice)
+    assert np.max(abs_diff) < 1e-5
+
+
+def test_optical_only():
+    """test use of optical_only in polychromatic PSF"""
+    use_filter = "H"
+    scanum = 1
+    scax, scay = 2044, 2044
+    wavelengths = np.linspace(1.4, 1.8, 2)
+    psf = psfsim.polychrom.PolychromaticPSF(scanum, scax, scay, wavelengths)
+    # just check that it runs properly
+    psf.compute_poly_psf(optical_psf_only=True, use_filter=use_filter)
