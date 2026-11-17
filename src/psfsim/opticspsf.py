@@ -612,8 +612,8 @@ class GeometricOptics:
         localy = mydata["local_y"][mask1]
         # The aberrations in "wim_zernikes_cycle9.csv.gz" are given at positions local_x and local_y,
         # which are in FPA coordinate frame (relative to the SCA center). 
-        # Since self.scax, self.scay are in analysis frame, we must rotate the local_x and local_y by 180 degrees
-        # (equivalent to a minus sign in each) to land in the correct place. This is applied below.
+        # Since self.scax, self.scay are in analysis frame, we must rotate the local_x and local_y
+        # by 180 degrees (equivalent to a minus sign in each) to land in the correct place.
         points = np.stack((-localx, -localy)).T
         # print(points)
         path_diff = 0
