@@ -91,6 +91,8 @@ def _setup(infile):
     ns = 3
     npt = nchip * ns**2
     fpos = np.zeros((npt, 2))
+    xfpa = np.zeros((npt,))
+    yfpa = np.zeros((npt,))
 
     rsiaf = pysiaf.Siaf("Roman", basepath=Path(infile).parent, filename=Path(infile).name)
     v2c, v3c = rsiaf["WFI_CEN"].idl_to_tel(0, 0)
@@ -110,18 +112,18 @@ def _setup(infile):
             fpos[i, 0] = (dv2 * np.sin(orient) - dv3 * np.cos(orient)) / 3600.0
             fpos[i, 1] = -(dv2 * np.cos(orient) + dv3 * np.sin(orient)) / 3600.0
             print(f"{sca:2d} {sci_x:6.1f} {sci_y:6.1f} {fpos[i, 0]:7.4f} {fpos[i, 1]:7.4f}")
-            xfpa = scapos[sca - 1, 0] - 0.01 * (sci_x - 2043.5)
-            yfpa = scapos[sca - 1, 1] + 0.01 * (sci_y - 2043.5)
-            f.write(f"{xfpa},{yfpa},1.58,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0\n")
+            xfpa[i] = scapos[sca - 1, 0] - 0.01 * (sci_x - 2043.5)
+            yfpa[i] = scapos[sca - 1, 1] + 0.01 * (sci_y - 2043.5)
+            f.write(f"{xfpa[i]},{yfpa[i]},1.58,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0\n")
 
     FPOSLIST[0] = fpos
-    return ns
+    return ns, xfpa, yfpa
 
 
 def _run(infile, cycle):
     """Run the optimizer."""
 
-    ns = _setup(infile)
+    ns, xfpa, yfpa = _setup(infile)
 
     p = np.zeros((npar,))
     r = _residuals(p, cycle)[0]
@@ -152,7 +154,7 @@ def _run(infile, cycle):
 
         print(np.amax(np.abs(change)))
 
-    np.savetxt("tmpdir/astrom_err.dat", np.hstack((FPOSLIST[0], dpos)))
+    np.savetxt("tmpdir/astrom_err.dat", np.hstack((FPOSLIST[0], xfpa[:, None], yfpa[:, None], dpos)))
 
     # note SCA number = ichip + 1
     for ichip in range(18):
