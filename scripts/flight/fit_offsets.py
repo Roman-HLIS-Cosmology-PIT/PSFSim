@@ -105,9 +105,13 @@ def _setup(infile):
             sca = i // ns**2 + 1
             posy = (i % ns**2) // ns
             posx = ns - 1 - i % ns
+
+            # These are in Python format where the lower-left is (0, 0), the "+1" to
+            # PySIAF's Fortran format is in the rsiaf call.
             sci_x = posx * 4088 / (ns - 1) - 0.5
             sci_y = posy * 4088 / (ns - 1) - 0.5
-            v2, v3 = rsiaf[f"WFI{sca:02d}_FULL"].sci_to_tel(sci_x, sci_y)  # arcsec
+            v2, v3 = rsiaf[f"WFI{sca:02d}_FULL"].sci_to_tel(sci_x + 1, sci_y + 1)  # arcsec
+
             dv2, dv3 = v2 - v2c, v3 - v3c
             fpos[i, 0] = (dv2 * np.sin(orient) - dv3 * np.cos(orient)) / 3600.0
             fpos[i, 1] = -(dv2 * np.cos(orient) + dv3 * np.sin(orient)) / 3600.0
