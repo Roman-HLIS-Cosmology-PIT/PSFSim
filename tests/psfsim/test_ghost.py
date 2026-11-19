@@ -9,7 +9,7 @@ def test_ghost():
 
     xan = 0.25
     yan = -0.02
-    rb = RomanRayBundle(xan, yan, 6, "H", wl=1.14e-3, hasE=True, ghostpath=True, savexy=True)
+    rb = RomanRayBundle(xan, yan, 6, "H", wl=1.14e-3, hasE=True, ghostpath=True, savexy=True, cycle=10)
     coef = rb.fit("xyFPA_from_u")
     print(coef)
 

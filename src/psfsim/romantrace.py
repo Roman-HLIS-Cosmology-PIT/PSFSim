@@ -3,7 +3,7 @@ import scipy
 from astropy.io import fits
 
 from .mirror_properties import reflect_RB_model
-from .offsets import fbias_offset, fpa_offset, sm_offset
+from .offsets import offsets
 from .wfi_data import scapos
 
 fratio_scale = 7.935  # scale FPA displacement modes by 8*f^2
@@ -326,6 +326,8 @@ class RayBundle:
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
     idealgeom : bool, optional
         Forces the design model rather than with the best-fit offsets.
+    fbias_offset : dict, optional
+        The field bias offset (if desired).
 
     Attributes
     ----------
@@ -444,9 +446,13 @@ class RayBundle:
         hires=None,
         ovsamp=6,
         idealgeom=True,
+        fbias_offset=None,
     ):
         if jacobian is None:
             jacobian = np.array([[1, 0], [0, 1]])
+
+        if fbias_offset is None:
+            fbias_offset = {"VERTICAL": 0.0, "HORIZONTAL": 0.0}
 
         self.N = N
         self.xan = xan
@@ -1069,6 +1075,7 @@ def _RomanRayBundle(
     outsca=None,
     errs=None,
     savexy=False,
+    cycle=0,
 ):
     """
     Carries out trace through RST optics.
@@ -1117,6 +1124,8 @@ def _RomanRayBundle(
         - arr: np.ndarray, optional: 1D array of amplitudes of each basis mode.
     savexy : bool, optional
         Whether to save the final xy coordinates of the rays on the FPA.
+    cycle : int, optional
+        The cycle number to use if including perturbations (default is 0 = no perturbations).
 
     Returns
     -------
@@ -1143,6 +1152,13 @@ def _RomanRayBundle(
 
     if jacobian is None:
         jacobian = np.array([[1, 0], [0, 1]])
+
+    if cycle not in offsets:
+        raise ValueError(f"Invalid cycle: {cycle}")
+
+    fbias_offset = offsets[cycle]["fbias_offset"]
+    fpa_offset = offsets[cycle]["fpa_offset"]
+    sm_offset = offsets[cycle]["sm_offset"]
 
     wlref = {
         "R": 0.00062,
@@ -1172,6 +1188,7 @@ def _RomanRayBundle(
         hires=hires,
         ovsamp=ovsamp,
         idealgeom=idealgeom,
+        fbias_offset=fbias_offset,
     )
     if errs is not None and not isinstance(errs, dict):
         raise ValueError("errs must be a dictionary or None")
@@ -1600,6 +1617,7 @@ def RomanRayBundle(
     errs=None,
     ghostpath=False,
     savexy=False,
+    cycle=0,
 ):
     """
     Carries out trace through RST optics.
@@ -1647,6 +1665,8 @@ def RomanRayBundle(
         Whether to include ghost from filter reflections between S1/S2. Default is False.
     savexy : bool, optional
         Whether to save the final xy coordinates of the rays on the FPA.
+    cycle : int, optional
+        The cycle number to use if including perturbations (default is 0 = no perturbations).
 
     Returns
     -------
@@ -1703,6 +1723,7 @@ def RomanRayBundle(
         errs=errs,
         ghostpath=ghostpath,
         savexy=savexy,
+        cycle=cycle,
     )
 
     # Now figure out which pixels we need to increase the resolution.
@@ -1732,6 +1753,7 @@ def RomanRayBundle(
         idealmirror=True,
         ghostpath=ghostpath,
         savexy=False,
+        cycle=cycle,
     )
 
     new_values = _apply_lanczos_reweighting(

@@ -439,6 +439,7 @@ class GeometricOptics:
                 ghostpath=self.ghost,
                 idealmirror=self.idealmirror,
                 a_lanczos=self.a_lanczos,
+                cycle=self.cycle,
             )
             if self.ghost:
                 fit = u_from_xyi(raytrace)
@@ -509,6 +510,7 @@ class GeometricOptics:
                 errs=self.perturbations,
                 ghostpath=self.ghost,
                 idealmirror=self.idealmirror,
+                cycle=self.cycle,
             )
 
             # Find bounding box of open pupil
@@ -553,6 +555,7 @@ class GeometricOptics:
                 errs=self.perturbations,
                 ghostpath=self.ghost,
                 idealmirror=self.idealmirror,
+                cycle=self.cycle,
             )
 
             self.rb = self.rb.pad(self.ulen)

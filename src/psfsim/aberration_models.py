@@ -11,7 +11,15 @@ from .wfi_data import remove_tiptilt
 from .zernike import noll_to_zernike, zernike
 
 
-def aberration_gradients(use_filter="W", nn=128, subtract_offset=False, mask=False, basis=basis_set_default):
+def aberration_gradients(
+    use_filter="W",
+    nn=128,
+    subtract_offset=False,
+    mask=False,
+    basis=basis_set_default,
+    fpos=None,
+    cycle=10,
+):
     """
     Build a table of the derivatives of the wavefront error with respect to each surface mode.
 
@@ -27,6 +35,11 @@ def aberration_gradients(use_filter="W", nn=128, subtract_offset=False, mask=Fal
         Whether to null out masked regions.
     basis : psfsim.basis.RomanBasisSet, optional
         The basis set to use.
+    fpos : np.array of float, optional
+        If given, takes an array of shape (npos, 2) of field positions (otherwise defaults to its standard
+        list of 5 on each SCA).
+    cycle : int, optional
+        The cycle number to use for the optical offsets.
 
     Returns
     -------
@@ -38,11 +51,18 @@ def aberration_gradients(use_filter="W", nn=128, subtract_offset=False, mask=Fal
 
     """
 
-    fpos = np.loadtxt(files("psfsim.data").joinpath("fpos.dat"))
+    if fpos is None:
+        fpos = np.loadtxt(files("psfsim.data").joinpath("fpos.dat"))
 
     for j in range(np.shape(fpos)[0]):
         RB = RomanRayBundle(
-            fpos[j, 0], fpos[j, 1], nn, use_filter, hasE=False, errs={"grad": True, "basis": basis}
+            fpos[j, 0],
+            fpos[j, 1],
+            nn,
+            use_filter,
+            hasE=False,
+            errs={"grad": True, "basis": basis},
+            cycle=cycle,
         )
         if j == 0:
             n = np.shape(RB.grad)[-1]  # get number of basis modes
@@ -62,7 +82,13 @@ def aberration_gradients(use_filter="W", nn=128, subtract_offset=False, mask=Fal
 
 
 def aberration_transfer_matrix(
-    use_filter="W", nn=128, n_zernike=22, outdiagnostic=None, basis=basis_set_default
+    use_filter="W",
+    nn=128,
+    n_zernike=22,
+    outdiagnostic=None,
+    basis=basis_set_default,
+    fpos=None,
+    cycle=10,
 ):
     """
     Computes the transfer matrix from surface distortion modes to Zernikes.
@@ -79,6 +105,11 @@ def aberration_transfer_matrix(
         Output FITS file for diagnostics (for debugging only).
     basis : psfsim.basis.RomanBasisSet, optional
         The basis set to use.
+    fpos : np.array of float, optional
+        If given, takes an array of shape (npos, 2) of field positions (otherwise defaults to its standard
+        list of 5 on each SCA).
+    cycle : int, optional
+        The cycle number to use for the optical offsets.
 
     Returns
     -------
@@ -94,12 +125,19 @@ def aberration_transfer_matrix(
         raise ValueError("nn must be even")
 
     # first get the field positions
-    fpos = np.loadtxt(files("psfsim.data").joinpath("fpos.dat"))
+    if fpos is None:
+        fpos = np.loadtxt(files("psfsim.data").joinpath("fpos.dat"))
     npos = np.shape(fpos)[0]
 
     for j in range(npos):
         RB = RomanRayBundle(
-            fpos[j, 0], fpos[j, 1], nn, use_filter, hasE=False, errs={"grad": True, "basis": basis}
+            fpos[j, 0],
+            fpos[j, 1],
+            nn,
+            use_filter,
+            hasE=False,
+            errs={"grad": True, "basis": basis},
+            cycle=cycle,
         )
         if j == 0:
             n = np.shape(RB.grad)[-1]  # get number of basis modes
@@ -151,7 +189,9 @@ def aberration_transfer_matrix(
     return transfer, s_decomp
 
 
-def aberration_transfer_matrix_svd(use_filter="W", nn=128, n_zernike=22, basis=basis_set_default):
+def aberration_transfer_matrix_svd(
+    use_filter="W", nn=128, n_zernike=22, basis=basis_set_default, fpos=None, cycle=10
+):
     """
     Computes the SVD of the transfer matrix from surface distortion modes to Zernikes.
 
@@ -165,6 +205,11 @@ def aberration_transfer_matrix_svd(use_filter="W", nn=128, n_zernike=22, basis=b
         How many Zernikes to use?
     basis : psfsim.basis.RomanBasisSet, optional
         The basis set to use.
+    fpos : np.array of float, optional
+        If given, takes an array of shape (npos, 2) of field positions (otherwise defaults to its standard
+        list of 5 on each SCA).
+    cycle : int, optional
+        The cycle number to use for the optical offsets.
 
     Returns
     -------
@@ -179,7 +224,9 @@ def aberration_transfer_matrix_svd(use_filter="W", nn=128, n_zernike=22, basis=b
 
     """
 
-    T, _ = aberration_transfer_matrix(use_filter=use_filter, nn=nn, n_zernike=n_zernike, basis=basis)
+    T, _ = aberration_transfer_matrix(
+        use_filter=use_filter, nn=nn, n_zernike=n_zernike, basis=basis, fpos=fpos, cycle=cycle
+    )
     T = T.reshape((-1, np.shape(T)[-1]))
     (m, n) = np.shape(T)
     if m < n:
@@ -201,6 +248,9 @@ def extract_basis_coefs(
     verbose=True,
     return_coefs=False,
     basis=basis_set_default,
+    fpos=None,
+    return_delta_zernike=False,
+    cycle=10,
 ):
     """
     Computes basis coefficients from a Zernike file.
@@ -231,6 +281,13 @@ def extract_basis_coefs(
         astrometric model computed by PSFSim and the table provided by the Project.
     basis : psfsim.basis.RomanBasisSet, optional
         The basis set to use.
+    fpos : np.array of float, optional
+        If given, takes an array of shape (npos, 2) of field positions (otherwise defaults to its standard
+        list of 5 on each SCA).
+    return_delta_zernike : bool, optional
+        Returns the list of Zernike errors.
+    cycle : int, optional
+        The cycle number to use for the optical offsets.
 
     Returns
     -------
@@ -245,9 +302,13 @@ def extract_basis_coefs(
 
         where the 2nd axis has order x, y, focus.
 
+        If `return_delta_zernike` is provided and True, then also returns a 2D array of Zernikes at the
+        field position (1st axis) and Zernike component (2nd axis).
+
     """
 
-    fpos = np.loadtxt(files("psfsim.data").joinpath("fpos.dat"))
+    if fpos is None:
+        fpos = np.loadtxt(files("psfsim.data").joinpath("fpos.dat"))
     npos = np.shape(fpos)[0]
 
     # Extract input file and columns
@@ -266,7 +327,7 @@ def extract_basis_coefs(
     pos_table[:, 1] = indata[:, header.index("global_y")]
     pos_ref = np.zeros((npos, 2))
     for j in range(npos):
-        RB = RomanRayBundle(fpos[j, 0], fpos[j, 1], nn, use_filter, hasE=False)
+        RB = RomanRayBundle(fpos[j, 0], fpos[j, 1], nn, use_filter, hasE=False, cycle=cycle)
         pos_ref[j, :] = RB.x_out
     dpos = pos_table - pos_ref
     if verbose:
@@ -311,7 +372,9 @@ def extract_basis_coefs(
     input_zernikes[:, 2] += dpos[:, 1] / (4.0 * fratio_scale)
 
     # get transfer matrix
-    T, s_decomp = aberration_transfer_matrix(use_filter=use_filter, nn=nn, n_zernike=nz, basis=basis)
+    T, s_decomp = aberration_transfer_matrix(
+        use_filter=use_filter, nn=nn, n_zernike=nz, basis=basis, fpos=fpos
+    )
     # and null out data we won't use
     if use_filter[0] in remove_tiptilt:
         for ipos in remove_tiptilt[use_filter]:
@@ -336,6 +399,9 @@ def extract_basis_coefs(
         dpos2[:, :2] = dpos
         dpos2[:, 2] = delta_zernike[:, 3]  # focus
         coefs2, resids2 = np.linalg.lstsq(A, dpos2)[:2]
+
+        if return_delta_zernike:
+            return coefs2, delta_zernike
         return coefs2
 
     # SVD of the free parameters
@@ -390,6 +456,9 @@ def extract_basis_coefs(
         print("rms residual =", (np.sum(delta_zernike[:, 3:] ** 2) / npos) ** 0.5 * 1.0e6, "nm")
         for j in range(1, len(delta_zernike[0, :])):
             print(f"{j+1} {np.mean(delta_zernike[:, j])} {np.std(delta_zernike[:, j])}")
+
+    if return_delta_zernike:
+        return pars, delta_zernike
 
     return pars
 
