@@ -302,8 +302,11 @@ def extract_basis_coefs(
 
         where the 2nd axis has order x, y, focus.
 
-        If `return_delta_zernike` is provided and True, then also returns a 2D array of Zernikes at the
-        field position (1st axis) and Zernike component (2nd axis).
+        If `return_delta_zernike` is provided and True, then also returns:
+
+        - a 2D array of Zernikes at the field position (1st axis) and Zernike component (2nd axis).
+        - a 2D array of the FPA position errors in mm at the field position (1st axis) and direction
+          (2nd axis, length 2). The sense of this is [tabulated - predicted].
 
     """
 
@@ -373,7 +376,12 @@ def extract_basis_coefs(
 
     # get transfer matrix
     T, s_decomp = aberration_transfer_matrix(
-        use_filter=use_filter, nn=nn, n_zernike=nz, basis=basis, fpos=fpos
+        use_filter=use_filter,
+        nn=nn,
+        n_zernike=nz,
+        basis=basis,
+        fpos=fpos,
+        cycle=cycle,
     )
     # and null out data we won't use
     if use_filter[0] in remove_tiptilt:
@@ -401,7 +409,7 @@ def extract_basis_coefs(
         coefs2, resids2 = np.linalg.lstsq(A, dpos2)[:2]
 
         if return_delta_zernike:
-            return coefs2, delta_zernike
+            return coefs2, delta_zernike, dpos
         return coefs2
 
     # SVD of the free parameters
@@ -458,7 +466,7 @@ def extract_basis_coefs(
             print(f"{j+1} {np.mean(delta_zernike[:, j])} {np.std(delta_zernike[:, j])}")
 
     if return_delta_zernike:
-        return pars, delta_zernike
+        return pars, delta_zernike, dpos
 
     return pars
 

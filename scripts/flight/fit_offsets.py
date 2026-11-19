@@ -6,7 +6,7 @@ It is separate and intended to be called once per model update --- don't run thi
 your workflow, since it messes up offsets.py (although it puts it back, this won't be good
 for some parallel workflows).
 
-Call this with the SIAF file as the command-line argument.
+Call this with the SIAF file and cycle number as the command-line argument.
 
 There needs to be a tmpdir/ directory where intermediate products can be stashed.
 
@@ -32,7 +32,7 @@ steps = [1e-4, 1e-4, 1e-4, 0.1, 0.1, 0.05, 0.01, 0.01, 0.01]
 FPOSLIST = [0.0]
 
 
-def _residuals(p):
+def _residuals(p, cycle):
     """
     Gets residuals for a given parameters. Vector p has length npar.
 
@@ -41,28 +41,32 @@ def _residuals(p):
     d(delta y)/dxfpa, d(delta y)/dyfpa, (delta y),
     d(delta focus)/dxfpa, d(delta focus)/dyfpa, (delta focus),
 
+    Here ``cycle`` is the integer cycle number.
+
     """
 
     # checks
     assert len(p) == len(steps) == npar
 
+    ost = offsets.offsets[cycle]
+
     # set biases
     stash = {
-        "fbias_offset": copy.deepcopy(offsets.fbias_offset),
-        "sm_offset": copy.deepcopy(offsets.sm_offset),
-        "fpa_offset": copy.deepcopy(offsets.fpa_offset),
+        "fbias_offset": copy.deepcopy(ost["fbias_offset"]),
+        "sm_offset": copy.deepcopy(ost["sm_offset"]),
+        "fpa_offset": copy.deepcopy(ost["fpa_offset"]),
     }
-    offsets.fbias_offset["VERTICAL"] = p[0]
-    offsets.fbias_offset["HORIZONTAL"] = p[1]
-    offsets.sm_offset["DZ"] = p[2]
-    offsets.fpa_offset["DX"] = p[3]
-    offsets.fpa_offset["DY"] = p[4]
-    offsets.fpa_offset["DZ"] = p[5]
-    offsets.fpa_offset["TILT"] = p[6]
-    offsets.fpa_offset["TIP"] = p[7]
-    offsets.fpa_offset["ROLL"] = p[8]
+    ost["fbias_offset"]["VERTICAL"] = p[0]
+    ost["fbias_offset"]["HORIZONTAL"] = p[1]
+    ost["sm_offset"]["DZ"] = p[2]
+    ost["fpa_offset"]["DX"] = p[3]
+    ost["fpa_offset"]["DY"] = p[4]
+    ost["fpa_offset"]["DZ"] = p[5]
+    ost["fpa_offset"]["TILT"] = p[6]
+    ost["fpa_offset"]["TIP"] = p[7]
+    ost["fpa_offset"]["ROLL"] = p[8]
 
-    rc, dz = extract_basis_coefs(
+    rc, dz, dpos = extract_basis_coefs(
         "tmpdir/zernikes.csv",
         "H",
         nn=64,
@@ -70,17 +74,14 @@ def _residuals(p):
         verbose=False,
         fpos=FPOSLIST[0],
         return_delta_zernike=True,
+        cycle=cycle,
     )
 
     # restore
-    for k in offsets.fbias_offset:
-        offsets.fbias_offset[k] = stash["fbias_offset"][k]
-    for k in offsets.sm_offset:
-        offsets.sm_offset[k] = stash["sm_offset"][k]
-    for k in offsets.fpa_offset:
-        offsets.fpa_offset[k] = stash["fpa_offset"][k]
+    for tg in ["fbias_offset", "sm_offset", "fpa_offset"]:
+        ost[tg] = stash[tg]
 
-    return rc.T.flatten(), dz
+    return rc.T.flatten(), dz, dpos
 
 
 def _setup(infile):
@@ -97,7 +98,7 @@ def _setup(infile):
     orient = np.arctan2(v3u - v3c, v2u - v2c)  # orientation of WFI +Y relative to V2/V3
     print("# v2c, v3c, orient =", v2c, v3c, orient)
     with open("tmpdir/zernikes.csv", "w") as f:
-        f.write("global_x,global_y,wavelength,Z1,Z2,Z3,Z4\n")
+        f.write("global_x,global_y,wavelength,Z1,Z2,Z3,Z4,Z5,Z6,Z7,Z8,Z9,Z10,Z11\n")
         for i in range(npt):
             sca = i // ns**2 + 1
             posy = (i % ns**2) // ns
@@ -111,29 +112,29 @@ def _setup(infile):
             print(f"{sca:2d} {sci_x:6.1f} {sci_y:6.1f} {fpos[i, 0]:7.4f} {fpos[i, 1]:7.4f}")
             xfpa = scapos[sca - 1, 0] - 0.01 * (sci_x - 2043.5)
             yfpa = scapos[sca - 1, 1] + 0.01 * (sci_y - 2043.5)
-            f.write(f"{xfpa},{yfpa},1.58,0.0,0.0,0.0,0.0\n")
+            f.write(f"{xfpa},{yfpa},1.58,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0\n")
 
     FPOSLIST[0] = fpos
 
 
-def _run(infile):
+def _run(infile, cycle):
     """Run the optimizer."""
 
     _setup(infile)
 
     p = np.zeros((npar,))
-    r, dz = _residuals(p)
+    r = _residuals(p, cycle)[0]
 
     # build matrix
     M = np.zeros((npar, npar))
     for i in range(npar):
         dp = np.zeros((npar,))
         dp[i] = steps[i] / 2.0
-        M[:, i] = (_residuals(p + dp)[0] - _residuals(p - dp)[0]) / steps[i]
+        M[:, i] = (_residuals(p + dp, cycle)[0] - _residuals(p - dp, cycle)[0]) / steps[i]
         print(":", i)
 
     for j in range(16):
-        r, dz = _residuals(p)
+        r, dz, dpos = _residuals(p, cycle)
         s = f"{j:2d}\n"
         for k in range(9):
             s += f" {p[k]:16.9E}"
@@ -150,5 +151,7 @@ def _run(infile):
 
         print(np.amax(np.abs(change)))
 
+    np.savetxt("tmpdir/astrom_err.dat", np.hstack((FPOSLIST[0], dpos)))
 
-_run(sys.argv[1])
+
+_run(sys.argv[1], int(sys.argv[2]))
