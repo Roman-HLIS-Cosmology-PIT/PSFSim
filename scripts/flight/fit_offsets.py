@@ -115,12 +115,13 @@ def _setup(infile):
             f.write(f"{xfpa},{yfpa},1.58,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0\n")
 
     FPOSLIST[0] = fpos
+    return ns
 
 
 def _run(infile, cycle):
     """Run the optimizer."""
 
-    _setup(infile)
+    ns = _setup(infile)
 
     p = np.zeros((npar,))
     r = _residuals(p, cycle)[0]
@@ -152,6 +153,21 @@ def _run(infile, cycle):
         print(np.amax(np.abs(change)))
 
     np.savetxt("tmpdir/astrom_err.dat", np.hstack((FPOSLIST[0], dpos)))
+
+    # note SCA number = ichip + 1
+    for ichip in range(18):
+        _dpos = dpos[ichip * ns**2 : (ichip + 1) * ns**2, :]  # positional offset array
+        _idv = np.ones((ns**2, 3))  # independent variables in fit
+
+        for i in range(ns**2):
+            posy = i // ns
+            posx = ns - 1 - i % ns
+            _idv[i, 1] = -40.88 * (posx / (ns - 1) - 0.5)  # FPA-aligned X is flipped from SCI X
+            _idv[i, 2] = 40.88 * (posy / (ns - 1) - 0.5)  # positions in mm
+        coef, resid, _, _ = np.linalg.lstsq(_idv, _dpos)
+
+        rmse = np.sqrt(np.sum(resid) / ns**2)
+        print(ichip, rmse, coef)
 
 
 _run(sys.argv[1], int(sys.argv[2]))
