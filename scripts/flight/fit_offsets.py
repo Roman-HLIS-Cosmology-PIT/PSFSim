@@ -26,7 +26,7 @@ from psfsim.aberration_models import extract_basis_coefs
 from psfsim.wfi_data import scapos
 
 npar = 9  # can turn down the number of parameters here
-steps = [1e-4, 1e-4, 1e-4, 0.1, 0.1, 0.05, 0.01, 0.01, 0.01, 1e-4, 1e-4][:npar]
+steps = [1e-4, 1e-4, 1e-4, 0.1, 0.1, 0.05, 0.01, 0.01, 0.01, 0.01, 0.01][:npar]
 
 
 FPOSLIST = [0.0]
@@ -94,9 +94,9 @@ def _residuals(p, cycle):
         cdist = np.zeros(2)
         a = np.ones((npos, 4))
         a[:, 1:3] = FPOSLIST[0]
-        a[:, 3] = FPOSLIST[0][:, 0]**2
+        a[:, 3] = FPOSLIST[0][:, 0] ** 2
         cdist[0] = np.linalg.lstsq(a, dpos[:, 0])[0][-1]
-        a[:, 3] = FPOSLIST[0][:, 0]**2 
+        a[:, 3] = FPOSLIST[0][:, 0] ** 2
         cdist[1] = np.linalg.lstsq(a, dpos[:, 1])[0][-1]
         resid = np.concatenate((resid, cdist))
 
