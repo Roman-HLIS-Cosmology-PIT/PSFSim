@@ -20,26 +20,29 @@ class FPAOffsetContext:
     pdelta : dict
         The parameters to change, and by how much. So for example, ``{"DZ": 0.05}``
         changes the FPA ``DZ`` offset by +0.05 mm.
+    cycle : int,  optional
+        Which cycle to patch.
 
     """
 
-    def __init__(self, pdelta):
+    def __init__(self, pdelta, cycle=10):
         self.pdelta = pdelta
+        self.offsets = psfsim.offsets.offsets[cycle]
 
     def __enter__(self):
         self.orig = {}
         for k in self.pdelta:
-            if k in psfsim.offsets.fpa_offset:
+            if k in self.offsets["fpa_offset"]:
                 try:
-                    u = float(psfsim.offsets.fpa_offset[k])
+                    u = float(self.offsets["fpa_offset"][k])
                 except ValueError:
                     continue
                 self.orig[k] = u
-                psfsim.offsets.fpa_offset[k] += self.pdelta[k]
+                self.offsets["fpa_offset"][k] += self.pdelta[k]
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         for k in self.orig:
-            psfsim.offsets.fpa_offset[k] = self.orig[k]
+            self.offsets["fpa_offset"][k] = self.orig[k]
         return False
 
 
@@ -91,15 +94,15 @@ def test_centroid():
     use_filter = "J"
 
     # Get original position
-    rb = psfsim.romantrace.RomanRayBundle(xan, yan, N, use_filter)
+    rb = psfsim.romantrace.RomanRayBundle(xan, yan, N, use_filter, cycle=10)
     u = np.mean((rb.u[N // 2 - 1 : N // 2 + 1, N // 2 - 1 : N // 2 + 1]), axis=(0, 1))
 
     # Now move the FPA.
     # This changes zde in the rotated frame by +0.1 mm, i.e., moves the FPA
     # 0.1 mm *away from* the element wheel.
-    with FPAOffsetContext({"DZ": -0.1}):
-        xnew = psfsim.romantrace.RomanRayBundle(xan, yan, N, use_filter).x_out
-    xorig = psfsim.romantrace.RomanRayBundle(xan, yan, N, use_filter).x_out
+    with FPAOffsetContext({"DZ": -0.1}, cycle=10):
+        xnew = psfsim.romantrace.RomanRayBundle(xan, yan, N, use_filter, cycle=10).x_out
+    xorig = psfsim.romantrace.RomanRayBundle(xan, yan, N, use_filter, cycle=10).x_out
     assert np.allclose(xorig, rb.x_out)
 
     delta = xnew - xorig

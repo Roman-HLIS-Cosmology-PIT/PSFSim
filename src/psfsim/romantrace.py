@@ -3,7 +3,8 @@ import scipy
 from astropy.io import fits
 
 from .mirror_properties import reflect_RB_model
-from .offsets import fbias_offset, fpa_offset, sm_offset
+from .offsets import offsets
+from .utils.fpa_utils import get_closest_sca_from_fpa
 from .wfi_data import scapos
 
 fratio_scale = 7.935  # scale FPA displacement modes by 8*f^2
@@ -326,6 +327,8 @@ class RayBundle:
         Oversamples cells in the entrance pupil by this factor; only used if `hires` is given.
     idealgeom : bool, optional
         Forces the design model rather than with the best-fit offsets.
+    fbias_offset : dict, optional
+        The field bias offset (if desired).
 
     Attributes
     ----------
@@ -444,9 +447,13 @@ class RayBundle:
         hires=None,
         ovsamp=6,
         idealgeom=True,
+        fbias_offset=None,
     ):
         if jacobian is None:
             jacobian = np.array([[1, 0], [0, 1]])
+
+        if fbias_offset is None:
+            fbias_offset = {"VERTICAL": 0.0, "HORIZONTAL": 0.0}
 
         self.N = N
         self.xan = xan
@@ -1069,6 +1076,8 @@ def _RomanRayBundle(
     outsca=None,
     errs=None,
     savexy=False,
+    cycle=0,
+    force_sca=None,
 ):
     """
     Carries out trace through RST optics.
@@ -1117,6 +1126,11 @@ def _RomanRayBundle(
         - arr: np.ndarray, optional: 1D array of amplitudes of each basis mode.
     savexy : bool, optional
         Whether to save the final xy coordinates of the rays on the FPA.
+    cycle : int, optional
+        The cycle number to use if including perturbations (default is 0 = no perturbations).
+    force_sca : int, optional
+        If given, force the ray trace to project onto the plane of the indicated SCA (1..18).
+        The default is to choose the SCA closest to where that ray lands.
 
     Returns
     -------
@@ -1139,10 +1153,19 @@ def _RomanRayBundle(
         If ''savexy'' is True, then also provides:
             RB.xyFPA : shape (N,N,2), the x and y coordinates of the rays on the FPA in mm.
 
+        The SCA that we land on is set in RB.sca.
+
     """
 
     if jacobian is None:
         jacobian = np.array([[1, 0], [0, 1]])
+
+    if cycle not in offsets:
+        raise ValueError(f"Invalid cycle: {cycle}")
+
+    fbias_offset = offsets[cycle]["fbias_offset"]
+    fpa_offset = offsets[cycle]["fpa_offset"]
+    sm_offset = offsets[cycle]["sm_offset"]
 
     wlref = {
         "R": 0.00062,
@@ -1172,11 +1195,13 @@ def _RomanRayBundle(
         hires=hires,
         ovsamp=ovsamp,
         idealgeom=idealgeom,
+        fbias_offset=fbias_offset,
     )
     if errs is not None and not isinstance(errs, dict):
         raise ValueError("errs must be a dictionary or None")
     grad = errs["grad"] if errs is not None and "grad" in errs else False
     RB.grad = np.zeros(np.shape(RB.s) + (errs["basis"].N,)) if grad else None
+    RB.sca = force_sca  # which chip we are targeting (might be None)
 
     # set up the array of coefficients if we need it
     arr = None
@@ -1324,9 +1349,11 @@ def _RomanRayBundle(
     )
 
     # Secondary mirror
-    sm_offset_use = 0.0 if idealgeom else sm_offset["DZ"]
+    sm_offset_use = [0.0, 0.0, 0.0] if idealgeom else [sm_offset["DX"], sm_offset["DY"], sm_offset["DZ"]]
     RB.intersect_surface_and_reflect(
-        build_transform_matrix(zde=2945.4 + sm_offset_use, ade=-180, cde=180),
+        build_transform_matrix(
+            xde=sm_offset_use[0], yde=sm_offset_use[1], zde=2945.4 + sm_offset_use[2], ade=-180, cde=180
+        ),
         Rinv=-1.0 / 1299.6164,
         K=-1.6338521231,
         activeZone=[{"CIR": 266.255}],
@@ -1542,6 +1569,12 @@ def _RomanRayBundle(
             cde=fpa_offset["ROLL"],
         )
 
+    # select the SCA
+    if RB.sca is None:
+        _subxyFPA, _, _ = RB.intersect_surface(TrFPA, Rinv=0.0, K=0.0, update=False)
+        cut = (N - 3) // 2
+        RB.sca = get_closest_sca_from_fpa(np.mean(_subxyFPA[cut:-cut, cut:-cut, :], axis=(0, 1)))
+
     xyFPA, _, _ = RB.intersect_surface(TrFPA, Rinv=0.0, K=0.0, update=True)
     if savexy:
         RB.xyFPA = xyFPA
@@ -1580,9 +1613,6 @@ def _RomanRayBundle(
     return RB
 
 
-# ELLE DOING STUFF HERE TOO
-
-
 def RomanRayBundle(
     xan,
     yan,
@@ -1600,6 +1630,8 @@ def RomanRayBundle(
     errs=None,
     ghostpath=False,
     savexy=False,
+    cycle=0,
+    force_sca=None,
 ):
     """
     Carries out trace through RST optics.
@@ -1647,6 +1679,11 @@ def RomanRayBundle(
         Whether to include ghost from filter reflections between S1/S2. Default is False.
     savexy : bool, optional
         Whether to save the final xy coordinates of the rays on the FPA.
+    cycle : int, optional
+        The cycle number to use if including perturbations (default is 0 = no perturbations).
+    force_sca : int, optional
+        If given, force the ray trace to project onto the plane of the indicated SCA (1..18).
+        The default is to choose the SCA closest to where that ray lands.
 
     Returns
     -------
@@ -1669,6 +1706,8 @@ def RomanRayBundle(
             parameter.
         If ''savexy'' is True, then also provides:
             RB.xyFPA : shape (N,N,2), the x and y coordinates of the rays on the FPA in mm.
+
+        The SCA that we land on is set in RB.sca.
 
     See Also
     --------
@@ -1703,6 +1742,7 @@ def RomanRayBundle(
         errs=errs,
         ghostpath=ghostpath,
         savexy=savexy,
+        cycle=cycle,
     )
 
     # Now figure out which pixels we need to increase the resolution.
@@ -1732,6 +1772,8 @@ def RomanRayBundle(
         idealmirror=True,
         ghostpath=ghostpath,
         savexy=False,
+        cycle=cycle,
+        force_sca=RB.sca,
     )
 
     new_values = _apply_lanczos_reweighting(
