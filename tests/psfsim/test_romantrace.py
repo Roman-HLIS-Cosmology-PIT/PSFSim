@@ -9,6 +9,8 @@ def test_romantrace():
     coefs = rb.fit("u_from_xyi")
     print(coefs)
 
+    assert rb.sca == 9  # check that we landed on the right chip
+
     # scale matrix per pixel (1 pix = 0.01 mm, inverted)
     m = -coefs["Slope"] * 648000.0 / np.pi * 0.01
     assert 0.1055 < m[0, 0] < 0.1075

@@ -4,6 +4,7 @@ from astropy.io import fits
 
 from .mirror_properties import reflect_RB_model
 from .offsets import offsets
+from .utils.fpa_utils import get_closest_sca_from_fpa
 from .wfi_data import scapos
 
 fratio_scale = 7.935  # scale FPA displacement modes by 8*f^2
@@ -1152,6 +1153,8 @@ def _RomanRayBundle(
         If ''savexy'' is True, then also provides:
             RB.xyFPA : shape (N,N,2), the x and y coordinates of the rays on the FPA in mm.
 
+        The SCA that we land on is set in RB.sca.
+
     """
 
     if jacobian is None:
@@ -1198,6 +1201,7 @@ def _RomanRayBundle(
         raise ValueError("errs must be a dictionary or None")
     grad = errs["grad"] if errs is not None and "grad" in errs else False
     RB.grad = np.zeros(np.shape(RB.s) + (errs["basis"].N,)) if grad else None
+    RB.sca = force_sca  # which chip we are targeting (might be None)
 
     # set up the array of coefficients if we need it
     arr = None
@@ -1565,6 +1569,12 @@ def _RomanRayBundle(
             cde=fpa_offset["ROLL"],
         )
 
+    # select the SCA
+    if RB.sca is None:
+        _subxyFPA, _, _ = RB.intersect_surface(TrFPA, Rinv=0.0, K=0.0, update=False)
+        cut = (N - 3) // 2
+        RB.sca = get_closest_sca_from_fpa(np.mean(_subxyFPA[cut:-cut, cut:-cut, :], axis=(0, 1)))
+
     xyFPA, _, _ = RB.intersect_surface(TrFPA, Rinv=0.0, K=0.0, update=True)
     if savexy:
         RB.xyFPA = xyFPA
@@ -1601,9 +1611,6 @@ def _RomanRayBundle(
                     RB.s += arr[b.start + j] * dz[j] * w
 
     return RB
-
-
-# ELLE DOING STUFF HERE TOO
 
 
 def RomanRayBundle(
@@ -1700,6 +1707,8 @@ def RomanRayBundle(
         If ''savexy'' is True, then also provides:
             RB.xyFPA : shape (N,N,2), the x and y coordinates of the rays on the FPA in mm.
 
+        The SCA that we land on is set in RB.sca.
+
     See Also
     --------
     _RomanRayBundle
@@ -1764,6 +1773,7 @@ def RomanRayBundle(
         ghostpath=ghostpath,
         savexy=False,
         cycle=cycle,
+        force_sca=RB.sca,
     )
 
     new_values = _apply_lanczos_reweighting(
