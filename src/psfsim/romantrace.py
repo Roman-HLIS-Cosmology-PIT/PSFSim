@@ -1076,6 +1076,7 @@ def _RomanRayBundle(
     errs=None,
     savexy=False,
     cycle=0,
+    force_sca=None,
 ):
     """
     Carries out trace through RST optics.
@@ -1126,6 +1127,9 @@ def _RomanRayBundle(
         Whether to save the final xy coordinates of the rays on the FPA.
     cycle : int, optional
         The cycle number to use if including perturbations (default is 0 = no perturbations).
+    force_sca : int, optional
+        If given, force the ray trace to project onto the plane of the indicated SCA (1..18).
+        The default is to choose the SCA closest to where that ray lands.
 
     Returns
     -------
@@ -1620,6 +1624,7 @@ def RomanRayBundle(
     ghostpath=False,
     savexy=False,
     cycle=0,
+    force_sca=None,
 ):
     """
     Carries out trace through RST optics.
@@ -1669,6 +1674,9 @@ def RomanRayBundle(
         Whether to save the final xy coordinates of the rays on the FPA.
     cycle : int, optional
         The cycle number to use if including perturbations (default is 0 = no perturbations).
+    force_sca : int, optional
+        If given, force the ray trace to project onto the plane of the indicated SCA (1..18).
+        The default is to choose the SCA closest to where that ray lands.
 
     Returns
     -------
