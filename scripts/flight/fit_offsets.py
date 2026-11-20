@@ -25,8 +25,8 @@ from psfsim import offsets
 from psfsim.aberration_models import extract_basis_coefs
 from psfsim.wfi_data import scapos
 
-npar = 9
-steps = [1e-4, 1e-4, 1e-4, 0.1, 0.1, 0.05, 0.01, 0.01, 0.01]
+npar = 9  # can turn down the number of parameters here
+steps = [1e-4, 1e-4, 1e-4, 0.1, 0.1, 0.05, 0.01, 0.01, 0.01, 1e-4, 1e-4][:npar]
 
 
 FPOSLIST = [0.0]
@@ -65,6 +65,9 @@ def _residuals(p, cycle):
     ost["fpa_offset"]["TILT"] = p[6]
     ost["fpa_offset"]["TIP"] = p[7]
     ost["fpa_offset"]["ROLL"] = p[8]
+    if npar > 9:
+        ost["sm_offset"]["DX"] = p[9]
+        ost["sm_offset"]["DY"] = p[10]
 
     rc, dz, dpos = extract_basis_coefs(
         "tmpdir/zernikes.csv",
@@ -81,7 +84,23 @@ def _residuals(p, cycle):
     for tg in ["fbias_offset", "sm_offset", "fpa_offset"]:
         ost[tg] = stash[tg]
 
-    return rc.T.flatten(), dz, dpos
+    # get distortion templates: dxt and dyt are arrays of possible x and y-offsets
+    npos = np.shape(FPOSLIST[0])[0]  # number of field points being used
+
+    resid = rc.T.flatten()
+
+    # if constraining more than 9 parameters, add the corresponsing moments to the residual array
+    if npar > 9:
+        cdist = np.zeros(2)
+        a = np.ones((npos, 4))
+        a[:, 1:3] = FPOSLIST[0]
+        a[:, 3] = FPOSLIST[0][:, 0]**2
+        cdist[0] = np.linalg.lstsq(a, dpos[:, 0])[0][-1]
+        a[:, 3] = FPOSLIST[0][:, 0]**2 
+        cdist[1] = np.linalg.lstsq(a, dpos[:, 1])[0][-1]
+        resid = np.concatenate((resid, cdist))
+
+    return resid, dz, dpos
 
 
 def _setup(infile):
@@ -138,15 +157,29 @@ def _run(infile, cycle):
         dp = np.zeros((npar,))
         dp[i] = steps[i] / 2.0
         M[:, i] = (_residuals(p + dp, cycle)[0] - _residuals(p - dp, cycle)[0]) / steps[i]
-        print(":", i)
+        print(":", i, M[:, i])
+
+    print("M =")
+    mstr = ""
+    for j in range(npar):
+        for i in range(npar):
+            mstr += f" {M[j,i]:12.5E}"
+        mstr += "\n"
+    print(mstr)
+    print("")
+
+    U, S, Vh = np.linalg.svd(M)
+    print("S=", S)
+    print("left sing ev", U[:, -1])
+    print("right sing ev", Vh[-1, :])
 
     for j in range(16):
         r, dz, dpos = _residuals(p, cycle)
         s = f"{j:2d}\n"
-        for k in range(9):
+        for k in range(npar):
             s += f" {p[k]:16.9E}"
         s += "\n"
-        for k in range(9):
+        for k in range(npar):
             s += f" {r[k]:16.9E}"
         s += "\n"
         for k in range(np.shape(dz)[-1]):

@@ -16,6 +16,9 @@ This is a nested dictionary with the cycle number at the top level. Below that i
   - HORIZONTAL  # transverse offset
 
 - sm_offset  # offset of SM (+ = away from PM)
+  - DX  # x offset in mm
+  - DY  # y offset in mm
+  - DZ  # z offset in mm
 
 - fpa_offset
   - DX  # x offset in mm
@@ -40,6 +43,8 @@ null_offsets = {
         "HORIZONTAL": 0.0,
     },
     "sm_offset": {
+        "DX": 0.0,
+        "DY": 0.0,
         "DZ": 0.0,
     },
     "fpa_offset": {
@@ -63,6 +68,8 @@ offsets = {
             "HORIZONTAL": 6.975702366e-05,
         },
         "sm_offset": {
+            "DX": 0.0,
+            "DY": 0.0,
             "DZ": 6.254670791e-03,
         },
         "fpa_offset": {
@@ -81,6 +88,8 @@ offsets = {
             "HORIZONTAL": 6.975702366e-05,
         },
         "sm_offset": {
+            "DX": 0.0,
+            "DY": 0.0,
             "DZ": 6.254670791e-03,
         },
         "fpa_offset": {

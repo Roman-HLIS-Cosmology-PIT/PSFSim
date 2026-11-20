@@ -302,6 +302,7 @@ def extract_basis_coefs(
 
         where the 2nd axis has order x, y, focus.
 
+    np.ndarray, np.ndarray
         If `return_delta_zernike` is provided and True, then also returns:
 
         - a 2D array of Zernikes at the field position (1st axis) and Zernike component (2nd axis).

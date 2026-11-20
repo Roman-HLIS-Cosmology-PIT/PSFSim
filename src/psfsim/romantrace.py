@@ -1341,9 +1341,11 @@ def _RomanRayBundle(
     )
 
     # Secondary mirror
-    sm_offset_use = 0.0 if idealgeom else sm_offset["DZ"]
+    sm_offset_use = [0.0, 0.0, 0.0] if idealgeom else [sm_offset["DX"], sm_offset["DY"], sm_offset["DZ"]]
     RB.intersect_surface_and_reflect(
-        build_transform_matrix(zde=2945.4 + sm_offset_use, ade=-180, cde=180),
+        build_transform_matrix(
+            xde=sm_offset_use[0], yde=sm_offset_use[1], zde=2945.4 + sm_offset_use[2], ade=-180, cde=180
+        ),
         Rinv=-1.0 / 1299.6164,
         K=-1.6338521231,
         activeZone=[{"CIR": 266.255}],
